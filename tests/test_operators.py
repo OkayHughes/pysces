@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import np, jnp, eps
+from spherical_spectral_element.config import np, jnp, eps, jax_wrapper
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.assembly import dss_scalar
 from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
@@ -19,9 +19,34 @@ def test_vector_identites():
 
   grad = sphere_gradient(fn, grid)
   discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
-                             inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) -
+                             inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                              inner_prod(fn, sphere_divergence(v, grid), grid))
   assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
+
+def test_vector_identites_rand():
+  np.random.seed(0)
+  
+  nx = 31
+  grid, dims = create_quasi_uniform_grid(nx)
+  for _ in range(10):
+    fn = jax_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
+    fn = dss_scalar(fn, grid, dims)
+    grad = sphere_gradient(fn, grid)
+    vort = sphere_vorticity(grad, grid)
+    grad = jnp.stack((dss_scalar(grad[:, :, :, 0], grid, dims),
+                      dss_scalar(grad[:, :, :, 1], grid, dims)), axis=-1)
+    vort = dss_scalar(vort, grid, dims)
+    iprod_vort = inner_prod(vort, vort, grid)
+    assert (jnp.allclose(iprod_vort, 0, atol=eps))
+    v = jax_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
+    v = jnp.stack((dss_scalar(v[:, :, :, 0], grid, dims),
+                   dss_scalar(v[:, :, :, 1], grid, dims)), axis=-1)
+    div = dss_scalar(sphere_divergence(v, grid), grid, dims)
+    
+    discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
+                              inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                              inner_prod(fn, div, grid))
+    assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=1e-11))
 
 
 def test_divergence():
