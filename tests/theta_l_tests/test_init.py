@@ -1,11 +1,10 @@
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.operators import sphere_gradient
-
 from spherical_spectral_element.assembly import dss_scalar
 from .vertical_grids import cam30
 from spherical_spectral_element.theta_l.vertical_coordinate import (create_vertical_grid,
                                                                     mass_from_coordinate_interface)
-from spherical_spectral_element.theta_l.init_model import z_from_p_monotonic, init_model_p_hydro
+from spherical_spectral_element.theta_l.init_model import z_from_p_monotonic, init_model_pressure
 from spherical_spectral_element.theta_l.constants import init_config
 from spherical_spectral_element.theta_l.infra import get_delta
 from spherical_spectral_element.config import jnp
@@ -15,7 +14,7 @@ from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_c
                                                                       evaluate_state)
 
 
-def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, mountain=False):
+def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, mountain=False, hydrostatic=True, eps=1e-10):
   lat = h_grid["physical_coords"][:, :, :, 0]
 
   def z_pi_surf_func(lat, lon):
@@ -35,16 +34,25 @@ def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, 
 
   def Tv_func(lat, lon, z):
     return evaluate_state(lat, lon, z, test_config, deep=deep)[3]
+  
+  def w_func(lat, lon, z):
+    if hydrostatic:
+      return 0.0
+    else:
+      return jnp.zeros_like(z)
 
-  model_state, tracer_state = init_model_p_hydro(z_pi_surf_func,
-                                                 p_func,
-                                                 Tv_func,
-                                                 u_func,
-                                                 v_func,
-                                                 Q_func,
-                                                 h_grid, v_grid,
-                                                 model_config,
-                                                 dims)
+  model_state, tracer_state = init_model_pressure(z_pi_surf_func,
+                                                  p_func,
+                                                  Tv_func,
+                                                  u_func,
+                                                  v_func,
+                                                  Q_func,
+                                                  h_grid, v_grid,
+                                                  model_config,
+                                                  dims,
+                                                  w_func=w_func,
+                                                  hydrostatic=hydrostatic,
+                                                  eps=eps)
   return model_state, tracer_state
 
 
