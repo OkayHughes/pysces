@@ -14,9 +14,9 @@ from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_c
                                                                       evaluate_pressure_temperature,
                                                                       evaluate_state)
 
+
 def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, mountain=False):
   lat = h_grid["physical_coords"][:, :, :, 0]
-  lon = h_grid["physical_coords"][:, :, :, 1]
 
   def z_pi_surf_func(lat, lon):
     return evaluate_surface_state(lat, lon, test_config, deep=deep, mountain=mountain)
@@ -46,6 +46,7 @@ def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, 
                                                  model_config,
                                                  dims)
   return model_state, tracer_state
+
 
 def test_z_p_func():
   config = init_config()

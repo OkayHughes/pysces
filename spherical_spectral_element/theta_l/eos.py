@@ -11,7 +11,7 @@ def get_r_hat_sq_avg(r_hat_i):
 
 def p_exner_nonhydrostatic(vtheta_dpi, dphi, r_hat_sq_avg, config):
   p0 = config["p0"]
-  pnh_over_exner = -config["Rgas"] * vtheta_dpi/ dphi
+  pnh_over_exner = -config["Rgas"] * vtheta_dpi / dphi
   pnh_over_exner /= r_hat_sq_avg
   pnh = p0 * (pnh_over_exner / p0)**(1.0 /
                                      (1.0 - config["Rgas"] /
@@ -58,6 +58,8 @@ def get_balanced_phi(state, v_grid, config):
   p = get_p_mid(state, v_grid, config)
   dphi = config["Rgas"] * (state["vtheta_dpi"] *
                            (p / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])
-  dphi_augment = jnp.concatenate((dphi[:, :, :, :-1], (dphi[:, :, :, -1] + state["phi_surf"])[:, :, :, jnp.newaxis]), axis=-1)[:, :, :, ::-1]
+  dphi_augment = jnp.concatenate((dphi[:, :, :, :-1],
+                                  (dphi[:, :, :, -1] + state["phi_surf"])[:, :, :, jnp.newaxis]),
+                                 axis=-1)[:, :, :, ::-1]
   phi_i_above_surf = jnp.cumsum(dphi_augment, axis=-1)
   return jnp.concatenate((phi_i_above_surf[:, :, :, ::-1], state["phi_surf"][:, :, :, jnp.newaxis]), axis=-1)

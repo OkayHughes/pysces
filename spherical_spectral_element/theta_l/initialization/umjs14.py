@@ -113,8 +113,7 @@ def get_r_hat(z, config, deep=False):
   return r_hat
 
 
-def get_z_surface(lat, lon, config, mountain
-                  =False):
+def get_z_surface(lat, lon, config, mountain=False):
   return jnp.zeros_like(lat)
 
 
