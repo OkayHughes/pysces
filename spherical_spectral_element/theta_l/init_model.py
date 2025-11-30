@@ -22,7 +22,7 @@ def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
 
 def init_model_p_hydro(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func, h_grid, v_grid, config, dims):
   lat = h_grid["physical_coords"][:, :, :, 0]
-  lon = h_grid["physical_coords"][:, :, :, 0]
+  lon = h_grid["physical_coords"][:, :, :, 1]
   z_surf, pi_surf = z_pi_surf_func(lat, lon)
   p_mid = mass_from_coordinate_midlev(pi_surf, v_grid)
   p_int = mass_from_coordinate_interface(pi_surf, v_grid)

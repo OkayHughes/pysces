@@ -28,7 +28,15 @@ def get_umjs_config(T0E=310,
                     Rvap=461.50,
                     gravity=9.81,
                     model_config=None,
-                    alpha=0.5):
+                    alpha=0.5,
+                    mountain_heights=[2000.0, 2000.0],
+                    mountain_lats=[jnp.pi/4.0, jnp.pi/4.0],
+                    mountain_lons=[(7.0 / 9.0 ) * jnp.pi,
+                                   (0.4) * jnp.pi],
+                    mountain_lat_widths=[40.0 * jnp.pi / 180.0,
+                                         40.0 * jnp.pi / 180.0],
+                    mountain_lon_widths=[7.0 * jnp.pi / 180.0,
+                                         7.0 * jnp.pi / 180.0]):
   moistqs = 1e-12
   dx_epsilon = 1e-5
   if model_config:
@@ -37,6 +45,8 @@ def get_umjs_config(T0E=310,
     Rgas = model_config["Rgas"]
     Rvap = model_config["Rvap"]
     gravity = model_config["gravity"]
+  mountain_lat_scales = [lat_width / (2.0 * (-jnp.log(0.1))**(1.0 / 6.0) ) for lat_width in mountain_lat_widths]
+  mountain_lon_scales = [lon_width / (2.0 * (-jnp.log(0.1))**(1.0 / 2.0) ) for lon_width in mountain_lon_widths]
   return {"T0E": T0E,
           "T0P": T0P,
           "B": B,
@@ -66,6 +76,11 @@ def get_umjs_config(T0E=310,
           "Rvap": Rvap,
           "gravity": gravity,
           "alpha": alpha,
+          "mountain_heights": mountain_heights,
+          "mountain_lats": mountain_lats,
+          "mountain_lons": mountain_lons,
+          "mountain_lat_scales": mountain_lat_scales,
+          "mountain_lon_scales": mountain_lon_scales,
           }
 
 
@@ -114,7 +129,25 @@ def get_r_hat(z, config, deep=False):
 
 
 def get_z_surface(lat, lon, config, mountain=False):
-  return jnp.zeros_like(lat)
+  if mountain:
+    zs = jnp.zeros_like(lat)
+    for (mountain_height,
+         mountain_lat,
+         mountain_lon,
+         mountain_lat_scale,
+         mountain_lon_scale) in zip(config["mountain_heights"],
+                                    config["mountain_lats"],
+                                    config["mountain_lons"],
+                                    config["mountain_lat_scales"],
+                                    config["mountain_lon_scales"]):
+      
+      d0=jnp.mod(lon - mountain_lon, 2.0 * jnp.pi)
+      d0=jnp.minimum(d0, 2.0 * jnp.pi - d0)
+      zs += mountain_height * jnp.exp(-(((lat - mountain_lat)/ mountain_lat_scale)**6 +
+                                        (d0 / mountain_lon_scale)**2))
+  else:
+    zs = jnp.zeros_like(lat)
+  return zs
 
 
 def evaluate_pressure_temperature(z, lat, config, deep=False):
@@ -155,7 +188,7 @@ def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
   return z_surface, p_surface
 
 
-def evaluate_state(lat, lon, z, config, deep=False, mountain=False, moist=False):
+def evaluate_state(lat, lon, z, config, deep=False, moist=False):
   K = config["K"]
   inttau2 = get_inttau2(z, config)
   r_hat = get_r_hat(z, config, deep=deep)

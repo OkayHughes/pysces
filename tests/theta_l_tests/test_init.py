@@ -28,13 +28,13 @@ def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, 
     return evaluate_pressure_temperature(z, lat, test_config, deep=deep)[0]
 
   def u_func(lat, lon, z):
-    return evaluate_state(lat, lon, z, test_config, deep=deep, mountain=mountain)[0]
+    return evaluate_state(lat, lon, z, test_config, deep=deep)[0]
 
   def v_func(lat, lon, z):
-    return evaluate_state(lat, lon, z, test_config, deep=deep, mountain=mountain)[1]
+    return evaluate_state(lat, lon, z, test_config, deep=deep)[1]
 
   def Tv_func(lat, lon, z):
-    return evaluate_state(lat, lon, z, test_config, deep=deep, mountain=mountain)[3]
+    return evaluate_state(lat, lon, z, test_config, deep=deep)[3]
 
   model_state, tracer_state = init_model_p_hydro(z_pi_surf_func,
                                                  p_func,
@@ -71,17 +71,18 @@ def test_init():
                                 cam30["p0"])
   lat = h_grid["physical_coords"][:, :, :, 0]
   lon = h_grid["physical_coords"][:, :, :, 1]
-  model_config = init_config()
-  test_config = get_umjs_config(model_config=model_config)
-  model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims)
-  z_surf, ps = evaluate_surface_state(lat, lon, test_config)
-  phi_surf = model_config["gravity"] * z_surf
-  grad_phi_surf = sphere_gradient(phi_surf,
-                                  h_grid, a=model_config["radius_earth"])
-  grad_phi_surf_dss = jnp.stack((dss_scalar(grad_phi_surf[:, :, :, 0], h_grid, dims),
-                                 dss_scalar(grad_phi_surf[:, :, :, 1], h_grid, dims)), axis=-1)
-  p_int = mass_from_coordinate_interface(ps, v_grid)
-  dpi = get_delta(p_int)
-  assert (jnp.allclose(dpi, model_state["dpi"]))
-  assert (jnp.allclose(phi_surf, model_state["phi_surf"]))
-  assert (jnp.allclose(grad_phi_surf_dss, model_state["grad_phi_surf"]))
+  for mountain in [False, True]:
+    model_config = init_config()
+    test_config = get_umjs_config(model_config=model_config)
+    model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=mountain)
+    z_surf, ps = evaluate_surface_state(lat, lon, test_config, mountain=mountain)
+    phi_surf = model_config["gravity"] * z_surf
+    grad_phi_surf = sphere_gradient(phi_surf,
+                                    h_grid, a=model_config["radius_earth"])
+    grad_phi_surf_dss = jnp.stack((dss_scalar(grad_phi_surf[:, :, :, 0], h_grid, dims),
+                                  dss_scalar(grad_phi_surf[:, :, :, 1], h_grid, dims)), axis=-1)
+    p_int = mass_from_coordinate_interface(ps, v_grid)
+    dpi = get_delta(p_int)
+    assert (jnp.allclose(dpi, model_state["dpi"]))
+    assert (jnp.allclose(phi_surf, model_state["phi_surf"]))
+    assert (jnp.allclose(grad_phi_surf_dss, model_state["grad_phi_surf"]))
