@@ -52,6 +52,8 @@ def create_spectral_element_grid(latlon,
                                  jax=use_jax,
                                  device=""):
   dss_matrix, dss_matrix_unscaled, dss_triple = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy)
+  # note: test code sometimes sets jax=False to test jax vs stock numpy
+  # this extra conditional is not extraneous.
   if jax:
     wrapper = jax_wrapper
   else:
@@ -70,7 +72,6 @@ def create_spectral_element_grid(latlon,
                                       gll_to_sphere_jacobian_inv)),
          "deriv": wrapper(deriv["deriv"]),
          "gll_weights": wrapper(deriv["gll_weights"]),
-         "npt": npt,
          "dss_triple": (wrapper(dss_triple[0]),
                         wrapper(dss_triple[1]),
                         wrapper(dss_triple[2]),
