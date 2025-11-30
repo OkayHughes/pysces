@@ -11,9 +11,9 @@ def vel_model_to_interface(field_model, dpi, dpi_i):
 
 def model_to_interface(field_model):
   mid_levels = (field_model[:, :, :, :-1] + field_model[:, :, :, 1:]) / 2.0
-  return jnp.stack((field_model[:, :, :, 0],
+  return jnp.concatenate((field_model[:, :, :, 0:1],
                     mid_levels,
-                    field_model[:, :, :, -1]), axis=-1)
+                    field_model[:, :, :, -1:]), axis=-1)
 
 
 def interface_to_model(field_interface):

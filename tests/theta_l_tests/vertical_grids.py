@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import jnp
+from spherical_spectral_element.config import jnp, np
 
 cam30 = {"hybrid_a_i": jnp.array([0.00225523952394724, 0.00503169186413288, 0.0101579474285245,
                                   0.0185553170740604, 0.0306691229343414, 0.0458674766123295,
@@ -18,3 +18,14 @@ cam30 = {"hybrid_a_i": jnp.array([0.00225523952394724, 0.00503169186413288, 0.01
                                   0.911346435546875, 0.938901245594025, 0.963559806346893,
                                   0.985112190246582, 1]),
          "p0": 1e5}
+
+
+def vertical_grid_finite_diff(nlev, eta_top = 0.2, p0=1e5, frac_isobaric=0.4):
+  eta_i = jnp.linspace(eta_top, 1.0, nlev+1)
+  num_isobaric = int(frac_isobaric * nlev)
+  hybrid_b_i = np.zeros_like(eta_i)
+  hybrid_b_i[num_isobaric:] = np.linspace(0, 1.0 , len(hybrid_b_i[num_isobaric:]))
+  hybrid_a_i = eta_i - jnp.array(hybrid_b_i)
+  return {"hybrid_a_i": hybrid_a_i,
+          "hybrid_b_i": hybrid_b_i,
+          "p0": p0}

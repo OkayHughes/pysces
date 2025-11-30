@@ -1,0 +1,44 @@
+from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_config,
+                                                                      evaluate_surface_state,
+                                                                      evaluate_pressure_temperature,
+                                                                      evaluate_state)
+from spherical_spectral_element.theta_l.constants import init_config
+from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
+from spherical_spectral_element.config import jnp
+from .vertical_grids import vertical_grid_finite_diff, cam30
+from spherical_spectral_element.theta_l.infra import get_delta, interface_to_model
+from spherical_spectral_element.theta_l.vertical_coordinate import create_vertical_grid
+from spherical_spectral_element.theta_l.eos import p_exner_nonhydrostatic, get_mu, get_p_mid, get_balanced_phi
+from .test_init import get_umjs_state
+
+def test_eos_hydro():
+  nx = 5
+  h_grid, dims = create_quasi_uniform_grid(nx)
+  lat = h_grid["physical_coords"][:, :, :, 0]
+  vstruct = vertical_grid_finite_diff(200)
+  v_grid = create_vertical_grid(vstruct["hybrid_a_i"],
+                                vstruct["hybrid_b_i"],
+                                vstruct["p0"])
+  model_config = init_config()
+  test_config = get_umjs_config(model_config=model_config)
+  lat = h_grid["physical_coords"][:, :, :, 0]
+  lon = h_grid["physical_coords"][:, :, :, 1]
+  model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims)
+  phi_i = get_balanced_phi(model_state, v_grid, model_config)
+  dphi = get_delta(phi_i)
+  p_mid = get_p_mid(model_state,
+                    v_grid,
+                    model_config)
+
+  z_i = phi_i / model_config['gravity']
+  z_mid = interface_to_model(z_i)
+  
+  p_model, exner, r_hat_i, mu = get_mu(model_state, phi_i, v_grid, model_config, hydrostatic=False)
+  Tv = (model_state["vtheta_dpi"] / model_state["dpi"]) * exner
+  assert (jnp.max(jnp.abs(p_model - p_mid)) < 1e-8)
+  assert (jnp.max(jnp.abs(p_model - p_mid)) < 1e-8)
+  p_int_state, t_int_state = evaluate_pressure_temperature(z_mid, lat, test_config)
+  p_mid_state, t_mid_state = evaluate_pressure_temperature(z_mid, lat, test_config)
+  assert(jnp.max(jnp.abs(p_model - p_mid_state)/p_model) < 0.01)
+  assert(jnp.max(jnp.abs(Tv - t_mid_state)/Tv) < 0.01)
+  assert(jnp.max(jnp.abs(mu - 1)) < 1e-5)

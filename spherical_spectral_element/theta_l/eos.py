@@ -1,5 +1,5 @@
 from ..config import jnp
-from infra import model_to_interface, get_delta, r_hat_from_phi
+from .infra import model_to_interface, get_delta, r_hat_from_phi
 
 
 def get_r_hat_sq_avg(r_hat_i):
@@ -11,7 +11,7 @@ def get_r_hat_sq_avg(r_hat_i):
 
 def p_exner_nonhydrostatic(vtheta_dpi, dphi, r_hat_sq_avg, config):
   p0 = config["p0"]
-  pnh_over_exner = -config["Rgas"] * "vtheta_dpi" / dphi
+  pnh_over_exner = -config["Rgas"] * vtheta_dpi/ dphi
   pnh_over_exner /= r_hat_sq_avg
   pnh = p0 * (pnh_over_exner / p0)**(1.0 /
                                      (1.0 - config["Rgas"] /
@@ -39,10 +39,10 @@ def get_mu(state, phi_i, v_grid, config, deep=False, hydrostatic=True):
     dpi_i = model_to_interface(state["dpi"])
     dpnh_dpi_top = 2 * (p_model[:, :, :, 0] - p_top) / dpi_i[:, :, :, 0]
     dpnh_dpi_bottom = jnp.ones_like(p_model[:, :, :, 0])
-    dpnh_dpi_int = (p_model[:, :, :, :-1] - p_model[:, :, :, 1:]) / dpi_i[:, :, :, 1:-1]
-    dpnh_dpi = jnp.stack((dpnh_dpi_top,
-                          dpnh_dpi_int,
-                          dpnh_dpi_bottom), axis=-1)
+    dpnh_dpi_int = get_delta(p_model) / dpi_i[:, :, :, 1:-1]
+    dpnh_dpi = jnp.concatenate((dpnh_dpi_top[:, :, :, jnp.newaxis],
+                                dpnh_dpi_int,
+                                dpnh_dpi_bottom[:, :, :, jnp.newaxis]), axis=-1)
     if deep:
       dpnh_dpi *= r_hat_i**2
   return p_model, exner, r_hat_i, dpnh_dpi
@@ -55,9 +55,9 @@ def get_p_mid(state, v_grid, config):
 
 
 def get_balanced_phi(state, v_grid, config):
-  p = get_p_mid(state, v_grid)
-  dphi = -config["Rgas"] * (state["vtheta_dpi"] *
-                            (p / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])
-  dphi_augment = jnp.stack((dphi[:, :, :, 0] + state["phi_surf"], dphi[:, :, :, :-1:-1]))
+  p = get_p_mid(state, v_grid, config)
+  dphi = config["Rgas"] * (state["vtheta_dpi"] *
+                           (p / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])
+  dphi_augment = jnp.concatenate((dphi[:, :, :, :-1], (dphi[:, :, :, -1] + state["phi_surf"])[:, :, :, jnp.newaxis]), axis=-1)[:, :, :, ::-1]
   phi_i_above_surf = jnp.cumsum(dphi_augment, axis=-1)
-  return jnp.flip(jnp.stack((state["phi_surf"], phi_i_above_surf), axis=-1), axis=-1)
+  return jnp.concatenate((phi_i_above_surf[:, :, :, ::-1], state["phi_surf"][:, :, :, jnp.newaxis]), axis=-1)

@@ -14,6 +14,38 @@ from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_c
                                                                       evaluate_pressure_temperature,
                                                                       evaluate_state)
 
+def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, mountain=False):
+  lat = h_grid["physical_coords"][:, :, :, 0]
+  lon = h_grid["physical_coords"][:, :, :, 1]
+
+  def z_pi_surf_func(lat, lon):
+    return evaluate_surface_state(lat, lon, test_config, deep=deep, mountain=mountain)
+
+  def Q_func(lat, lon, z):
+    return jnp.zeros_like(lat)
+
+  def p_func(z):
+    return evaluate_pressure_temperature(z, lat, test_config, deep=deep)[0]
+
+  def u_func(lat, lon, z):
+    return evaluate_state(lat, lon, z, test_config, deep=deep, mountain=mountain)[0]
+
+  def v_func(lat, lon, z):
+    return evaluate_state(lat, lon, z, test_config, deep=deep, mountain=mountain)[1]
+
+  def Tv_func(lat, lon, z):
+    return evaluate_state(lat, lon, z, test_config, deep=deep, mountain=mountain)[3]
+
+  model_state, tracer_state = init_model_p_hydro(z_pi_surf_func,
+                                                 p_func,
+                                                 Tv_func,
+                                                 u_func,
+                                                 v_func,
+                                                 Q_func,
+                                                 h_grid, v_grid,
+                                                 model_config,
+                                                 dims)
+  return model_state, tracer_state
 
 def test_z_p_func():
   config = init_config()
@@ -36,38 +68,11 @@ def test_init():
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"])
-  model_config = init_config()
-  test_config = get_umjs_config(model_config=model_config)
   lat = h_grid["physical_coords"][:, :, :, 0]
   lon = h_grid["physical_coords"][:, :, :, 1]
-
-  def z_pi_surf_func(lat, lon):
-    return evaluate_surface_state(lat, lon, test_config)
-
-  def Q_func(lat, lon, z):
-    return jnp.zeros_like(lat)
-
-  def p_func(z):
-    return evaluate_pressure_temperature(z, lat, test_config)[0]
-
-  def u_func(lat, lon, z):
-    return evaluate_state(lat, lon, z, test_config)[0]
-
-  def v_func(lat, lon, z):
-    return evaluate_state(lat, lon, z, test_config)[1]
-
-  def Tv_func(lat, lon, z):
-    return evaluate_state(lat, lon, z, test_config)[3]
-
-  model_state, tracer_state = init_model_p_hydro(z_pi_surf_func,
-                                                 p_func,
-                                                 Tv_func,
-                                                 u_func,
-                                                 v_func,
-                                                 Q_func,
-                                                 h_grid, v_grid,
-                                                 model_config,
-                                                 dims)
+  model_config = init_config()
+  test_config = get_umjs_config(model_config=model_config)
+  model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims)
   z_surf, ps = evaluate_surface_state(lat, lon, test_config)
   phi_surf = model_config["gravity"] * z_surf
   grad_phi_surf = sphere_gradient(phi_surf,
