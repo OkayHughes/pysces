@@ -25,7 +25,6 @@ def test_vector_identites():
 
 def test_vector_identites_rand():
   np.random.seed(0)
-  
   nx = 31
   grid, dims = create_quasi_uniform_grid(nx)
   for _ in range(10):
@@ -41,12 +40,13 @@ def test_vector_identites_rand():
     v = jax_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
     v = jnp.stack((dss_scalar(v[:, :, :, 0], grid, dims),
                    dss_scalar(v[:, :, :, 1], grid, dims)), axis=-1)
+    div = sphere_divergence(v, grid)
     div = dss_scalar(sphere_divergence(v, grid), grid, dims)
     
     discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                               inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                               inner_prod(fn, div, grid))
-    assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=1e-11))
+    assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
 def test_divergence():

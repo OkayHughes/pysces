@@ -1,12 +1,11 @@
 from ..config import jnp
 
-
 def vel_model_to_interface(field_model, dpi, dpi_i):
   mid_levels = (dpi[:, :, :, :-1, jnp.newaxis] * field_model[:, :, :, :-1, :] +
-                dpi[:, :, :, 1:, jnp.newaxis] * field_model[:, :, :, 1:, :]) / 2.0 * dpi_i
-  return jnp.stack((field_model[:, :, :, 0, :],
-                    mid_levels,
-                    field_model[:, :, :, -1, :]), axis=-2)
+                dpi[:, :, :, 1:, jnp.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, jnp.newaxis])
+  return jnp.concatenate((field_model[:, :, :, 0:1, :],
+                          mid_levels,
+                          field_model[:, :, :, -1:, :]), axis=-2)
 
 
 def model_to_interface(field_model):
@@ -63,3 +62,8 @@ def r_hat_from_phi(phi, config, deep=False):
   else:
     r_hat = jnp.ones_like(phi)
   return r_hat
+
+
+def sphere_dot(u, v):
+  return (u[:, :, :, :, 0] * v[:, :, :, :, 0] +
+          u[:, :, :, :, 1] * v[:, :, :, :, 1])

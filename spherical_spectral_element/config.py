@@ -4,7 +4,7 @@ import numpy as np
 DEBUG = True
 npt = 4
 
-use_jax = True
+use_jax = False
 use_cpu = True
 use_double = True
 
