@@ -74,4 +74,3 @@ def test_eos_nonhydro():
     assert (jnp.max(jnp.abs(p_model - p_mid_state) / p_model) < 0.01)
     assert (jnp.max(jnp.abs(Tv - t_mid_state) / Tv) < 0.01)
     assert (jnp.max(jnp.abs(mu - 1)) < 1e-2)
-

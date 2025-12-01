@@ -14,7 +14,9 @@ from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_c
                                                                       evaluate_state)
 
 
-def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, mountain=False, hydrostatic=True, eps=1e-10):
+def get_umjs_state(h_grid, v_grid,
+                   model_config, test_config, dims,
+                   deep=False, mountain=False, hydrostatic=True, eps=1e-10):
   lat = h_grid["physical_coords"][:, :, :, 0]
 
   def z_pi_surf_func(lat, lon):
@@ -34,7 +36,7 @@ def get_umjs_state(h_grid, v_grid, model_config, test_config, dims, deep=False, 
 
   def Tv_func(lat, lon, z):
     return evaluate_state(lat, lon, z, test_config, deep=deep)[3]
-  
+
   def w_func(lat, lon, z):
     if hydrostatic:
       return 0.0

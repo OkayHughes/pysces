@@ -1,5 +1,6 @@
 from ..config import jnp
 
+
 def vel_model_to_interface(field_model, dpi, dpi_i):
   mid_levels = (dpi[:, :, :, :-1, jnp.newaxis] * field_model[:, :, :, :-1, :] +
                 dpi[:, :, :, 1:, jnp.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, jnp.newaxis])

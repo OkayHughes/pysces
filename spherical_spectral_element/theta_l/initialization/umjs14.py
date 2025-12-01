@@ -30,9 +30,9 @@ def get_umjs_config(T0E=310,
                     model_config=None,
                     alpha=0.5,
                     mountain_heights=[2000.0, 2000.0],
-                    mountain_lats=[jnp.pi/4.0, jnp.pi/4.0],
-                    mountain_lons=[(7.0 / 9.0 ) * jnp.pi,
-                                   (0.4) * jnp.pi],
+                    mountain_lats=[jnp.pi / 4.0, jnp.pi / 4.0],
+                    mountain_lons=[(7.0 / 9.0) * jnp.pi,
+                                   0.4 * jnp.pi],
                     mountain_lat_widths=[40.0 * jnp.pi / 180.0,
                                          40.0 * jnp.pi / 180.0],
                     mountain_lon_widths=[7.0 * jnp.pi / 180.0,
@@ -45,8 +45,10 @@ def get_umjs_config(T0E=310,
     Rgas = model_config["Rgas"]
     Rvap = model_config["Rvap"]
     gravity = model_config["gravity"]
-  mountain_lat_scales = [lat_width / (2.0 * (-jnp.log(0.1))**(1.0 / 6.0) ) for lat_width in mountain_lat_widths]
-  mountain_lon_scales = [lon_width / (2.0 * (-jnp.log(0.1))**(1.0 / 2.0) ) for lon_width in mountain_lon_widths]
+  mountain_lat_scales = [lat_width / (2.0 * (-jnp.log(0.1))**(1.0 / 6.0))
+                         for lat_width in mountain_lat_widths]
+  mountain_lon_scales = [lon_width / (2.0 * (-jnp.log(0.1))**(1.0 / 2.0))
+                         for lon_width in mountain_lon_widths]
   return {"T0E": T0E,
           "T0P": T0P,
           "B": B,
@@ -140,10 +142,9 @@ def get_z_surface(lat, lon, config, mountain=False):
                                     config["mountain_lons"],
                                     config["mountain_lat_scales"],
                                     config["mountain_lon_scales"]):
-      
-      d0=jnp.mod(lon - mountain_lon, 2.0 * jnp.pi)
-      d0=jnp.minimum(d0, 2.0 * jnp.pi - d0)
-      zs += mountain_height * jnp.exp(-(((lat - mountain_lat)/ mountain_lat_scale)**6 +
+      d0 = jnp.mod(lon - mountain_lon, 2.0 * jnp.pi)
+      d0 = jnp.minimum(d0, 2.0 * jnp.pi - d0)
+      zs += mountain_height * jnp.exp(-(((lat - mountain_lat) / mountain_lat_scale)**6 +
                                         (d0 / mountain_lon_scale)**2))
   else:
     zs = jnp.zeros_like(lat)

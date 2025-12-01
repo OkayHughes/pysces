@@ -53,5 +53,3 @@ def init_model_pressure(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func,
                                     config)
   tracer_struct = init_tracer_struct(Q_func(lat, lon, z_mid))
   return initial_state, tracer_struct
-
-

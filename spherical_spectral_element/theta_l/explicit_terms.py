@@ -5,8 +5,8 @@ from .eos import get_mu, get_balanced_phi
 from .operators_3d import sphere_gradient_3d, sphere_vorticity_3d, sphere_divergence_3d
 from .model_state import wrap_model_struct
 from .model_state import dss_scalar_3d
-from ..assembly import dss_scalar
-from ..operators import sphere_gradient, sphere_divergence, inner_prod
+
+
 def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
   if hydrostatic:
     phi_i = get_balanced_phi(state, v_grid, config)
@@ -107,8 +107,7 @@ def w_advection_term(v_over_r_hat_i, grad_w_i):
 
 def w_metric_term(u, r_m, dpi, dpi_i):
   v_sq_over_r_i = vel_model_to_interface(u**2 / r_m, dpi, dpi_i)
-  return (v_sq_over_r_i[:, :, :, :, 0] + v_sq_over_r_i[:, :, :, :, 
-                                                       1])
+  return (v_sq_over_r_i[:, :, :, :, 0] + v_sq_over_r_i[:, :, :, :, 1])
 
 
 def w_nct_term(u_i, fcorcos):
@@ -239,10 +238,9 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
   grad_kinetic_energy_v = grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config)
   vorticity = vorticity_term(u, fcor, r_hat_m, h_grid, config)
   phi_advection = phi_advection_term(v_over_r_hat_i, grad_phi_i)
-  ke_ke_1_a = jnp.sum(dpi * sphere_dot(u, jnp.stack((dss_scalar_3d(grad_kinetic_energy_h[:, :, :, :, 0], h_grid, dims),
-                                                     dss_scalar_3d(grad_kinetic_energy_h[:, :, :, :, 1], h_grid, dims)), axis=-1)), axis=-1)
+  ke_ke_1_a = jnp.sum(dpi * sphere_dot(u, grad_kinetic_energy_h), axis=-1
+                      )
   ke_ke_1_b = jnp.sum(1.0 / 2.0 * u_sq * dss_scalar_3d(dpi_divergence, h_grid, dims), axis=-1)
-  lev = 14
 
   ke_ke_2_a = jnp.sum(dpi * (u1 * grad_kinetic_energy_v[:, :, :, :, 0] +
                              u2 * grad_kinetic_energy_v[:, :, :, :, 1]), axis=-1)
@@ -296,16 +294,16 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
   ie_tend_emp = jnp.sum(config["cp"] * exner * tends["vtheta_dpi"], axis=-1)
   ie_tend_emp -= jnp.sum(mu * dpi_i_integral * tends["phi_i"], axis=-1)
   pairs = {"ke_ke_1": (ke_ke_1_a, ke_ke_1_b),
-         "ke_ke_2": (ke_ke_2_a, ke_ke_2_b),
-         "ke_ke_3": (ke_ke_3_a, ke_ke_3_b),
-         "ke_ke_4": (ke_ke_4_a, ke_ke_4_b),
-         "ke_ke_5": (ke_ke_5_a, ke_ke_5_b),
-         "ke_ke_6": (ke_ke_6_a, ke_ke_6_b),
-         "ke_pe_1": (ke_pe_1_a, ke_pe_1_b),
-         "pe_pe_1": (pe_pe_1_a, pe_pe_1_b),
-         "ke_ie_1": (ke_ie_1_a, ke_ie_1_b),
-         "ke_ie_2": (ke_ie_2_a, ke_ie_2_b),
-         "ke_ie_3": (ke_ie_3_a, ke_ie_3_b)}
+           "ke_ke_2": (ke_ke_2_a, ke_ke_2_b),
+           "ke_ke_3": (ke_ke_3_a, ke_ke_3_b),
+           "ke_ke_4": (ke_ke_4_a, ke_ke_4_b),
+           "ke_ke_5": (ke_ke_5_a, ke_ke_5_b),
+           "ke_ke_6": (ke_ke_6_a, ke_ke_6_b),
+           "ke_pe_1": (ke_pe_1_a, ke_pe_1_b),
+           "pe_pe_1": (pe_pe_1_a, pe_pe_1_b),
+           "ke_ie_1": (ke_ie_1_a, ke_ie_1_b),
+           "ke_ie_2": (ke_ie_2_a, ke_ie_2_b),
+           "ke_ie_3": (ke_ie_3_a, ke_ie_3_b)}
   empirical_tendencies = {"ke": ke_tend_emp,
                           "ie": ie_tend_emp,
                           "pe": pe_tend_emp}
