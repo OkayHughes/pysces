@@ -132,6 +132,9 @@ def test_galewsky():
   hs_init = jax_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   init_state = create_state_struct(u_init, h_init, hs_init)
   final_state = simulate_sw(T, nx, init_state, grid, config, dims, diffusion=True)
+  mass_init = inner_prod(h_init, h_init, grid)
+  mass_final = inner_prod(final_state["h"], final_state["h"], grid)
+  assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
   assert (not np.any(np.isnan(final_state["u"])))
   if DEBUG:
     fig_dir = "_figures"
