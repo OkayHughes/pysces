@@ -1,0 +1,20 @@
+[project]
+name = "pysces"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "frozendict>=2.4.7",
+    "numpy>=2.2.6",
+]
+
+[dependency-groups]
+dev = [
+    "flake8>=7.3.0",
+    "matplotlib>=3.10.7",
+    "pytest>=9.0.1",
+]
+jax = [
+    "jax>=0.6.2",
+]
