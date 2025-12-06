@@ -54,7 +54,7 @@ def test_remap():
     #print("numpy loop output")
     Qdp_out = zerroukat_remap(Qdps, deltas, deltas_ref, dims)
     Qdp_out_filt = zerroukat_remap(Qdps, deltas, deltas_ref, dims, filter=True)
-    
+
     assert (jnp.max(jnp.abs(Qdp_out_for - Qdp_out)) < 1e-10)
     assert (jnp.max(jnp.abs(Qdp_out_for_filt - Qdp_out_filt)) < 1e-10)
 

@@ -23,10 +23,14 @@ def test_eos_hydro():
     test_config = get_umjs_config(model_config=model_config)
     lat = h_grid["physical_coords"][:, :, :, 0]
     model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=mountain)
-    phi_i = get_balanced_phi(model_state, v_grid, model_config)
     p_mid = get_p_mid(model_state,
                       v_grid,
                       model_config)
+    phi_i = get_balanced_phi(model_state["phi_surf"],
+                             p_mid,
+                             model_state["vtheta_dpi"], model_config)
+    
+
 
     z_i = phi_i / model_config['gravity']
     z_mid = interface_to_model(z_i)

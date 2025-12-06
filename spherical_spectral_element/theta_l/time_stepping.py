@@ -1,5 +1,7 @@
-from model_state import wrap_model_struct, dss_model_state
-from explicit_terms import explicit_tendency, lower_boundary_correction
+from ..config import jnp
+from .model_state import wrap_model_struct, dss_model_state, wrap_tracer_avg_struct
+from .explicit_terms import explicit_tendency, lower_boundary_correction
+from .hyperviscosity import hypervis_terms
 
 
 def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
@@ -10,6 +12,14 @@ def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
                            state1["grad_phi_surf"],
                            state1["phi_i"] * fold_coeff1 + state2["phi_i"] * fold_coeff2,
                            state1["w_i"] * fold_coeff1 + state2["w_i"] * fold_coeff2)
+
+
+def accumulate_avg_explicit_terms(averaging_weight, state_c0, tracer_struct):
+  return wrap_tracer_avg_struct(tracer_struct["avg_u"] + averaging_weight *
+                                state_c0["u"] *
+                                state_c0["dpi"][:, :, :, :, jnp.newaxis],
+                                tracer_struct["avg_dpi"],
+                                tracer_struct["avg_dpi_dissip"])
 
 
 def advance_state(states, coeffs):
@@ -26,6 +36,14 @@ def advance_euler(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, 
   u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
   u1 = advance_state([state_in, u_tend_c0], [1.0, dt])
   return lower_boundary_correction(state_in, u1, dt, h_grid, v_grid, dims, config, hydrostatic=hydrostatic, deep=deep)
+
+
+def advance_euler_hypervis(state_in, dt, h_grid, v_grid, config, dims, ref_state, n_subcycle=1, hydrostatic=True):
+  hypervis_rhs = hypervis_terms(state_in, ref_state,
+                                h_grid, dims,
+                                config,
+                                hydrostatic=hydrostatic)
+  
 
 
 def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, deep=False):

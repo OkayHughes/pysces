@@ -82,8 +82,8 @@ def sphere_curl_wk_cov(s, grid, a=1.0):
 
 
 @partial(jit, static_argnames=["damp"])
-def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_fact=1.0, damp=False):
-  div = sphere_divergence(u, grid, a=a) * nu_fact
+def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
+  div = sphere_divergence(u, grid, a=a) * nu_div_fact
   vor = sphere_vorticity(u, grid, a=a)
   laplacian = sphere_gradient_wk_cov(div, grid, a=a) - sphere_curl_wk_cov(vor, grid, a=a)
   gll_weights = grid["gll_weights"]

@@ -1,7 +1,7 @@
 from ..config import jnp
 from .infra import vel_model_to_interface, model_to_interface, interface_to_model, interface_to_model_vec
 from .infra import z_from_phi, g_from_z, g_from_phi, sphere_dot
-from .eos import get_mu, get_balanced_phi
+from .eos import get_mu, get_balanced_phi, get_p_mid
 from .operators_3d import sphere_gradient_3d, sphere_vorticity_3d, sphere_divergence_3d
 from .model_state import wrap_model_struct
 from .model_state import dss_scalar_3d
@@ -9,7 +9,11 @@ from .model_state import dss_scalar_3d
 
 def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
   if hydrostatic:
-    phi_i = get_balanced_phi(state, v_grid, config)
+    p_mid = get_p_mid(state, v_grid, config)
+    phi_i = get_balanced_phi(state["phi_surf"], 
+                             p_mid,
+                             state["vtheta_dpi"],
+                             config)
   else:
     phi_i = state["phi_i"]
   w_i = state["w_i"]

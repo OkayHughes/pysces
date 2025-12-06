@@ -219,9 +219,6 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, dims, filter=False, tiny=1e-1
   za1_mapped = jnp.take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, jnp.newaxis], axis=-2)
   za2_mapped = jnp.take_along_axis(za2[:, :, :, :, :], idxs[:, :, :, 1:, jnp.newaxis], axis=-2)
 
-  #za0_mapped = jnp.take_along_axis(za0, idxs+1, axis=-1)[:, :, :, :, jnp.newaxis]
-  #za1_mapped = jnp.take_along_axis(za1, idxs+1, axis=-1)[:, :, :, :, jnp.newaxis]
-  #za2_mapped = jnp.take_along_axis(za2, idxs+1, axis=-1)[:, :, :, :, jnp.newaxis]
   Qdp_out = []
   for k_idx in range(num_lev):
     zv2 = zv_mapped[:, :, :, k_idx, :] + (za0_mapped[:, :, :, k_idx, :] *
