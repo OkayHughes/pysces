@@ -229,11 +229,10 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type="none
     eps = 1e-5
     sf_lat_above = evaluate_streamfunction(lat + eps, lon, z, config)
     sf_lat_below = evaluate_streamfunction(lat - eps, lon, z, config)
-    sf_lon_above = evaluate_streamfunction(lat, lon+eps, z, config)
-    sf_lon_below = evaluate_streamfunction(lat, lon-eps, z, config)
+    sf_lon_above = evaluate_streamfunction(lat, lon + eps, z, config)
+    sf_lon_below = evaluate_streamfunction(lat, lon - eps, z, config)
     u += - (sf_lat_above - sf_lat_below) / (2 * eps)
     v += (sf_lon_above - sf_lon_below) / (2 * eps)
-    
   return u, v, pressure, temp_v, q_vapor
 
 
