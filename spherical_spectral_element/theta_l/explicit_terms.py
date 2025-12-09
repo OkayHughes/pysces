@@ -148,7 +148,7 @@ def dpi_divergence_term(div_dp):
   return -div_dp
 
 
-def explicit_tend(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
+def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
   dpi = state["dpi"]
   u = state["u"]
   w_i = state["w_i"]
@@ -163,6 +163,8 @@ def explicit_tend(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
                                          v_grid, config,
                                          hydrostatic=hydrostatic,
                                          deep=deep)
+  if hydrostatic:
+    mu = jnp.array(mu)[jnp.newaxis, jnp.newaxis, jnp.newaxis, jnp.newaxis]
 
   u_tend = (vorticity_term(u, fcor, r_hat_m, h_grid, config) +
             grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config) +
@@ -282,7 +284,7 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
                              u2 * u_nct[:, :, :, :, 1]), axis=-1)
   ke_ke_6_b = jnp.sum(dpi_i_integral * w_i * w_nct, axis=-1)
 
-  tends = explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=deep)
+  tends = explicit_tendency(state, h_grid, v_grid, config, hydrostatic=False, deep=deep)
   u_tend = tends["u"]
   ke_tend_emp = jnp.sum(dpi * (u1 * u_tend[:, :, :, :, 0] +
                                u2 * u_tend[:, :, :, :, 1]), axis=-1)
@@ -315,13 +317,14 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
 
 
 def correct_state(state_in, dt, config, hydrostatic=True, deep=False):
+  if hydrostatic:
+    return state_in
   u_lowest_new, w_lowest_new, mu_update = lower_boundary_correction(state_in,
                                                                     dt,
                                                                     config,
                                                                     hydrostatic=hydrostatic,
                                                                     deep=deep)
-  u_new = jnp.append((state_in
-                      ["u"][:, :, :, :-1, :],
+  u_new = jnp.append((state_in["u"][:, :, :, :-1, :],
                       u_lowest_new), axis=-2)
   if not hydrostatic:
     w_new = jnp.append((state_in["w_i"][:, :, :, :-1],
@@ -338,6 +341,7 @@ def correct_state(state_in, dt, config, hydrostatic=True, deep=False):
 
 
 def lower_boundary_correction(state_in, dt, config, hydrostatic=True, deep=False):
+  # we need to pass in original state. Something is wrong here.
   if hydrostatic:
     u_corrected = state_in["u"][:, :, :, -1, :]
     w_corrected = 0.0
