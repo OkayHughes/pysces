@@ -1,6 +1,14 @@
 from ..config import jnp
 
 
+exit_codes = {"success": (0, "Operation completed successfully"),
+              "nan": (1, "NaN found in state")}
+
+def err_code(message):
+  return (1, message)
+def succeeded(code):
+  return True if code[0] == exit_codes["success"][0] else False
+
 def vel_model_to_interface(field_model, dpi, dpi_i):
   mid_levels = (dpi[:, :, :, :-1, jnp.newaxis] * field_model[:, :, :, :-1, :] +
                 dpi[:, :, :, 1:, jnp.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, jnp.newaxis])
@@ -29,6 +37,9 @@ def interface_to_model_vec(vec_interface):
 def get_delta(field_interface):
   return field_interface[:, :, :, 1:] - field_interface[:, :, :, :-1]
 
+def get_surface_sum(dfield_model, val_surf):
+  return jnp.concatenate((jnp.cumsum(dfield_model[:, :, :, ::-1], axis=-1)[:, :, :, ::-1] + val_surf[:, :, :, jnp.newaxis],
+                          val_surf[:, :, :, jnp.newaxis]), axis=-1)
 
 def z_from_phi(phi, config, deep=False):
   gravity = config["gravity"]
