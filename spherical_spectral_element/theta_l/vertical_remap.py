@@ -1,12 +1,14 @@
-from ..config import jnp
+from ..config import jnp, jit, versatile_assert
+from functools import partial
+from .infra import err_code, exit_codes
 
+@partial(jit, static_argnames=["num_lev", "filter", "tiny", "qmax"])
 def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1e-12, qmax=1e50):
   # assumes
   pi_int_reference = jnp.concatenate((jnp.zeros_like(dpi_reference[:, :, :, 0:1]), jnp.cumsum(dpi_reference, axis=-1)), axis=-1)
   pi_int_model = jnp.concatenate((jnp.zeros_like(dpi_model[:, :, :, 0:1]), jnp.cumsum(dpi_model, axis=-1)), axis=-1)
   values_model = jnp.concatenate((jnp.zeros_like(Qdp[:, :, :, 0:1, :]),
                                  jnp.cumsum(Qdp, axis=-2)), axis=-2)
-
   # binary search
   # idxs is model to reference
   idxs = jnp.zeros_like(pi_int_reference[:, :, :, 1:-1], dtype=jnp.float32)
@@ -24,7 +26,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
                      jnp.where(too_low, idxs + jump, idxs - jump),
                      idxs)
     frac *= 0.5
-  assert(jnp.all(converged))
+  versatile_assert(jnp.all(converged))
   idxs = jnp.floor(idxs).astype(jnp.int32)
   idxs = jnp.concatenate((jnp.zeros_like(idxs[:, :, :, 0:1]),
                           idxs,
@@ -33,8 +35,9 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
   model_below = jnp.take_along_axis(pi_int_model, idxs+1, axis=-1)
 
   zgam = (pi_int_reference - model_above) / (model_below - model_above)
-  zgam[:, :, :, 0] = 0.0
-  zgam[:, :, :, -1] = 1.0
+  zgam = jnp.concatenate((jnp.zeros_like(zgam[:, :, :, 0])[:, :, :, jnp.newaxis],
+                          zgam[:, :, :, 1:-1],
+                          jnp.ones_like(zgam[:, :, :, -1])[:, :, :, jnp.newaxis]), axis=-1)
 
   zhdp = pi_int_model[:, :, :, 1:] - pi_int_model[:, :, :, :-1]
 
@@ -86,6 +89,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
     ones_f = jnp.ones_like(zarg[:, :, :, 0, :])
 
     zeros = jnp.zeros_like(zarg[:, :, :, 0, :], dtype=jnp.int32)
+    rhs_tmp = [rhs[:, :, :, 0, :]]
     for k in range(num_lev):
       im1 = max(0, k-1)
       im2 = max(0, k-2)
@@ -100,9 +104,10 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
       t2 = jnp.where(cond1 * cond2 * cond3 * cond4 == 1, ones, zeros)
       t3 = jnp.where(lev(rhs, k) - lev(zarg, im1) > jnp.abs(lev(rhs, k) - lev(zarg, k)), ones, zeros)
       filter_code.append(jnp.where(t1 + t2 > 0, zeros, ones))
-      rhs[:, :, :, k, :] = ((1.0 - filter_code[k]) * lev(rhs, k) +
+      rhs_tmp.append((1.0 - filter_code[k]) * lev(rhs, k) +
                             filter_code[k] * (t3 * lev(zarg, k) + (1.0-t3) * lev(zarg, im1)))
       filter_code[im1] = jnp.maximum(filter_code[im1], filter_code[k])
+    rhs = jnp.stack(rhs_tmp, axis=-2)[:, :, :, ::-1, :]
     rhs = jnp.where(rhs > qmax, qmax, rhs)
     rhs = jnp.where(rhs < 0, 0.0, rhs)
     za0_base = rhs[:, :, :, :-1, :]

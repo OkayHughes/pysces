@@ -1,7 +1,9 @@
-from ..config import jnp
+from ..config import jnp, jit
 from .infra import model_to_interface, get_delta, r_hat_from_phi
+from functools import partial
 
 
+@jit
 def get_r_hat_sq_avg(r_hat_i):
   r_hat_sq = (r_hat_i[:, :, :, :-1] * r_hat_i[:, :, :, 1:] +
               r_hat_i[:, :, :, :-1] * r_hat_i[:, :, :, :-1] +
@@ -9,6 +11,7 @@ def get_r_hat_sq_avg(r_hat_i):
   return r_hat_sq
 
 
+@jit
 def p_exner_nonhydrostatic(vtheta_dpi, dphi, r_hat_sq_avg, config):
   p0 = config["p0"]
   pnh_over_exner = -config["Rgas"] * vtheta_dpi / dphi
@@ -19,6 +22,7 @@ def p_exner_nonhydrostatic(vtheta_dpi, dphi, r_hat_sq_avg, config):
   return pnh, pnh / pnh_over_exner
 
 
+@partial(jit, static_argnames=["hydrostatic", "deep"])
 def get_mu(state, phi_i, v_grid, config, deep=False, hydrostatic=True):
   # note: assumes that phi_i is in hydrostatic balance.
   vtheta_dpi = state["vtheta_dpi"]
@@ -48,11 +52,14 @@ def get_mu(state, phi_i, v_grid, config, deep=False, hydrostatic=True):
   return p_model, exner, r_hat_i, dpnh_dpi
 
 
+@jit
 def get_p_mid(state, v_grid, config):
   p = jnp.cumsum(state["dpi"], axis=-1) + v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"]
   p -= 0.5 * state["dpi"]
   return p
 
+
+@jit
 def get_balanced_phi(phi_surf, p_mid, vtheta_dpi, config):
   #p = get_p_mid(state, v_grid, config)
   dphi = config["Rgas"] * (vtheta_dpi *

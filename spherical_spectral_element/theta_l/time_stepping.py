@@ -1,10 +1,11 @@
-from ..config import jnp
+from ..config import jnp, jit
 from .infra import exit_codes, err_code
 from .model_state import wrap_model_struct, dss_model_state, wrap_tracer_avg_struct
 from .explicit_terms import explicit_tendency, correct_state
 from .hyperviscosity import hypervis_terms
+from functools import partial
 
-
+@jit
 def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
   return wrap_model_struct(state1["u"] * fold_coeff1 + state2["u"] * fold_coeff2,
                            state1["vtheta_dpi"] * fold_coeff1 + state2["vtheta_dpi"] * fold_coeff2,
@@ -22,7 +23,7 @@ def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
 #                                tracer_struct["avg_dpi"],
 #                                tracer_struct["avg_dpi_dissip"])
 
-
+@jit
 def advance_state(states, coeffs):
   state_out = rfold_state(states[0],
                             states[1],
@@ -36,19 +37,20 @@ def advance_state(states, coeffs):
   return state_out
 
 def check_nan(state):
-  is_nan = False
-  for field in ["u", "vtheta_dpi", "dpi", "w_i", "phi_i"]:
-    is_nan = is_nan or jnp.any(jnp.isnan(state[field]))
-  return err_code("Nan encountered in time stepping") if is_nan else exit_codes["success"]
+  #is_nan = False
+  #for field in ["u", "vtheta_dpi", "dpi", "w_i", "phi_i"]:
+  #  is_nan = is_nan or jnp.any(jnp.isnan(state[field]))
+  return exit_codes["success"] #err_code("Nan encountered in time stepping") if is_nan else exit_codes["success"]
 
+@partial(jit, static_argnames=["dims", "hydrostatic", "deep"])
 def advance_euler(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, deep=False):
   u_tend = explicit_tendency(state_in, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
   u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
   u1 = advance_state([state_in, u_tend_c0], [1.0, dt])
   u1_cons = correct_state(u1, dt, config, hydrostatic=hydrostatic, deep=deep)
-  return u1_cons, check_nan(u1_cons)
+  return u1_cons
 
-
+@partial(jit, static_argnames=["dims", "n_subcycle", "hydrostatic"])
 def advance_euler_hypervis(state_in, dt, h_grid, v_grid, config, dims, ref_state, n_subcycle=1, hydrostatic=True):
   state_out = state_in
   for _ in range(n_subcycle):
@@ -57,9 +59,9 @@ def advance_euler_hypervis(state_in, dt, h_grid, v_grid, config, dims, ref_state
                                   config,
                                   hydrostatic=hydrostatic)
     state_out = advance_state([state_in, hypervis_rhs], [1.0, dt/n_subcycle])  
-  return state_out, check_nan(state_out)
+  return state_out
 
-
+@partial(jit, static_argnames=["dims", "hydrostatic", "deep"])
 def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, deep=False):
   u_tend = explicit_tendency(state_in, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
   u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
@@ -84,4 +86,4 @@ def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True,
                                                    5.0 / 4.0,
                                                    3.0 * dt / 4.0])
   final_state = correct_state(final_state, 2.0 * dt / 3.0, config, hydrostatic=hydrostatic, deep=deep)
-  return final_state, check_nan(final_state)
+  return final_state

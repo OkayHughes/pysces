@@ -86,8 +86,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
           jac_tmp[0, 1] = dlon_dx[face_idx, i_idx, j_idx]
           jac_tmp[1, 0] = dlat_dy[face_idx, i_idx, j_idx]
           jac_tmp[1, 1] = dlon_dy[face_idx, i_idx, j_idx]
-          err_str = f"""Face: {face_idx},\nvvvvvvvvvvvvvvvvvvv\n Numerical jac: {jac_tmp},
-          Analytic jac: \n {cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n^^^^^^^^^^^^^^^^^\n """
+          err_str = f"""Face: {face_idx},\nvvvvvvvvvvvvvvvvvvv\nNumerical jac: \n{jac_tmp}, \nAnalytic jac: \n{cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n^^^^^^^^^^^^^^^^^\n """
           print(dedent(err_str))
 
   # front face

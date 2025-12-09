@@ -1,7 +1,7 @@
 from spherical_spectral_element.config import jnp, np, jax_wrapper
 from spherical_spectral_element.theta_l.vert_remap_reference import for_loop_remap
 from spherical_spectral_element.theta_l.vertical_remap import zerroukat_remap
-
+from spherical_spectral_element.theta_l.infra import succeeded
 
 def get_testbed(seed=True, random=False):
   nF = 1
@@ -12,9 +12,9 @@ def get_testbed(seed=True, random=False):
     np.random.seed(0)
   else:
     np.random.seed(1)
-  ints = jnp.concatenate(([0.0],
+  ints = jnp.concatenate((jnp.array([0.0]),
                           jnp.sort(jax_wrapper(np.random.uniform(size=nlev-1))),
-                          [1.0]))
+                          jnp.array([1.0])))
   deltas = (ints[1:] - ints[:-1])[jnp.newaxis, jnp.newaxis, jnp.newaxis, :] * jnp.ones((nF, npt, npt, 1))
   deltas_ref = (reference_levs[1:] - reference_levs[:-1])[jnp.newaxis, jnp.newaxis, jnp.newaxis, :]* jnp.ones((nF, npt, npt, 1))
   if random:

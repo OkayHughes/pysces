@@ -1,11 +1,12 @@
-from ..config import jnp, vmap_1d_apply
+from ..config import jnp, vmap_1d_apply, jit
 from .infra import get_delta, interface_to_model
 from ..operators import sphere_vec_laplacian_wk, sphere_laplacian_wk
 from .model_state import dss_scalar_3d, wrap_model_struct, dss_model_state
 from .eos import get_balanced_phi
 from .vertical_coordinate import mass_from_coordinate_interface
+from functools import partial
 
-
+@jit
 def get_ref_states(phi_surf, v_grid, config):
   # could eventually only be called once.
   # due to low cost, if we end up going the "vmap over nelem" route, 
@@ -23,21 +24,21 @@ def get_ref_states(phi_surf, v_grid, config):
           "vtheta": theta_ref,
           "phi_i": get_balanced_phi(phi_surf, p_mid, theta_ref * dpi_ref, config)}
 
-
+@jit
 def scalar_harmonic_3d(scalar, h_grid, config):
   def lap_wk_onearg(scalar):
       return sphere_laplacian_wk(scalar, h_grid,a=config["radius_earth"])
   del2 = vmap_1d_apply(lap_wk_onearg, scalar, -1, -1)
   return  del2
 
-
+@jit
 def vector_harmonic_3d(vector, h_grid, config, nu_div_factor):
   def vec_lap_wk_onearg(vector):
       return sphere_vec_laplacian_wk(vector, h_grid,a=config["radius_earth"], nu_div_fact=nu_div_factor)
   del2 = vmap_1d_apply(vec_lap_wk_onearg, vector, -2, -2)
   return  del2
 
-
+@partial(jit, static_argnames=["apply_nu", "hydrostatic"])
 def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
   if not hydrostatic:
     hyperdiff_phi_i = scalar_harmonic_3d(state["phi_i"],
@@ -72,7 +73,7 @@ def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
                            nu_phi * hyperdiff_phi_i,
                            nu_default * hyperdiff_w_i)
 
-
+@partial(jit, static_argnames=["hydrostatic", "dims"])
 def hypervis_terms(state, ref_state, h_grid, dims, config, hydrostatic=True):
   if hydrostatic:
     phi_i_pert = state["phi_i"] - ref_state["phi_i"]

@@ -1,4 +1,4 @@
-from ..config import jnp, vmap_1d_apply
+from ..config import jnp, vmap_1d_apply, jit
 from ..assembly import dss_scalar, dss_scalar_for
 from ..operators import sphere_gradient
 from .vertical_remap import zerroukat_remap
@@ -6,7 +6,9 @@ from .vertical_coordinate import dmass_from_coordinate, mass_from_coordinate_mid
 from .eos import get_balanced_phi
 from .eos import get_p_mid
 from .infra import get_delta, get_surface_sum, g_from_phi
+from functools import partial
 
+@jit
 def wrap_model_struct(u, vtheta_dpi, dpi, phi_surf, grad_phi_surf, phi_i, w_i):
   state = {"u": u,
            "vtheta_dpi": vtheta_dpi,
@@ -18,11 +20,13 @@ def wrap_model_struct(u, vtheta_dpi, dpi, phi_surf, grad_phi_surf, phi_i, w_i):
            }
   return state
 
+@jit
 def wrap_tracer_avg_struct(avg_u, avg_dpi, avg_dpi_dissip):
   return {"avg_v": avg_u,
           "avg_dpi": avg_dpi,
           "avg_dpi_dissip": avg_dpi_dissip}
 
+@partial(jit, static_argnames=["dims"])
 def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, config):
   grad_phi_surf_discont = sphere_gradient(phi_surf, h_grid, a=config["radius_earth"])
   grad_phi_surf = jnp.stack((dss_scalar(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
@@ -41,7 +45,7 @@ def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, co
 def init_tracer_struct(Q):
   return {"Q": Q}
 
-
+@partial(jit, static_argnames=["dims", "scaled"])
 def dss_scalar_3d(variable, h_grid, dims, scaled=True):
   def dss_onlyarg(vec):
     return dss_scalar(vec, h_grid, dims, scaled=scaled)
@@ -54,7 +58,7 @@ def dss_scalar_3d_for(variable, h_grid, dims, scaled=True):
     levs.append(dss_scalar_for(variable[:, :, :, lev_idx], h_grid))
   return jnp.stack(levs, axis=-1)
 
-
+@partial(jit, static_argnames=["dims", "scaled", "hydrostatic"])
 def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
   u_dss = dss_scalar_3d(state_in["u"][:, :, :, :, 0], h_grid, dims, scaled=scaled)
   v_dss = dss_scalar_3d(state_in["u"][:, :, :, :, 1], h_grid, dims, scaled=scaled)
@@ -72,11 +76,12 @@ def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
                            phi_i_dss,
                            w_i_dss)
 
-
+@jit
 def pi_surf_from_state(state_in, v_grid):
   return jnp.sum(state_in["dpi"], axis=-1) + v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"]
 
 
+@partial(jit, static_argnames=["hydrostatic", "deep", "num_lev"])
 def remap_state(state_in, v_grid, config, num_lev, hydrostatic=True, deep=False):
   pi_surf = pi_surf_from_state(state_in, v_grid)
   dpi_ref = dmass_from_coordinate(pi_surf,

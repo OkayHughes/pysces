@@ -29,8 +29,6 @@ def test_eos_hydro():
     phi_i = get_balanced_phi(model_state["phi_surf"],
                              p_mid,
                              model_state["vtheta_dpi"], model_config)
-    
-
 
     z_i = phi_i / model_config['gravity']
     z_mid = interface_to_model(z_i)
