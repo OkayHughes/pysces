@@ -5,10 +5,14 @@ from functools import partial
 exit_codes = {"success": (0, "Operation completed successfully"),
               "nan": (1, "NaN found in state")}
 
+
 def err_code(message):
   return (1, message)
+
+
 def succeeded(code):
   return True if code[0] == exit_codes["success"][0] else False
+
 
 @jit
 def vel_model_to_interface(field_model, dpi, dpi_i):
@@ -18,6 +22,7 @@ def vel_model_to_interface(field_model, dpi, dpi_i):
                           mid_levels,
                           field_model[:, :, :, -1:, :]), axis=-2)
 
+
 @jit
 def model_to_interface(field_model):
   mid_levels = (field_model[:, :, :, :-1] + field_model[:, :, :, 1:]) / 2.0
@@ -25,24 +30,31 @@ def model_to_interface(field_model):
                           mid_levels,
                           field_model[:, :, :, -1:]), axis=-1)
 
+
 @jit
 def interface_to_model(field_interface):
   return (field_interface[:, :, :, 1:] +
           field_interface[:, :, :, :-1]) / 2.0
+
 
 @jit
 def interface_to_model_vec(vec_interface):
   return (vec_interface[:, :, :, 1:, :] +
           vec_interface[:, :, :, :-1, :]) / 2.0
 
+
 @jit
 def get_delta(field_interface):
   return field_interface[:, :, :, 1:] - field_interface[:, :, :, :-1]
 
+
 @jit
 def get_surface_sum(dfield_model, val_surf):
-  return jnp.concatenate((jnp.cumsum(dfield_model[:, :, :, ::-1], axis=-1)[:, :, :, ::-1] + val_surf[:, :, :, jnp.newaxis],
+  return jnp.concatenate((jnp.cumsum(dfield_model[:, :, :, ::-1], axis=-1)[:, :, :, ::-1] +
+                          val_surf[:, :, :, jnp.newaxis],
                           val_surf[:, :, :, jnp.newaxis]), axis=-1)
+
+
 @partial(jit, static_argnames=["deep"])
 def z_from_phi(phi, config, deep=False):
   gravity = config["gravity"]
@@ -54,6 +66,7 @@ def z_from_phi(phi, config, deep=False):
     z = phi / gravity
   return z
 
+
 @partial(jit, static_argnames=["deep"])
 def g_from_z(z, config, deep=False):
   radius_earth = config["radius_earth"]
@@ -64,10 +77,12 @@ def g_from_z(z, config, deep=False):
     g = config["gravity"]
   return g
 
+
 @partial(jit, static_argnames=["deep"])
 def g_from_phi(phi, config, deep=False):
   z = z_from_phi(phi, config, deep=deep)
   return g_from_z(z, config, deep=deep)
+
 
 @partial(jit, static_argnames=["deep"])
 def r_hat_from_phi(phi, config, deep=False):
@@ -77,6 +92,7 @@ def r_hat_from_phi(phi, config, deep=False):
   else:
     r_hat = jnp.ones_like(phi)
   return r_hat
+
 
 @jit
 def sphere_dot(u, v):
