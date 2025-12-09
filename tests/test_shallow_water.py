@@ -50,7 +50,7 @@ def test_sw_model():
   assert (inner_prod(diff_u[:, :, :, 1], diff_u[:, :, :, 1], grid) < 1e-5)
   assert (inner_prod(diff_h, diff_h, grid) / jnp.max(h_init) < 1e-5)
   if DEBUG:
-    fig_dir = "_figures"
+    fig_dir = get_figdir
     makedirs(fig_dir, exist_ok=True)
     plt.figure()
     plt.title("U at time {t}")
