@@ -1,6 +1,6 @@
 
 def init_config(Rgas=287.0,
-                radius_earth=6371e3,
+                radius_earth=-1,
                 period_earth=7.292e-5,
                 gravity=9.81,
                 p0=1e5,
@@ -13,7 +13,10 @@ def init_config(Rgas=287.0,
                 nu_div_factor=2.5,
                 T_ref=288.0,
                 T_ref_lapse=0.0065):
-  nu = nu_base * (30/ne)**3.2
+  radius_earth_base = 6371e3
+  if radius_earth < 0:
+    radius_earth = radius_earth_base
+  nu = nu_base * ((30 / ne) * (radius_earth / radius_earth_base))**3.2
   nu_phi = nu if nu_phi < 0 else nu_phi
   nu_dpi = nu if nu_dpi < 0 else nu_dpi
   return {"Rgas": Rgas,
