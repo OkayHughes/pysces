@@ -8,7 +8,7 @@ def simulate_theta(end_time, ne_min, state_in,
                    h_grid, v_grid, config,
                    dims, hydrostatic=True, deep=False,
                    diffusion=False, step_type="euler", rsplit=3, hvsplit=3):
-  dt = 100.0 * (30.0 / ne_min)  # todo: automatically calculate CFL from sw dispersion relation
+  dt = 250.0 * (30.0 / ne_min)  # todo: automatically calculate CFL from sw dispersion relation
   state_n = state_in
   ref_states = get_ref_states(state_in["phi_surf"], v_grid, config)
   t = 0.0
