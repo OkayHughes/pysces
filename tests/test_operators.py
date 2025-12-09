@@ -50,7 +50,7 @@ def test_vector_identites_rand():
 
 
 def test_divergence():
-  nx = 31
+  nx = 61
   grid, dims = create_quasi_uniform_grid(nx)
   vec = np.zeros_like(grid["physical_coords"])
   lat = grid["physical_coords"][:, :, :, 0]
@@ -66,13 +66,13 @@ def test_divergence():
   div = dss_scalar(sphere_divergence(vec, grid), grid, dims)
   div_wk = dss_scalar(sphere_divergence_wk(vec, grid), grid, dims, scaled=False)
   vort = dss_scalar(sphere_vorticity(vec, grid), grid, dims)
-  assert (inner_prod(div_wk - div, div_wk - div, grid) < 1e-5)
-  assert (inner_prod(div_analytic - div, div_analytic - div, grid) < 1e-5)
-  assert (inner_prod(vort_analytic - vort, vort_analytic - vort, grid) < 1e-5)
+  assert (inner_prod(div_wk - div, div_wk - div, grid) < 1e-6)
+  assert (inner_prod(div_analytic - div, div_analytic - div, grid) < 1e-6)
+  assert (inner_prod(vort_analytic - vort, vort_analytic - vort, grid) < 1e-6)
 
 
 def test_analytic_soln():
-  nx = 31
+  nx = 61
   grid, dims = create_quasi_uniform_grid(nx)
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   grad_f_numerical = sphere_gradient(fn, grid)
@@ -84,14 +84,13 @@ def test_analytic_soln():
   sph_grad_lat = -jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.sin(grid["physical_coords"][:, :, :, 0])
   sph_grad_lon = -jnp.sin(grid["physical_coords"][:, :, :, 1])
   assert ((inner_prod(grad_diff[:, :, :, 0], grad_diff[:, :, :, 0], grid) +
-           inner_prod(grad_diff[:, :, :, 1], grad_diff[:, :, :, 1], grid)
-           ) < 1e-5)
-  assert (np.max(np.abs(sph_grad_lat - grad_f_numerical[:, :, :, 1])) < 1e-4)
-  assert (np.max(np.abs(sph_grad_lon - grad_f_numerical[:, :, :, 0])) < 1e-4)
+           inner_prod(grad_diff[:, :, :, 1], grad_diff[:, :, :, 1], grid)) < 1e-5)
+  assert (np.max(np.abs(sph_grad_lat - grad_f_numerical[:, :, :, 1])) < 1e-5)
+  assert (np.max(np.abs(sph_grad_lon - grad_f_numerical[:, :, :, 0])) < 1e-5)
 
 
 def test_vector_laplacian():
-  nx = 31
+  nx = 61
   grid, dims = create_quasi_uniform_grid(nx)
   v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                  jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
