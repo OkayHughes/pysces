@@ -189,7 +189,7 @@ def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
   return z_surface, p_surface
 
 
-def evaluate_state(lat, lon, z, config, deep=False, moist=False):
+def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type="none"):
   K = config["K"]
   inttau2 = get_inttau2(z, config)
   r_hat = get_r_hat(z, config, deep=deep)
@@ -221,7 +221,19 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False):
     temp_v = temp
 
   # todo: handle pert
-
+  if pert_type == "exponential":
+    print("using exponential perturbation type")
+    u += evaluate_exponential(lat, lon, z, config)
+  elif pert_type == "streamfunction":
+    print("using streamfunction perturbation type")
+    eps = 1e-5
+    sf_lat_above = evaluate_streamfunction(lat + eps, lon, z, config)
+    sf_lat_below = evaluate_streamfunction(lat - eps, lon, z, config)
+    sf_lon_above = evaluate_streamfunction(lat, lon+eps, z, config)
+    sf_lon_below = evaluate_streamfunction(lat, lon-eps, z, config)
+    u += - (sf_lat_above - sf_lat_below) / (2 * eps)
+    v += (sf_lon_above - sf_lon_below) / (2 * eps)
+    
   return u, v, pressure, temp_v, q_vapor
 
 
@@ -242,13 +254,13 @@ def taper_fn(z, config):
                    jnp.zeros_like(z))
 
 
-def evalute_exponential(lat, lon, z, config):
-  greatcircle_dist = great_circle_dist(lat, lon, config)
+def evaluate_exponential(lat, lon, z, config):
+  greatcircle_dist = great_circle_dist(lat, lon, config)[:, :, :, jnp.newaxis]
   taper = taper_fn(z, config)
 
   pert_inside_circle = (config["pertup"] *
                         taper *
-                        jnp.exp(-greatcircle_dist[:, :, :, jnp.newaxis]**2))
+                        jnp.exp(-greatcircle_dist**2))
   return jnp.where(greatcircle_dist < 1.0,
                    pert_inside_circle,
                    jnp.zeros_like(z))
