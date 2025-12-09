@@ -86,8 +86,8 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
           jac_tmp[0, 1] = dlon_dx[face_idx, i_idx, j_idx]
           jac_tmp[1, 0] = dlat_dy[face_idx, i_idx, j_idx]
           jac_tmp[1, 1] = dlon_dy[face_idx, i_idx, j_idx]
-          err_str = f"""Face: {face_idx}, Numerical jac: {jac_tmp},
-          Analytic jac: \n {cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}"""
+          err_str = f"""Face: {face_idx},\nvvvvvvvvvvvvvvvvvvv\n Numerical jac: {jac_tmp},
+          Analytic jac: \n {cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n^^^^^^^^^^^^^^^^^\n """
           print(dedent(err_str))
 
   # front face
@@ -167,6 +167,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
 
   if DEBUG:
     test_face(bottom_lat, bottom_lon, bottom_face_mask)
+  
 
   return gll_latlon, cube_to_sphere_jacobian
 
@@ -174,6 +175,16 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacobian, vert_redundancy_gll, jax=use_jax):
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
+  too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi/2) < 1e-8
+  too_close_to_bottom = np.abs(gll_latlon[:, :, :, 0] + np.pi/2) < 1e-8
+  for i_idx, j_idx, entry in zip([0, 1, 0, 1],
+                                 [0, 1, 1, 0],
+                                 [1.0, 1.0, 0.0, 0.0]):
+    gll_to_sphere_jacobian[:, :, :,
+                           i_idx, j_idx] = np.where(np.logical_or(too_close_to_top,
+                                                                  too_close_to_bottom),
+                                                    entry,
+                                                    gll_to_sphere_jacobian[:, :, :, i_idx, j_idx])
   gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
 
   rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
