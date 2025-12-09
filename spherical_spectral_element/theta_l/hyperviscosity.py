@@ -6,7 +6,7 @@ from .eos import get_balanced_phi
 from .vertical_coordinate import mass_from_coordinate_interface
 
 
-def get_ref_states(phi_surf, h_grid, v_grid, config):
+def get_ref_states(phi_surf, v_grid, config):
   # could eventually only be called once.
   # due to low cost, if we end up going the "vmap over nelem" route, 
   # then this should probably be recomputed from element-local (and ideally SM-local) phi_surf
@@ -78,7 +78,7 @@ def hypervis_terms(state, ref_state, h_grid, dims, config, hydrostatic=True):
     phi_i_pert = state["phi_i"] - ref_state["phi_i"]
   else:
     phi_i_pert = 0.0
-  state_del2 = wrap_model_struct(state["u"],
+  state_rhs = wrap_model_struct(state["u"],
                                  state["vtheta_dpi"] / state["dpi"] - ref_state["vtheta"], 
                                  state["dpi"] - ref_state["dpi"],
                                  state["phi_surf"],
@@ -86,14 +86,14 @@ def hypervis_terms(state, ref_state, h_grid, dims, config, hydrostatic=True):
                                  phi_i_pert,
                                  state["w_i"])
   for apply_nu in [True, False]:
-    struct_del2 = calc_state_harmonic(state_del2,
+    struct_rhs = calc_state_harmonic(state_rhs,
                                       h_grid,
                                       config,
                                       apply_nu=apply_nu,
                                       hydrostatic=hydrostatic)
-    struct_del2 = dss_model_state(struct_del2,
+    struct_rhs = dss_model_state(struct_rhs,
                                     h_grid,
                                     dims,
                                     scaled=False,
                                     hydrostatic=hydrostatic)
-  return struct_del2
+  return struct_rhs
