@@ -3,6 +3,7 @@ from spherical_spectral_element.shallow_water.model import get_config_sw, create
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.operators import inner_prod, sphere_vorticity
 from spherical_spectral_element.assembly import dss_scalar
+from .context import get_figdir
 from os import makedirs
 from os.path import join
 if DEBUG:
@@ -137,7 +138,7 @@ def test_galewsky():
   assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
   assert (not np.any(np.isnan(final_state["u"])))
   if DEBUG:
-    fig_dir = "_figures"
+    fig_dir = get_figdir()
     makedirs(fig_dir, exist_ok=True)
     lon = jax_unwrapper(grid["physical_coords"][:, :, :, 1])
     lat = jax_unwrapper(grid["physical_coords"][:, :, :, 0])
