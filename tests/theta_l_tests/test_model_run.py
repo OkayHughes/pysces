@@ -19,7 +19,7 @@ def test_theta_steady_state():
   model_config = init_config()
   test_config = get_umjs_config(model_config=model_config)
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=False, hydrostatic=False)
-  total_time = (3600.0 * 24.0 * 30)/360
+  total_time = (3600.0 * 24.0 * 0.2)
   end_state, err_code = simulate_theta(total_time, nx, model_state,
                                        h_grid, v_grid,
                                        model_config, dims,
@@ -61,5 +61,5 @@ def test_theta_steady_state():
                   jax_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
   plt.colorbar()
   plt.savefig(f"{figdir}/vtheta_end.pdf")
-  print(err_code)
+  assert(jnp.max(jnp.abs(end_state["u"][:, :, :, :, 1])) < 0.2)
   assert succeeded(err_code)
