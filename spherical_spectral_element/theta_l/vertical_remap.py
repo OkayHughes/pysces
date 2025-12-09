@@ -1,7 +1,6 @@
 from ..config import jnp
 
-
-def zerroukat_remap(Qdp, dpi_model, dpi_reference, dims, filter=False, tiny=1e-12, qmax=1e50):
+def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1e-12, qmax=1e50):
   # assumes
   pi_int_reference = jnp.concatenate((jnp.zeros_like(dpi_reference[:, :, :, 0:1]), jnp.cumsum(dpi_reference, axis=-1)), axis=-1)
   pi_int_model = jnp.concatenate((jnp.zeros_like(dpi_model[:, :, :, 0:1]), jnp.cumsum(dpi_model, axis=-1)), axis=-1)
@@ -12,8 +11,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, dims, filter=False, tiny=1e-1
   # idxs is model to reference
   idxs = jnp.zeros_like(pi_int_reference[:, :, :, 1:-1], dtype=jnp.float32)
   frac = 0.5
-  num_lev = dims["num_level"]
-  axis_size = 1.0 * (dims["num_level"])
+  axis_size = 1.0 * num_lev
   for _ in range(8):
     levels_model = jnp.take_along_axis(pi_int_model, jnp.floor(idxs).astype(jnp.int32), axis=-1)
     levels_model_below = jnp.take_along_axis(pi_int_model, jnp.floor(idxs).astype(jnp.int32)+1, axis=-1)
@@ -30,7 +28,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, dims, filter=False, tiny=1e-1
   idxs = jnp.floor(idxs).astype(jnp.int32)
   idxs = jnp.concatenate((jnp.zeros_like(idxs[:, :, :, 0:1]),
                           idxs,
-                          (dims["num_level"]-1) * jnp.ones_like(idxs[:, :, :, 0:1])), axis=-1)
+                          (num_lev-1) * jnp.ones_like(idxs[:, :, :, 0:1])), axis=-1)
   model_above = jnp.take_along_axis(pi_int_model, idxs, axis=-1)
   model_below = jnp.take_along_axis(pi_int_model, idxs+1, axis=-1)
 

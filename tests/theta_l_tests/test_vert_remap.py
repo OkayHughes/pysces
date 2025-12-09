@@ -26,7 +26,6 @@ def get_testbed(seed=True, random=False):
 
 
 def test_for_remap():
-  return
   for _ in range(100):
     for random in [True, False]:
       deltas, deltas_ref, Qs, Qdps = get_testbed(seed=False, random=random)
@@ -52,8 +51,8 @@ def test_remap():
 
     dims = {"num_level": deltas.shape[-1]}
     #print("numpy loop output")
-    Qdp_out = zerroukat_remap(Qdps, deltas, deltas_ref, dims)
-    Qdp_out_filt = zerroukat_remap(Qdps, deltas, deltas_ref, dims, filter=True)
+    Qdp_out = zerroukat_remap(Qdps, deltas, deltas_ref, Qdps.shape[-2])
+    Qdp_out_filt = zerroukat_remap(Qdps, deltas, deltas_ref, Qdps.shape[-2], filter=True)
 
     assert (jnp.max(jnp.abs(Qdp_out_for - Qdp_out)) < 1e-10)
     assert (jnp.max(jnp.abs(Qdp_out_for_filt - Qdp_out_filt)) < 1e-10)
