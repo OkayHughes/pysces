@@ -1,5 +1,6 @@
-# Quickstart
-
+# The [py]thon [s]pe[c]tral element homm[e]  (pysces) dynamical core.
+If the lack of an [s] bothers you, you can pretend the acronym is derived from
+"The [python]  [s]pe[c]tral element homm[e] i-don't-respect-acronym[s]" dynamical core.
 
 
 # Design philosophy as of 11/26/2025
@@ -51,3 +52,33 @@ and closed-over in jitted functions instead of being passed as an argument.
 However, although this sort of trick works well in pure functional _languages_,
 my experience with JIT code in python is that it stymies the ability of the
 compiler to provide good error messages when things go wrong. 
+
+
+
+# remaining development priorities
+* Vertical remap (8 hours of work)
+  * Identify commonly used remapping configuration (<1 hour)
+  * Implement column-wise remapping function (just use Zerroukat?) (4 hours)
+  * Implement reference profile for subtraction (done?)
+  * Develop column-wise test for remapping consistency (2 hours)
+* Implement scalar advection (12 hours of work)
+  * Implement separate time step for scalar advection (2 hours)
+  * Implement tracer consistency tests (6 hours+??)
+  * Implement one limiter method (4 hours?)
+* Hyperviscosity (low priority due to split-form advection)
+* IMEX jacobian (around 18 hours of work)
+  * Implement shallow jacobian (2 hours)
+  * Implement outer loop (4-6 hours)
+  * Develop tests (5 hours?)
+  * Implement split time tendencies (3 hours)
+  * Implement deep Jacobian(2-3 hours)
+* unstructured grids (12 hours?)
+  * 
+* Differentiable limiters?
+* MPI (20-40 hours)
+ * Refactor all top_level code into "dss_local" and "dss remote" calls, with h_grid split into chunks
+ * Implement hilbert curve processor decomposition
+ * Create tests for processor decomposition
+ * Formulate dss extraction tuples, struct to contain them.
+ * Implement DSS assembly, repopulation
+ * create MPI wrapper to abstract away the ugly.
