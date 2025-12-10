@@ -9,7 +9,7 @@ from .test_init import get_umjs_state
 from spherical_spectral_element.theta_l.model_state import remap_state
 
 
-def test_eos_nonhydro():
+def test_remap_state():
   nx = 5
   h_grid, dims = create_quasi_uniform_grid(nx)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],

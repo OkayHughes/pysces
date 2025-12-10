@@ -264,8 +264,7 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
   grad_kinetic_energy_v = grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config)
   vorticity = vorticity_term(u, fcor, r_hat_m, h_grid, config)
   phi_advection = phi_advection_term(v_over_r_hat_i, grad_phi_i)
-  ke_ke_1_a = jnp.sum(dpi * sphere_dot(u, grad_kinetic_energy_h), axis=-1
-                      )
+  ke_ke_1_a = jnp.sum(dpi * sphere_dot(u, grad_kinetic_energy_h), axis=-1)
   ke_ke_1_b = jnp.sum(1.0 / 2.0 * u_sq * dss_scalar_3d(dpi_divergence, h_grid, dims), axis=-1)
 
   ke_ke_2_a = jnp.sum(dpi * (u1 * grad_kinetic_energy_v[:, :, :, :, 0] +
@@ -306,9 +305,9 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
 
   tends = explicit_tendency(state, h_grid, v_grid, config, hydrostatic=False, deep=deep)
   u_tend = tends["u"]
+
   ke_tend_emp = jnp.sum(dpi * (u1 * u_tend[:, :, :, :, 0] +
                                u2 * u_tend[:, :, :, :, 1]), axis=-1)
-
   ke_tend_emp += jnp.sum(dpi_i_integral * w_i * tends["w_i"], axis=-1)
 
   ke_tend_emp += jnp.sum(u_sq / 2.0 * tends["dpi"], axis=-1)
@@ -319,6 +318,7 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
 
   ie_tend_emp = jnp.sum(config["cp"] * exner * tends["vtheta_dpi"], axis=-1)
   ie_tend_emp -= jnp.sum(mu * dpi_i_integral * tends["phi_i"], axis=-1)
+
   pairs = {"ke_ke_1": (ke_ke_1_a, ke_ke_1_b),
            "ke_ke_2": (ke_ke_2_a, ke_ke_2_b),
            "ke_ke_3": (ke_ke_3_a, ke_ke_3_b),
