@@ -61,7 +61,7 @@ def get_p_mid(state, v_grid, config):
 
 @jit
 def get_balanced_phi(phi_surf, p_mid, vtheta_dpi, config):
-  #p = get_p_mid(state, v_grid, config)
+  # p = get_p_mid(state, v_grid, config)
   dphi = config["Rgas"] * (vtheta_dpi *
                            (p_mid / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])
   dphi_augment = jnp.concatenate((dphi[:, :, :, :-1],
