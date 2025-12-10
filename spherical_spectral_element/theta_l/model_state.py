@@ -8,6 +8,7 @@ from .eos import get_p_mid
 from .infra import get_delta, get_surface_sum, g_from_phi
 from functools import partial
 
+
 @jit
 def wrap_model_struct(u, vtheta_dpi, dpi, phi_surf, grad_phi_surf, phi_i, w_i):
   state = {"u": u,
@@ -20,11 +21,13 @@ def wrap_model_struct(u, vtheta_dpi, dpi, phi_surf, grad_phi_surf, phi_i, w_i):
            }
   return state
 
+
 @jit
 def wrap_tracer_avg_struct(avg_u, avg_dpi, avg_dpi_dissip):
   return {"avg_v": avg_u,
           "avg_dpi": avg_dpi,
           "avg_dpi_dissip": avg_dpi_dissip}
+
 
 @partial(jit, static_argnames=["dims"])
 def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, config):
@@ -45,6 +48,7 @@ def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, co
 def init_tracer_struct(Q):
   return {"Q": Q}
 
+
 @partial(jit, static_argnames=["dims", "scaled"])
 def dss_scalar_3d(variable, h_grid, dims, scaled=True):
   def dss_onlyarg(vec):
@@ -57,6 +61,7 @@ def dss_scalar_3d_for(variable, h_grid, dims, scaled=True):
   for lev_idx in range(variable.shape[-1]):
     levs.append(dss_scalar_for(variable[:, :, :, lev_idx], h_grid))
   return jnp.stack(levs, axis=-1)
+
 
 @partial(jit, static_argnames=["dims", "scaled", "hydrostatic"])
 def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
@@ -76,6 +81,7 @@ def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
                            phi_i_dss,
                            w_i_dss)
 
+
 @jit
 def pi_surf_from_state(state_in, v_grid):
   return jnp.sum(state_in["dpi"], axis=-1) + v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"]
@@ -93,9 +99,9 @@ def remap_state(state_in, v_grid, config, num_lev, hydrostatic=True, deep=False)
   vtheta_dpi = state_in["vtheta_dpi"]
   if not hydrostatic:
     phi_ref = get_balanced_phi(state_in["phi_surf"],
-                              p_mid,
-                              state_in["vtheta_dpi"],
-                              config)
+                               p_mid,
+                               state_in["vtheta_dpi"],
+                               config)
     phi_pert = state_in["phi_i"] - phi_ref
     dphi = get_delta(phi_pert)
     dw = get_delta(state_in["w_i"])
@@ -114,8 +120,9 @@ def remap_state(state_in, v_grid, config, num_lev, hydrostatic=True, deep=False)
                                    vtheta_dpi_remap,
                                    config)
     phi_i_remap = get_surface_sum(-Qdp_out[:, :, :, :, 3], jnp.zeros_like(state_in["phi_surf"])) + phi_ref_new
-    w_i_surf = (u_remap[:, :, :, -1, 0] * state_in["grad_phi_surf"][:, :, :, 0] +
-                u_remap[:, :, :, -1, 1] * state_in["grad_phi_surf"][:, :, :, 1]) / g_from_phi(state_in["phi_surf"], config, deep=deep)
+    w_i_surf = ((u_remap[:, :, :, -1, 0] * state_in["grad_phi_surf"][:, :, :, 0] +
+                 u_remap[:, :, :, -1, 1] * state_in["grad_phi_surf"][:, :, :, 1]) /
+                g_from_phi(state_in["phi_surf"], config, deep=deep))
     w_i_upper = jnp.cumsum(-Qdp[:, :, :, ::-1, 4], axis=-1)[:, :, :, ::-1] + state_in["w_i"][:, :, :, -1:]
     w_i_remap = jnp.concatenate((w_i_upper, w_i_surf[:, :, :, jnp.newaxis]), axis=-1)
   else:
