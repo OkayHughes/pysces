@@ -39,8 +39,13 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
     g = config["gravity"]
   fcor = 2.0 * period_earth * jnp.sin(lat)
   fcorcos = 2.0 * period_earth * jnp.cos(lat)
-  w_m = interface_to_model(w_i)
-  grad_w_i = sphere_gradient_3d(w_i, h_grid, config)
+  if not hydrostatic:
+    w_m = interface_to_model(w_i)
+    grad_w_i = sphere_gradient_3d(w_i, h_grid, config)
+  else:
+    w_m = 0.0
+    grad_w_i=0.0
+
   grad_exner = sphere_gradient_3d(exner, h_grid, config) / r_hat_m
   vtheta = state["vtheta_dpi"] / dpi
   grad_phi_i = sphere_gradient_3d(phi_i, h_grid, config)

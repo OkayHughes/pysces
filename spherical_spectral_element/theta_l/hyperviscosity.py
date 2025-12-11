@@ -84,6 +84,81 @@ def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
                            nu_default * hyperdiff_w_i)
 
 
+@partial(jit, static_argnames=["n_sponge"])
+def get_nu_ramp(v_grid, n_sponge):
+  pressure_ratio = ((v_grid["hybrid_a_i"][0] + v_grid["hybrid_b_i"][0])/
+                    (v_grid["hybrid_a_i"][:n_sponge] + v_grid["hybrid_b_i"][:n_sponge]))
+  nu_ramp = jnp.minimum(8.0, (16.0 * pressure_ratio**2 / (pressure_ratio**2 + 1.0))[jnp.newaxis, jnp.newaxis, jnp.newaxis, :])
+  return nu_ramp
+
+
+@partial(jit, static_argnames=["dims", "n_sponge", "hydrostatic"])
+def sponge_layer(state, dt, h_grid, v_grid, config, dims, n_sponge, hydrostatic=True):
+  nu_top = config["diffusion"]["nu_top"]
+  nu_ramp = nu_top * get_nu_ramp(v_grid, n_sponge)
+  if not hydrostatic:
+    hyperdiff_phi_i = nu_ramp * scalar_harmonic_3d(state["phi_i"][:, :, :, -n_sponge:],
+                                                   h_grid, config)
+    hyperdiff_w_i = nu_ramp * scalar_harmonic_3d(state["w_i"][:, :, :, -n_sponge:],
+                                                 h_grid, config)
+  else:
+    hyperdiff_phi_i = 0.0
+    hyperdiff_w_i = 0.0
+
+  hyperdiff_vtheta = scalar_harmonic_3d(state["vtheta_dpi"][:, :, :, -n_sponge:],
+                                        h_grid, config)
+  hyperdiff_vtheta *= nu_ramp
+  hyperdiff_dpi = scalar_harmonic_3d(state["dpi"][:, :, :, -n_sponge:], h_grid, config)
+  hyperdiff_dpi *= nu_ramp
+  hyperdiff_u = vector_harmonic_3d(state["u"][:, :, :, -n_sponge:, :],
+                                   h_grid, config, 1.0)
+  hyperdiff_u *= nu_ramp[:, :, :, :, jnp.newaxis]
+  hyperdiff_state =  wrap_model_struct(hyperdiff_u,
+                           hyperdiff_vtheta,
+                           hyperdiff_dpi,
+                           state["phi_surf"],
+                           state["grad_phi_surf"],
+                           hyperdiff_phi_i,
+                           hyperdiff_w_i)
+  hyperdiff_state = dss_model_state(hyperdiff_state,
+                              h_grid,
+                              dims,
+                              scaled=False,
+                              hydrostatic=hydrostatic)
+
+  u_out = jnp.concatenate((dt * hyperdiff_state["u"] + state["u"][:, :, :, :n_sponge, :],
+                           state["u"][:, :, :, n_sponge:, :]), axis=-2)
+  vtheta_out = jnp.concatenate((dt * hyperdiff_state["vtheta_dpi"] + state["vtheta_dpi"][:, :, :, :n_sponge],
+                                state["vtheta_dpi"][:, :, :, n_sponge:]), axis=-1)
+  dpi_out = jnp.concatenate((dt * hyperdiff_state["dpi"] + state["dpi"][:, :, :, :n_sponge],
+                             state["dpi"][:, :, :, n_sponge:]), axis=-1)
+  if not hydrostatic:
+    phi_i_out = jnp.concatenate((dt * hyperdiff_state["phi_i"] + state["phi_i"][:, :, :, :n_sponge],
+                                 state["phi_i"][:, :, :, n_sponge:]), axis=-1)
+    w_i_out = jnp.concatenate((dt * hyperdiff_state["phi_i"] + state["w_i"][:, :, :, :n_sponge],
+                               state["w_i"][:, :, :, n_sponge:]), axis=-1)
+  else:
+    phi_i_out = 0.0
+    w_i_out = 0.0
+
+  if not hydrostatic:
+    phi_i_out = jnp.concatenate((state["phi_i"][:, :, :, :n_sponge],
+                                 state["phi_i"][:, :, :, n_sponge:]), axis=-1)
+    w_i_out = jnp.concatenate((state["w_i"][:, :, :, :n_sponge],
+                               state["w_i"][:, :, :, n_sponge:]), axis=-1)
+  else:
+    phi_i_out = 0.0
+    w_i_out = 0.0
+  struct = wrap_model_struct(u_out,
+                           vtheta_out,
+                           dpi_out,
+                           state["phi_surf"],
+                           state["grad_phi_surf"],
+                           phi_i_out,
+                           w_i_out)
+  return struct
+
+
 @partial(jit, static_argnames=["hydrostatic", "dims"])
 def hypervis_terms(state, ref_state, h_grid, dims, config, hydrostatic=True):
   if hydrostatic:

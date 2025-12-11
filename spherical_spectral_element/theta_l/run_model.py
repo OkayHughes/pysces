@@ -1,13 +1,13 @@
 from ..config import jnp
 from .hyperviscosity import get_ref_states
-from .time_stepping import advance_euler, advance_euler_hypervis, ullrich_5stage
+from .time_stepping import advance_euler, advance_euler_hypervis, ullrich_5stage, advance_euler_sponge
 from .model_state import remap_state
 
 
 def simulate_theta(end_time, ne_min, state_in,
                    h_grid, v_grid, config,
                    dims, hydrostatic=True, deep=False,
-                   diffusion=False, step_type="euler", rsplit=3, hvsplit=3):
+                   diffusion=False, step_type="euler", rsplit=3, hvsplit=3, sponge_split=0, n_sponge=5):
   dt = 250.0 * (30.0 / ne_min)  # todo: automatically calculate CFL from sw dispersion relation
   state_n = state_in
   ref_states = get_ref_states(state_in["phi_surf"], v_grid, config)
@@ -28,6 +28,11 @@ def simulate_theta(end_time, ne_min, state_in,
       state_np1 = advance_euler_hypervis(state_tmp, dt, h_grid, v_grid,
                                          config, dims, ref_states,
                                          n_subcycle=hvsplit, hydrostatic=hydrostatic)
+      if sponge_split != 0:
+        state_np1 = advance_euler_sponge(state_np1, dt, h_grid, v_grid, config, dims,
+                                         n_subcycle_sponge=sponge_split, n_sponge=n_sponge,
+                                         hydrostatic=hydrostatic)
+      
     if k % rsplit == 0:
       state_np1 = remap_state(state_np1, v_grid, config, len(v_grid["hybrid_b_m"]), hydrostatic=hydrostatic, deep=deep)
     state_n, state_np1 = state_np1, state_n

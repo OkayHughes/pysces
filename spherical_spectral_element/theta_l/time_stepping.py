@@ -2,7 +2,7 @@ from ..config import jit
 from .infra import exit_codes
 from .model_state import wrap_model_struct, dss_model_state
 from .explicit_terms import explicit_tendency, correct_state
-from .hyperviscosity import hypervis_terms
+from .hyperviscosity import hypervis_terms, sponge_layer
 from functools import partial
 
 
@@ -68,6 +68,12 @@ def advance_euler_hypervis(state_in, dt, h_grid, v_grid, config, dims, ref_state
     state_out = advance_state([state_in, hypervis_rhs], [1.0, dt / n_subcycle])
   return state_out
 
+@partial(jit, static_argnames=["dims", "n_subcycle_sponge", "n_sponge", "hydrostatic"])
+def advance_euler_sponge(state_in, dt, h_grid, v_grid, config, dims, n_subcycle_sponge=2, n_sponge=5, hydrostatic=True):
+  state_out = state_in
+  for _ in range(n_subcycle_sponge):
+    state_out = sponge_layer(state_out, .001 * dt / float(n_subcycle_sponge), h_grid, v_grid, config, dims, n_sponge=n_sponge, hydrostatic=hydrostatic)
+  return  state_out
 
 @partial(jit, static_argnames=["dims", "hydrostatic", "deep"])
 def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, deep=False):
