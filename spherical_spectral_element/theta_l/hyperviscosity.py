@@ -97,20 +97,20 @@ def sponge_layer(state, dt, h_grid, v_grid, config, dims, n_sponge, hydrostatic=
   nu_top = config["diffusion"]["nu_top"]
   nu_ramp = nu_top * get_nu_ramp(v_grid, n_sponge)
   if not hydrostatic:
-    hyperdiff_phi_i = nu_ramp * scalar_harmonic_3d(state["phi_i"][:, :, :, -n_sponge:],
+    hyperdiff_phi_i = nu_ramp * scalar_harmonic_3d(state["phi_i"][:, :, :, :n_sponge],
                                                    h_grid, config)
-    hyperdiff_w_i = nu_ramp * scalar_harmonic_3d(state["w_i"][:, :, :, -n_sponge:],
+    hyperdiff_w_i = nu_ramp * scalar_harmonic_3d(state["w_i"][:, :, :, :n_sponge],
                                                  h_grid, config)
   else:
     hyperdiff_phi_i = 0.0
     hyperdiff_w_i = 0.0
 
-  hyperdiff_vtheta = scalar_harmonic_3d(state["vtheta_dpi"][:, :, :, -n_sponge:],
+  hyperdiff_vtheta = scalar_harmonic_3d(state["vtheta_dpi"][:, :, :, :n_sponge],
                                         h_grid, config)
   hyperdiff_vtheta *= nu_ramp
-  hyperdiff_dpi = scalar_harmonic_3d(state["dpi"][:, :, :, -n_sponge:], h_grid, config)
+  hyperdiff_dpi = scalar_harmonic_3d(state["dpi"][:, :, :, :n_sponge], h_grid, config)
   hyperdiff_dpi *= nu_ramp
-  hyperdiff_u = vector_harmonic_3d(state["u"][:, :, :, -n_sponge:, :],
+  hyperdiff_u = vector_harmonic_3d(state["u"][:, :, :, :n_sponge, :],
                                    h_grid, config, 1.0)
   hyperdiff_u *= nu_ramp[:, :, :, :, jnp.newaxis]
   hyperdiff_state =  wrap_model_struct(hyperdiff_u,
