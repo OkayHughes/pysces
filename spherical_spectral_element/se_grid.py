@@ -1,4 +1,4 @@
-from .config import np, npt, jax_wrapper, use_wrapper, wrapper_type
+from .config import np, npt, wrapper, use_wrapper, wrapper_type
 from .spectral import deriv
 from scipy.sparse import coo_array
 from frozendict import frozendict
@@ -55,7 +55,7 @@ def create_spectral_element_grid(latlon,
   # note: test code sometimes sets jax=False to test jax vs stock numpy
   # this extra conditional is not extraneous.
   if jax:
-    wrapper = jax_wrapper
+    wrapper = wrapper
   else:
     def wrapper(x):
       return x

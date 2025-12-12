@@ -22,10 +22,10 @@ if wrapper_type == "jax" and use_wrapper==True:
   if use_double:
     jax.config.update("jax_enable_x64", True)
 
-  def jax_wrapper(x):
+  def wrapper(x):
     return jnp.array(x)
 
-  def jax_unwrapper(x):
+  def unwrapper(x):
     return np.asarray(x)
   jit = jax.jit
 
@@ -47,11 +47,11 @@ elif wrapper_type == "torch" and use_wrapper==True:
   # if use_double:
   #   jax.config.update("jax_enable_x64", True)
 
-  def jax_wrapper(x):
+  def wrapper(x):
     return jnp.tensor(x, dtype=jnp.float64
                       )
 
-  def jax_unwrapper(x):
+  def unwrapper(x):
     return x.cpu().detach().numpy()
   
   def jit(func, *_, **__):
@@ -69,10 +69,10 @@ elif wrapper_type == "torch" and use_wrapper==True:
 else:
   import numpy as jnp
 
-  def jax_wrapper(x):
+  def wrapper(x):
     return x
 
-  def jax_unwrapper(x):
+  def unwrapper(x):
     return x
 
   def jit(func, *_, **__):

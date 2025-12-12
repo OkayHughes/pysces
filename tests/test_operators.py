@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import np, jnp, eps, jax_wrapper, jax_unwrapper
+from spherical_spectral_element.config import np, jnp, eps, wrapper, unwrapper
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.assembly import dss_scalar
 from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
@@ -13,7 +13,7 @@ def test_vector_identites():
   vort = sphere_vorticity(grad, grid)
 
   iprod_vort = inner_prod(vort, vort, grid)
-  assert (np.allclose(jax_unwrapper(iprod_vort), 0.0, atol=eps))
+  assert (np.allclose(unwrapper(iprod_vort), 0.0, atol=eps))
   v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                  
                  jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
@@ -30,7 +30,7 @@ def test_vector_identites_rand():
   nx = 31
   grid, dims = create_quasi_uniform_grid(nx)
   for _ in range(10):
-    fn = jax_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
+    fn = wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
     fn = dss_scalar(fn, grid, dims)
     grad = sphere_gradient(fn, grid)
     vort = sphere_vorticity(grad, grid)
@@ -38,8 +38,8 @@ def test_vector_identites_rand():
                       dss_scalar(grad[:, :, :, 1], grid, dims)), axis=-1)
     vort = dss_scalar(vort, grid, dims)
     iprod_vort = inner_prod(vort, vort, grid)
-    assert (np.allclose(jax_unwrapper(iprod_vort), 0.0, atol=eps))
-    v = jax_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
+    assert (np.allclose(unwrapper(iprod_vort), 0.0, atol=eps))
+    v = wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
     v = jnp.stack((dss_scalar(v[:, :, :, 0], grid, dims),
                    dss_scalar(v[:, :, :, 1], grid, dims)), axis=-1)
     div = sphere_divergence(v, grid)
@@ -58,12 +58,12 @@ def test_divergence():
   lon = grid["physical_coords"][:, :, :, 1]
   vec[:, :, :, 0] = np.cos(lat)**2 * np.cos(lon)**3
   vec[:, :, :, 1] = np.cos(lat)**2 * np.cos(lon)**3
-  vec = jax_wrapper(vec)
+  vec = wrapper(vec)
 
-  vort_analytic = jax_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
+  vort_analytic = wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
                    3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
 
-  div_analytic = jax_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
+  div_analytic = wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
   div = dss_scalar(sphere_divergence(vec, grid), grid, dims)
   div_wk = dss_scalar(sphere_divergence_wk(vec, grid), grid, dims, scaled=False)
