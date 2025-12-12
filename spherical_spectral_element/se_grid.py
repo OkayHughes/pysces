@@ -1,4 +1,4 @@
-from .config import np, npt, jax_wrapper, use_jax
+from .config import np, npt, jax_wrapper, use_wrapper, wrapper_type
 from .spectral import deriv
 from scipy.sparse import coo_array
 from frozendict import frozendict
@@ -49,7 +49,7 @@ def create_spectral_element_grid(latlon,
                                  mass_mat,
                                  inv_mass_mat,
                                  vert_redundancy,
-                                 jax=use_jax,
+                                 jax=use_wrapper,
                                  device=""):
   dss_matrix, dss_matrix_unscaled, dss_triple = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy)
   # note: test code sometimes sets jax=False to test jax vs stock numpy
@@ -59,7 +59,7 @@ def create_spectral_element_grid(latlon,
   else:
     def wrapper(x):
       return x
-
+  NELEM = metdet.shape[0]
   ret = {"physical_coords": wrapper(latlon),
          "jacobian": wrapper(gll_to_sphere_jacobian),
          "jacobian_inv": wrapper(gll_to_sphere_jacobian_inv),
@@ -82,6 +82,9 @@ def create_spectral_element_grid(latlon,
     ret["vert_redundancy"] = vert_redundancy
     ret["dss_matrix"] = dss_matrix
     ret["dss_matrix_unscaled"] = dss_matrix_unscaled
-
+  if use_wrapper and wrapper_type=="torch":
+    from .config import torch
+    ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]), dss_triple[0], size=(NELEM * npt * npt, NELEM * npt * npt))
+    ret["dss_matrix_unscaled"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]), dss_triple[1], size=(NELEM * npt * npt, NELEM * npt * npt))
   grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0])
   return ret, grid_dims

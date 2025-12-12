@@ -4,8 +4,9 @@ import numpy as np
 DEBUG = True
 npt = 4
 
-use_jax = False
-use_cpu = True
+use_wrapper = False
+wrapper_type = "torch"
+use_cpu = False
 use_double = True
 
 if use_double:
@@ -13,7 +14,7 @@ if use_double:
 else:
   eps = 1e-6
 
-if use_jax:
+if wrapper_type == "jax" and use_wrapper==True:
   import jax.numpy as jnp
   import jax
   if use_cpu:
@@ -35,7 +36,36 @@ if use_jax:
 
   def vmap_1d_apply(func, vector, in_axis, out_axis):
       return jax.vmap(func, in_axes=(in_axis), out_axes=(out_axis))(vector)
+  def flip(array, axis):
+    return jnp.flip(array, axis=axis)
 
+elif wrapper_type == "torch" and use_wrapper==True:
+  import torch as jnp
+  import torch
+  # if use_cpu:
+  #   jax.config.update("jax_default_device", jax.devices("cpu")[0])
+  # if use_double:
+  #   jax.config.update("jax_enable_x64", True)
+
+  def jax_wrapper(x):
+    return jnp.tensor(x, dtype=jnp.float64
+                      )
+
+  def jax_unwrapper(x):
+    return x.cpu().detach().numpy()
+  
+  def jit(func, *_, **__):
+    return func
+
+  def versatile_assert(should_be_true):
+    return
+  
+  from functools import partial
+
+  def vmap_1d_apply(func, vector, in_axis, out_axis):
+      return torch.vmap(func, in_axes=(in_axis), out_axes=(out_axis))(vector)
+  def flip(array, axis):
+    return jnp.flip(array, dims=(axis,))
 else:
   import numpy as jnp
 
@@ -59,3 +89,6 @@ else:
       scalar_2d = scalar.take(indices=lev_idx, axis=in_axis)
       levs.append(func(scalar_2d))
     return np.stack(levs, axis=out_axis)
+
+  def flip(array, axis):
+    return jnp.flip(array, axis=axis)

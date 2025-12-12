@@ -1,5 +1,4 @@
-from .config import jnp, jit
-from .spectral import deriv
+from .config import jnp, jit, flip
 from functools import partial
 
 
@@ -8,14 +7,14 @@ def sphere_gradient(f, grid, a=1.0):
   df_da = jnp.einsum("fij,ki->fkj", f, grid["deriv"])
   df_db = jnp.einsum("fij,kj->fik", f, grid["deriv"])
   df_dab = jnp.stack((df_da, df_db), axis=-1)
-  return 1.0 / a * jnp.flip(jnp.einsum("fijg,fijgs->fijs", df_dab, grid["jacobian_inv"]), axis=-1)
+  return 1.0 / a * flip(jnp.einsum("fijg,fijgs->fijs", df_dab, grid["jacobian_inv"]), -1)
 
 
 @jit
 def sphere_divergence(u, grid, a=1.0):
   u_contra = 1.0 / a * grid["met_det"][:, :, :, jnp.newaxis] * sph_to_contra(u, grid)
-  du_da = jnp.einsum("fij,ki->fkj", u_contra[:, :, :, 0], deriv["deriv"])
-  du_db = jnp.einsum("fij,kj->fik", u_contra[:, :, :, 1], deriv["deriv"])
+  du_da = jnp.einsum("fij,ki->fkj", u_contra[:, :, :, 0], grid["deriv"])
+  du_db = jnp.einsum("fij,kj->fik", u_contra[:, :, :, 1], grid["deriv"])
   div = grid["recip_met_det"][:, :, :] * (du_da + du_db)
   return div
 
@@ -112,17 +111,17 @@ def sphere_divergence_wk(u, grid, a=1.0):
 
 @jit
 def contra_to_sph(u, grid):
-  return jnp.flip(jnp.einsum("fijg,fijsg->fijs", u, grid["jacobian"]), axis=-1)
+  return flip(jnp.einsum("fijg,fijsg->fijs", u, grid["jacobian"]), -1)
 
 
 @jit
 def sph_to_contra(u, grid):
-  return jnp.einsum("fijs,fijgs->fijg", jnp.flip(u, axis=-1), grid["jacobian_inv"])
+  return jnp.einsum("fijs,fijgs->fijg", flip(u, -1), grid["jacobian_inv"])
 
 
 @jit
 def sph_to_cov(u, grid):
-  return jnp.einsum("fijs,fijsg->fijg", jnp.flip(u, axis=-1), grid["jacobian"])
+  return jnp.einsum("fijs,fijsg->fijg", flip(u, -1), grid["jacobian"])
 
 
 @jit

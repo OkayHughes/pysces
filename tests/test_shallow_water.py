@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import jnp, np, DEBUG, jax_unwrapper, jax_wrapper, use_jax
+from spherical_spectral_element.config import jnp, np, DEBUG, jax_unwrapper, jax_wrapper, use_wrapper
 from spherical_spectral_element.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.operators import inner_prod, sphere_vorticity
@@ -6,6 +6,7 @@ from spherical_spectral_element.assembly import dss_scalar
 from .context import get_figdir
 from os import makedirs
 from os.path import join
+
 if DEBUG:
   import matplotlib.pyplot as plt
 
@@ -13,31 +14,32 @@ if DEBUG:
 def test_sw_model():
   nx = 15
   grid, dims = create_quasi_uniform_grid(nx)
-  config = get_config_sw(alpha=jnp.pi / 4, ne=15)
-  u0 = 2.0 * np.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
+  config = get_config_sw(alpha=
+                         jnp.pi / 4, ne=15)
+  u0 = 2.0 * jnp.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
   h0 = 2.94e4 / config["gravity"]
 
   def williamson_tc2_u(lat, lon):
-    wind = np.zeros((*lat.shape, 2))
-    wind[:, :, :, 0] = u0 * (np.cos(lat) * np.cos(config["alpha"]) +
-                             np.cos(lon) * np.sin(lat) * np.sin(config["alpha"]))
-    wind[:, :, :, 1] = -u0 * (np.sin(lon) * np.sin(config["alpha"]))
+    wind = jnp.stack((u0 * (jnp.cos(lat) * jnp.cos(config["alpha"]) +
+                             jnp.cos(lon) * jnp.sin(lat) * jnp.sin(config["alpha"])),
+                     -u0 * (jnp.sin(lon) * jnp.sin(config["alpha"]))), axis=-1)
     return wind
 
   def williamson_tc2_h(lat, lon):
-    h = np.zeros_like(lat)
+    h = jnp.zeros_like(lat)
     h += h0
-    second_factor = (-np.cos(lon) * np.cos(lat) * np.sin(config["alpha"]) +
-                     np.sin(lat) * np.cos(config["alpha"]))**2
+    second_factor = (-jnp.cos(lon) * jnp.cos(lat) * jnp.sin(config["alpha"]) +
+                     jnp.sin(lat) * jnp.cos(config["alpha"]))**2
     h -= (config["radius_earth"] * config["earth_period"] * u0 + u0**2 / 2.0) / config["gravity"] * second_factor
     return h
 
   def williamson_tc2_hs(lat, lon):
-    return np.zeros_like(lat)
+    return jnp.zeros_like(lat)
 
   u_init = jax_wrapper(williamson_tc2_u(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   h_init = jax_wrapper(williamson_tc2_h(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   hs_init = jax_wrapper(williamson_tc2_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
+  print(u_init.dtype)
   init_state = create_state_struct(u_init, h_init, hs_init)
 
   T = 4000.0
@@ -78,13 +80,11 @@ def test_sw_model():
 
 
 def test_galewsky():
+  
   nx = 61
   grid, dims = create_quasi_uniform_grid(nx)
 
   config = get_config_sw(ne=15)
-  if use_jax:
-    import jax
-    print(jax.devices())
 
   deg = 100
   pts, weights = np.polynomial.legendre.leggauss(deg)
@@ -103,29 +103,30 @@ def test_galewsky():
   pert_center = np.pi / 4
 
   def galewsky_u(lat):
-    u = np.zeros_like(lat)
-    mask = np.logical_and(lat > phi0, lat < phi1)
-    u[mask] = u_max / e_norm * np.exp(1 / ((lat[mask] - phi0) * (lat[mask] - phi1)))
+    u = jnp.zeros_like(lat)
+    mask = jnp.logical_and(lat > phi0, lat < phi1)
+    u = jnp.where(mask, u_max / e_norm * jnp.exp(1 / ((lat - phi0) * (lat - phi1))), u)
+    
     return u
 
   def galewsky_wind(lat, lon):
-    u = np.zeros([*lat.shape, 2])
-    u[:, :, :, 0] = galewsky_u(lat)
+    u = jnp.stack((galewsky_u(lat),
+                   jnp.zeros_like(lat)), axis=-1)
     return u
 
   def galewsky_h(lat, lon):
-    quad_amount = lat + np.pi / 2.0
+    quad_amount = lat + jnp.pi / 2.0
     weights_quad = quad_amount.reshape([*lat.shape, 1]) * weights.reshape((*[1 for _ in lat.shape], deg))
     phi_quad = quad_amount.reshape([*lat.shape, 1]) * pts.reshape((*[1 for _ in lat.shape], deg)) - np.pi / 2
     u_quad = galewsky_u(phi_quad)
-    f = 2.0 * Omega * np.sin(phi_quad)
-    integrand = a * u_quad * (f + np.tan(phi_quad) / a * u_quad)
-    h = h0 - 1.0 / config["gravity"] * np.sum(integrand * weights_quad, axis=-1)
-    h_prime = hat_h * np.cos(lat) * np.exp(-(lon / alpha)**2) * np.exp(-((pert_center - lat) / beta)**2)
+    f = 2.0 * Omega * jnp.sin(phi_quad)
+    integrand = a * u_quad * (f + jnp.tan(phi_quad) / a * u_quad)
+    h = h0 - 1.0 / config["gravity"] * jnp.sum(integrand * weights_quad, axis=-1)
+    h_prime = hat_h *jnp.cos(lat) * jnp.exp(-(lon / alpha)**2) * jnp.exp(-((pert_center - lat) / beta)**2)
     return h + h_prime
 
   def galewsky_hs(lat, lon):
-    return np.zeros_like(lat)
+    return jnp.zeros_like(lat)
 
   T = (144 * 3600) / 3600
   u_init = jax_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
@@ -136,7 +137,8 @@ def test_galewsky():
   mass_init = inner_prod(h_init, h_init, grid)
   mass_final = inner_prod(final_state["h"], final_state["h"], grid)
   assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
-  assert (not np.any(np.isnan(final_state["u"])))
+  assert (not jnp.any(jnp.isnan(final_state["u"])))
+  
   if DEBUG:
     fig_dir = get_figdir()
     makedirs(fig_dir, exist_ok=True)

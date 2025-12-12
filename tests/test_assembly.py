@@ -1,4 +1,5 @@
-from spherical_spectral_element.config import np, npt, jax_wrapper, use_jax
+from spherical_spectral_element.config import np, npt, jax_wrapper, use_wrapper, wrapper_type, jax_unwrapper
+
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar_jax, dss_scalar_sparse, dss_scalar
@@ -8,7 +9,7 @@ def test_dss():
   nx = 3
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=use_jax)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=use_wrapper)
   grid_nojax, _ = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=False)
   vert_redundancy_gll = grid_nojax["vert_redundancy"]
   fn = np.zeros_like(grid["physical_coords"][:, :, :, 0])
@@ -21,7 +22,7 @@ def test_dss():
           if (i_idx, j_idx) in vert_redundancy_gll[face_idx].keys():
             for remote_face_id, remote_i, remote_j in vert_redundancy_gll[face_idx][(i_idx, j_idx)]:
               fn[remote_face_id, remote_i, remote_j] = 1.0
-        assert (np.allclose(dss_scalar(fn, grid, dims), fn))
+        assert (np.allclose((dss_scalar(jax_wrapper(fn), grid, dims)), fn))
 
 
 def test_dss_equiv():
@@ -33,8 +34,8 @@ def test_dss_equiv():
                                             face_mask,
                                             face_position_2d,
                                             vert_redundancy,
-                                            jax=use_jax)
-  fn = np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0])
+                                            jax=use_wrapper)
+  fn = jax_wrapper(np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0]))
   assert (np.allclose(dss_scalar(fn, grid_jax, dims), fn))
   ones = np.ones_like(grid["met_det"])
   ones_out = dss_scalar(jax_wrapper(ones), grid_jax, dims)
@@ -52,8 +53,10 @@ def test_dss_equiv_rand():
                                             face_mask,
                                             face_position_2d,
                                             vert_redundancy,
-                                            jax=use_jax)
+                                            jax=use_wrapper)
   for _ in range(20):
     fn_rand = np.random.uniform(size=grid["physical_coords"][:, :, :, 1].shape)
-    assert (np.allclose(dss_scalar_sparse(fn_rand, grid), dss_scalar_for(fn_rand, grid)))
-    assert (np.allclose(np.asarray(dss_scalar_jax(fn_rand, grid_jax, dims_jax)), dss_scalar_for(fn_rand, grid)))
+    if wrapper_type=="jax":
+      assert (np.allclose(np.asarray(dss_scalar_jax(fn_rand, grid_jax, dims_jax)), dss_scalar_for(fn_rand, grid)))
+
+    assert (np.allclose(dss_scalar_sparse(jax_wrapper(fn_rand), grid), dss_scalar_for(fn_rand, grid)))

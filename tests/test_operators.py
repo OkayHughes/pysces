@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import np, jnp, eps, jax_wrapper
+from spherical_spectral_element.config import np, jnp, eps, jax_wrapper, jax_unwrapper
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.assembly import dss_scalar
 from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
@@ -13,9 +13,10 @@ def test_vector_identites():
   vort = sphere_vorticity(grad, grid)
 
   iprod_vort = inner_prod(vort, vort, grid)
-  assert (jnp.allclose(iprod_vort, 0, atol=eps))
-  v = np.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
-                jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
+  assert (np.allclose(jax_unwrapper(iprod_vort), 0.0, atol=eps))
+  v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
+                 
+                 jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
 
   grad = sphere_gradient(fn, grid)
   discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
@@ -37,7 +38,7 @@ def test_vector_identites_rand():
                       dss_scalar(grad[:, :, :, 1], grid, dims)), axis=-1)
     vort = dss_scalar(vort, grid, dims)
     iprod_vort = inner_prod(vort, vort, grid)
-    assert (jnp.allclose(iprod_vort, 0, atol=eps))
+    assert (np.allclose(jax_unwrapper(iprod_vort), 0.0, atol=eps))
     v = jax_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
     v = jnp.stack((dss_scalar(v[:, :, :, 0], grid, dims),
                    dss_scalar(v[:, :, :, 1], grid, dims)), axis=-1)
@@ -57,12 +58,13 @@ def test_divergence():
   lon = grid["physical_coords"][:, :, :, 1]
   vec[:, :, :, 0] = np.cos(lat)**2 * np.cos(lon)**3
   vec[:, :, :, 1] = np.cos(lat)**2 * np.cos(lon)**3
+  vec = jax_wrapper(vec)
 
-  vort_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
-                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3)
+  vort_analytic = jax_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
+                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
 
-  div_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
-                  3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3)
+  div_analytic = jax_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
+                  3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
   div = dss_scalar(sphere_divergence(vec, grid), grid, dims)
   div_wk = dss_scalar(sphere_divergence_wk(vec, grid), grid, dims, scaled=False)
   vort = dss_scalar(sphere_vorticity(vec, grid), grid, dims)
@@ -85,8 +87,8 @@ def test_analytic_soln():
   sph_grad_lon = -jnp.sin(grid["physical_coords"][:, :, :, 1])
   assert ((inner_prod(grad_diff[:, :, :, 0], grad_diff[:, :, :, 0], grid) +
            inner_prod(grad_diff[:, :, :, 1], grad_diff[:, :, :, 1], grid)) < 1e-5)
-  assert (np.max(np.abs(sph_grad_lat - grad_f_numerical[:, :, :, 1])) < 1e-5)
-  assert (np.max(np.abs(sph_grad_lon - grad_f_numerical[:, :, :, 0])) < 1e-5)
+  assert (jnp.max(jnp.abs(sph_grad_lat - grad_f_numerical[:, :, :, 1])) < 1e-5)
+  assert (jnp.max(jnp.abs(sph_grad_lon - grad_f_numerical[:, :, :, 0])) < 1e-5)
 
 
 def test_vector_laplacian():
@@ -106,7 +108,7 @@ def test_vector_laplacian():
   laplace_v_wk = sphere_vec_laplacian_wk(v, grid)
   laplace_v_wk = jnp.stack((dss_scalar(laplace_v_wk[:, :, :, 0], grid, dims, scaled=False),
                             dss_scalar(laplace_v_wk[:, :, :, 1], grid, dims, scaled=False)), axis=-1)
-  lap_diff = laplace_v_wk + 3 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis]
+  lap_diff = laplace_v_wk + 3.0 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis]
   lap_diff *= np.cos(grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis]**2  # hack to negate pole point
 
   assert ((inner_prod(lap_diff[:, :, :, 0], lap_diff[:, :, :, 0], grid) +

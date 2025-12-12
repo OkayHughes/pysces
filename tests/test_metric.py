@@ -23,7 +23,7 @@ def test_gen_mass_mat():
   nx = 15
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=False)
   assert (np.allclose(np.sum(grid["met_det"] *
                              (grid["gll_weights"][np.newaxis, :, np.newaxis] *
                               grid["gll_weights"][np.newaxis, np.newaxis, :])), 4 * np.pi))
