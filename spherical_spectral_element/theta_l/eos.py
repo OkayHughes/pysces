@@ -1,4 +1,4 @@
-from ..config import jnp, jit, np
+from ..config import jnp, jit, np, flip
 from .infra import model_to_interface, get_delta, r_hat_from_phi
 from functools import partial
 
@@ -64,8 +64,8 @@ def get_balanced_phi(phi_surf, p_mid, vtheta_dpi, config):
   # p = get_p_mid(state, v_grid, config)
   dphi = config["Rgas"] * (vtheta_dpi *
                            (p_mid / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])
-  dphi_augment = jnp.concatenate((dphi[:, :, :, :-1],
+  dphi_augment = flip(jnp.concatenate((dphi[:, :, :, :-1],
                                   (dphi[:, :, :, -1] + phi_surf)[:, :, :, np.newaxis]),
-                                 axis=-1)[:, :, :, ::-1]
+                                 axis=-1), -1)
   phi_i_above_surf = jnp.cumsum(dphi_augment, axis=-1)
-  return jnp.concatenate((phi_i_above_surf[:, :, :, ::-1], phi_surf[:, :, :, np.newaxis]), axis=-1)
+  return jnp.concatenate((flip(phi_i_above_surf, -1), phi_surf[:, :, :, np.newaxis]), axis=-1)
