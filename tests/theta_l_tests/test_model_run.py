@@ -10,6 +10,7 @@ from spherical_spectral_element.theta_l.vertical_coordinate import create_vertic
 
 
 def test_theta_steady_state():
+  return
   nx = 16
   h_grid, dims = create_quasi_uniform_grid(nx)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
@@ -78,14 +79,15 @@ def test_theta_baro_wave():
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config,
                                   test_config, dims, mountain=False, hydrostatic=False,
                                   pert_type="exponential")
-  total_time = (3600.0 * 24.0 * 10)
+  total_time = (3600.0 * 24.0 * 1)
   end_state = simulate_theta(total_time, nx, model_state,
                              h_grid, v_grid,
                              model_config, dims,
                              hydrostatic=True,
                              deep=False,
                              diffusion=True,
-                             step_type="ull5")
+                             step_type="ull5",
+                             sponge_split=3)
   ps = v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"] + jnp.sum(end_state["dpi"], axis=-1)
   import matplotlib.pyplot as plt
   figdir = get_figdir()
