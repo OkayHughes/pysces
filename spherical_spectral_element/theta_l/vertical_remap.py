@@ -1,4 +1,4 @@
-from ..config import jnp, jit, versatile_assert, np
+from ..config import jnp, jit, versatile_assert, np, take_along_axis, cast_type, flip
 from functools import partial
 
 
@@ -17,8 +17,9 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
   frac = 0.5
   axis_size = 1.0 * num_lev
   for _ in range(8):
-    levels_model = jnp.take_along_axis(pi_int_model, jnp.floor(idxs).astype(jnp.int32), axis=-1)
-    levels_model_below = jnp.take_along_axis(pi_int_model, jnp.floor(idxs).astype(jnp.int32) + 1, axis=-1)
+    levels_model = take_along_axis(pi_int_model, cast_type(jnp.floor(idxs), jnp.int64), -1)
+    levels_model_below = take_along_axis(pi_int_model, cast_type(jnp.floor(idxs), jnp.int64
+                                                                 ) + 1, -1)
     low_enough = pi_int_reference[:, :, :, 1:-1] > levels_model
     too_low = pi_int_reference[:, :, :, 1:-1] > levels_model_below
     converged = jnp.logical_and(low_enough,
@@ -29,12 +30,13 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
                      idxs)
     frac *= 0.5
   versatile_assert(jnp.all(converged))
-  idxs = jnp.floor(idxs).astype(jnp.int32)
+  idxs = cast_type(jnp.floor(idxs), 
+                   jnp.int64)
   idxs = jnp.concatenate((jnp.zeros_like(idxs[:, :, :, 0:1]),
                           idxs,
                           (num_lev - 1) * jnp.ones_like(idxs[:, :, :, 0:1])), axis=-1)
-  model_above = jnp.take_along_axis(pi_int_model, idxs, axis=-1)
-  model_below = jnp.take_along_axis(pi_int_model, idxs + 1, axis=-1)
+  model_above = take_along_axis(pi_int_model, idxs, -1)
+  model_below = take_along_axis(pi_int_model, idxs + 1, -1)
 
   zgam = (pi_int_reference - model_above) / (model_below - model_above)
   zgam = jnp.concatenate((jnp.zeros_like(zgam[:, :, :, 0])[:, :, :, np.newaxis],
@@ -112,7 +114,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
       rhs_tmp.append((1.0 - filter_code[k]) * lev(rhs, k) +
                      filter_code[k] * (t3 * lev(zarg, k) + (1.0 - t3) * lev(zarg, im1)))
       filter_code[im1] = jnp.maximum(filter_code[im1], filter_code[k])
-    rhs = jnp.stack(rhs_tmp, axis=-2)[:, :, :, ::-1, :]
+    rhs = flip(jnp.stack(rhs_tmp, axis=-2), -2)
     rhs = jnp.where(rhs > qmax, qmax, rhs)
     rhs = jnp.where(rhs < 0, 0.0, rhs)
     za0_base = rhs[:, :, :, :-1, :]
@@ -224,12 +226,12 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
     za1 = -4.0 * rhs[:, :, :, :-1, :] - 2.0 * rhs[:, :, :, 1:, :] + 6 * zarg
     za2 = 3.0 * rhs[:, :, :, :-1, :] + 3.0 * rhs[:, :, :, 1:, :] - 6 * zarg
 
-  zhdp_mapped = jnp.take_along_axis(zhdp, idxs[:, :, :, 1:], axis=-1)[:, :, :, :, np.newaxis]
+  zhdp_mapped = take_along_axis(zhdp, idxs[:, :, :, 1:], -1)[:, :, :, :, np.newaxis]
   zv1 = jnp.zeros_like(Qdp[:, :, :, 0, :])
-  zv_mapped = jnp.take_along_axis(values_model[:, :, :, :-1, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
-  za0_mapped = jnp.take_along_axis(za0[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
-  za1_mapped = jnp.take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
-  za2_mapped = jnp.take_along_axis(za2[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
+  zv_mapped = take_along_axis(values_model[:, :, :, :-1, :], idxs[:, :, :, 1:, np.newaxis], -2)
+  za0_mapped = take_along_axis(za0[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)
+  za1_mapped = take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)
+  za2_mapped = take_along_axis(za2[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)
 
   Qdp_out = []
   for k_idx in range(num_lev):
@@ -238,7 +240,8 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
                                           za1_mapped[:, :, :, k_idx, :] / 2.0 *
                                           zgam[:, :, :, k_idx + 1, np.newaxis]**2 +
                                           za2_mapped[:, :, :, k_idx, :] / 3.0 *
-                                          zgam[:, :, :, k_idx + 1, np.newaxis]**3
+                                          zgam[:, :, :, k_idx + 1, 
+                                               np.newaxis]**3
                                           ) * zhdp_mapped[:, :, :, k_idx, :]
     Qdp_out.append(zv2 - zv1)
     zv1 = zv2

@@ -5,7 +5,7 @@ DEBUG = True
 npt = 4
 
 use_wrapper = True
-wrapper_type = "torch"
+wrapper_type = "jax"
 use_cpu = True
 use_double = True
 
@@ -41,6 +41,12 @@ if wrapper_type == "jax" and use_wrapper==True:
   
   def remainder(array, divisor):
     return jnp.mod(array, divisor)
+  
+  def take_along_axis(array, idxs, axis):
+    return jnp.take_along_axis(array, idxs, axis=axis)
+
+  def cast_type(arr, dtype):
+    return arr.astype(dtype)
 
 elif wrapper_type == "torch" and use_wrapper==True:
   import torch as jnp
@@ -76,6 +82,13 @@ elif wrapper_type == "torch" and use_wrapper==True:
     return jnp.flip(array, dims=(axis,))
   def remainder(array, divisor):
     return torch.remainder(array, divisor)
+
+  def take_along_axis(array, idxs, axis):
+    return torch.take_along_dim(array, idxs, dim=axis)  
+
+  def cast_type(arr, dtype):
+    return arr.type(dtype)
+
 else:
   import numpy as jnp
 
@@ -105,3 +118,9 @@ else:
 
   def remainder(array, divisor):
     return jnp.mod(array, divisor)
+
+  def take_along_axis(array, idxs, axis):
+    return jnp.take_along_axis(array, idxs, axis=axis)
+  
+  def cast_type(arr, dtype):
+    return arr.astype(dtype)

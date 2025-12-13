@@ -167,7 +167,7 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
           constB * (1.0 - 2.0 * scaledZ**2) * jnp.exp(-scaledZ**2))
   tau2 = constC * (1.0 - 2.0 * scaledZ**2) * jnp.exp(-scaledZ**2)
 
-  inttau1 = (constA * (jnp.exp(lapse * z / T0) - 1.0) +
+  inttau1 = (constA * (jnp.exp(lapse * z / T0) - device_wrapper(1.0)) +
              constB * z * jnp.exp(-scaledZ**2))
   inttau2 = get_inttau2(z, config)
 

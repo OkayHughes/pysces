@@ -26,6 +26,6 @@ def vertical_grid_finite_diff(nlev, eta_top=0.2, p0=1e5, frac_isobaric=0.4):
   hybrid_b_i = np.zeros_like(eta_i)
   hybrid_b_i[num_isobaric:] = np.linspace(0, 1.0, len(hybrid_b_i[num_isobaric:]))
   hybrid_a_i = eta_i - device_wrapper(hybrid_b_i)
-  return {"hybrid_a_i": hybrid_a_i,
-          "hybrid_b_i": hybrid_b_i,
+  return {"hybrid_a_i": device_wrapper(hybrid_a_i),
+          "hybrid_b_i": device_wrapper(hybrid_b_i),
           "p0": device_wrapper(p0)}

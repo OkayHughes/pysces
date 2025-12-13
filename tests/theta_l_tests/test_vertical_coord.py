@@ -1,7 +1,7 @@
 from spherical_spectral_element.theta_l.vertical_coordinate import (create_vertical_grid,
                                                                     mass_from_coordinate_midlev,
                                                                     mass_from_coordinate_interface)
-from spherical_spectral_element.config import jnp
+from spherical_spectral_element.config import jnp, np
 from .vertical_grids import cam30
 
 
@@ -10,7 +10,7 @@ def test_vcoord():
                                 cam30["hybrid_b_i"],
                                 cam30["p0"])
   n_test = 12
-  ps = ((1 + .05 * jnp.sin(jnp.linspace(0, jnp.pi, n_test))[:, jnp.newaxis, jnp.newaxis]) *
+  ps = ((1 + .05 * jnp.sin(jnp.linspace(0, jnp.pi, n_test))[:, np.newaxis, np.newaxis]) *
         v_grid["reference_pressure"])
   p_mid = mass_from_coordinate_midlev(ps, v_grid)
   p_int = mass_from_coordinate_interface(ps, v_grid)
