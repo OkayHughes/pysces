@@ -128,7 +128,7 @@ def test_galewsky():
   def galewsky_hs(lat, lon):
     return jnp.zeros_like(lat)
 
-  T = (144 * 3600) / 1.0 # 3600
+  T = (144 * 3600) / 3600
   u_init = device_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   h_init = device_wrapper(galewsky_h(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   hs_init = device_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))

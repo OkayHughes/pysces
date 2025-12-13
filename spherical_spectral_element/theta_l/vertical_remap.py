@@ -1,9 +1,9 @@
-from ..config import jnp, jit, versatile_assert, np, take_along_axis, cast_type, flip
+from ..config import jnp, jit, versatile_assert, np, take_along_axis, cast_type, flip, device_wrapper
 from functools import partial
 
 
 @partial(jit, static_argnames=["num_lev", "filter", "tiny", "qmax"])
-def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1e-12, qmax=1e50):
+def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1e-12, qmax=1e24):
   # assumes
   pi_int_reference = jnp.concatenate((jnp.zeros_like(dpi_reference[:, :, :, 0:1]),
                                       jnp.cumsum(dpi_reference, axis=-1)), axis=-1)
@@ -48,7 +48,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
   h = 1 / zhdp
 
   zarg = Qdp * h[:, :, :, :, np.newaxis]
-  brc = jnp.ones((1, 1, 1, 1, Qdp.shape[4]))
+  brc = device_wrapper(jnp.ones((1, 1, 1, 1, Qdp.shape[4])))
   diag_top = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc
   diag_mid = 2.0 * (h[:, :, :, 1:, np.newaxis] + h[:, :, :, :-1, np.newaxis]) * brc
   diag_bottom = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc

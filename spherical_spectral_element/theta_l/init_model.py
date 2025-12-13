@@ -8,6 +8,7 @@ def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
   z_guesses = p_given_z(z_top * jnp.ones_like(pressures))
   not_converged = jnp.logical_not(jnp.abs((p_given_z(z_guesses) - pressures)) / pressures < eps)
   frac = 0.5
+  ct = 0
   while jnp.any(not_converged):
     p_guess = p_given_z(z_guesses)
     too_high = p_guess < pressures
@@ -17,6 +18,9 @@ def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
                                     z_guesses + frac * z_top), z_guesses)
     not_converged = jnp.logical_not(jnp.abs((p_given_z(z_guesses) - pressures)) / pressures < eps)
     frac *= 0.5
+    if ct > 100:
+      break
+    ct += 1
   return z_guesses
 
 

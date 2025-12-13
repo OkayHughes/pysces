@@ -65,11 +65,11 @@ def test_theta_steady_state():
     if not diffusion:
       assert(jnp.max(jnp.abs(end_state["u"][:, :, :, :, 1])) < 0.2)
     else:
-      assert(not np.any(np.isnan(jax_unwrapper(end_state["u"][:, :, :, :, 1]))))
+      assert(not np.any(np.isnan(device_unwrapper(end_state["u"][:, :, :, :, 1]))))
 
 
 def test_theta_baro_wave():
-  nx = 16
+  nx = 30
   h_grid, dims = create_quasi_uniform_grid(nx)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],

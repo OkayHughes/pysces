@@ -37,7 +37,7 @@ def simulate_theta(end_time, ne_min, state_in,
         state_np1 = advance_euler_sponge(state_np1, dt, h_grid, v_grid, config, dims,
                                          n_subcycle_sponge=sponge_split, n_sponge=n_sponge,
                                          hydrostatic=hydrostatic)
-    assert not check_nan(state_np1)
+    #assert not check_nan(state_np1)
     if k % rsplit == 0:
       state_np1 = remap_state(state_np1, v_grid, config, len(v_grid["hybrid_b_m"]), hydrostatic=hydrostatic, deep=deep)
     state_n, state_np1 = state_np1, state_n

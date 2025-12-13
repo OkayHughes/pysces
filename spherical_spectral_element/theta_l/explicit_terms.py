@@ -1,4 +1,4 @@
-from ..config import jnp, jit, np
+from ..config import jnp, jit, np, device_wrapper
 from .infra import vel_model_to_interface, model_to_interface, interface_to_model, interface_to_model_vec
 from .infra import z_from_phi, g_from_z, g_from_phi, sphere_dot
 from .eos import get_mu, get_balanced_phi, get_p_mid
@@ -34,8 +34,8 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
     r_m = interface_to_model(z + radius_earth)
     g = g_from_z(z, config, deep=deep)
   else:
-    r_hat_m = jnp.ones((1, 1, 1, 1))
-    r_m = radius_earth * jnp.ones((1, 1, 1, 1))
+    r_hat_m = device_wrapper(jnp.ones((1, 1, 1, 1)))
+    r_m = radius_earth * device_wrapper(jnp.ones((1, 1, 1, 1)))
     g = config["gravity"]
   fcor = 2.0 * period_earth * jnp.sin(lat)
   fcorcos = 2.0 * period_earth * jnp.cos(lat)
@@ -178,6 +178,7 @@ def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=Fals
   w_i = state["w_i"]
   vtheta_dpi = state["vtheta_dpi"]
 
+
   (phi_i, phi, dpi_i, pnh, exner,
    r_hat_i, mu, r_hat_m, r_m, g,
    fcor, fcorcos, w_m,
@@ -188,7 +189,7 @@ def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=Fals
                                          hydrostatic=hydrostatic,
                                          deep=deep)
   if hydrostatic:
-    mu = jnp.array(mu)[np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+    mu = device_wrapper(mu)[np.newaxis, np.newaxis, np.newaxis, np.newaxis]
 
   u_tend = (vorticity_term(u, fcor, r_hat_m, h_grid, config) +
             grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config) +
