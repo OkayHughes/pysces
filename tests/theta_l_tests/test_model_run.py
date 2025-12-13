@@ -1,7 +1,7 @@
 from .test_init import get_umjs_state
 from .vertical_grids import cam30
 from ..context import get_figdir
-from spherical_spectral_element.config import jax_unwrapper, jnp, np
+from spherical_spectral_element.config import device_unwrapper, jnp, np
 from spherical_spectral_element.theta_l.constants import init_config
 from spherical_spectral_element.theta_l.initialization.umjs14 import get_umjs_config
 from spherical_spectral_element.theta_l.run_model import simulate_theta
@@ -33,33 +33,33 @@ def test_theta_steady_state():
     import matplotlib.pyplot as plt
     figdir = get_figdir()
     plt.figure()
-    plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                    jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                    jax_unwrapper(ps).flatten())
+    plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                    device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                    device_unwrapper(ps).flatten())
     plt.colorbar()
     plt.savefig(f"{figdir}/final_state_hv_{diffusion}.pdf")
     plt.figure()
-    plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                    jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                    jax_unwrapper(ps - ps_begin).flatten())
+    plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                    device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                    device_unwrapper(ps - ps_begin).flatten())
     plt.colorbar()
     plt.savefig(f"{figdir}/ps_diff_hv_{diffusion}.pdf")
     plt.figure()
-    plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                    jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                    jax_unwrapper(end_state["u"][:, :, :, 12, 1]).flatten())
+    plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                    device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                    device_unwrapper(end_state["u"][:, :, :, 12, 1]).flatten())
     plt.colorbar()
     plt.savefig(f"{figdir}/v_end_hv_{diffusion}.pdf")
     plt.figure()
-    plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                    jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                    jax_unwrapper(end_state["u"][:, :, :, 12, 0]).flatten())
+    plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                    device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                    device_unwrapper(end_state["u"][:, :, :, 12, 0]).flatten())
     plt.colorbar()
     plt.savefig(f"{figdir}/u_end_hv_{diffusion}.pdf")
     plt.figure()
-    plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                    jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                    jax_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
+    plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                    device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                    device_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
     plt.colorbar()
     plt.savefig(f"{figdir}/vtheta_end_hv_{diffusion}.pdf")
     if not diffusion:
@@ -92,26 +92,26 @@ def test_theta_baro_wave():
   import matplotlib.pyplot as plt
   figdir = get_figdir()
   plt.figure()
-  plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                  jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                  jax_unwrapper(ps).flatten())
+  plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                  device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                  device_unwrapper(ps).flatten())
   plt.colorbar()
   plt.savefig(f"{figdir}/final_state_bw.pdf")
   plt.figure()
-  plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                  jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                  jax_unwrapper(end_state["u"][:, :, :, 12, 1]).flatten())
+  plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                  device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                  device_unwrapper(end_state["u"][:, :, :, 12, 1]).flatten())
   plt.colorbar()
   plt.savefig(f"{figdir}/v_end_bw.pdf")
   plt.figure()
-  plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                  jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                  jax_unwrapper(end_state["u"][:, :, :, 12, 0]).flatten())
+  plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                  device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                  device_unwrapper(end_state["u"][:, :, :, 12, 0]).flatten())
   plt.colorbar()
   plt.savefig(f"{figdir}/u_end_bw.pdf")
   plt.figure()
-  plt.tricontourf(jax_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
-                  jax_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                  jax_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
+  plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
+                  device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
+                  device_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
   plt.colorbar()
   plt.savefig(f"{figdir}/vtheta_end_bw.pdf")

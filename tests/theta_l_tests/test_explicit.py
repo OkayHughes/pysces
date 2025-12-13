@@ -4,7 +4,7 @@ from .vertical_grids import cam30
 from spherical_spectral_element.theta_l.model_state import dss_model_state
 from spherical_spectral_element.theta_l.vertical_coordinate import create_vertical_grid
 from spherical_spectral_element.theta_l.initialization.umjs14 import get_umjs_config
-from spherical_spectral_element.config import jnp, jax_wrapper, np
+from spherical_spectral_element.config import jnp, device_wrapper, np
 from spherical_spectral_element.theta_l.constants import init_config
 from spherical_spectral_element.theta_l.explicit_terms import calc_energy_quantities
 from spherical_spectral_element.operators import inner_prod
@@ -22,11 +22,11 @@ def test_notopo():
   for _ in range(10):
     print("\nInitializing random atmosphere\n" + "=" * 28 + "\n")
     model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=False, hydrostatic=False)
-    model_state["u"] += jax_wrapper(np.random.normal(scale=0.1, size=model_state["u"].shape))
-    model_state["w_i"] += jax_wrapper(np.random.normal(scale=0.1, size=model_state["w_i"].shape))
-    phi_pert = jnp.concatenate((jax_wrapper(np.random.normal(scale=1.0,
+    model_state["u"] += device_wrapper(np.random.normal(scale=0.1, size=model_state["u"].shape))
+    model_state["w_i"] += device_wrapper(np.random.normal(scale=0.1, size=model_state["w_i"].shape))
+    phi_pert = jnp.concatenate((device_wrapper(np.random.normal(scale=1.0,
                                                              size=model_state["phi_i"][:, :, :, :-1].shape)),
-                                jnp.zeros_like(model_state["phi_surf"])[:, :, :, jnp.newaxis]), axis=-1)
+                                jnp.zeros_like(model_state["phi_surf"])[:, :, :, np.newaxis]), axis=-1)
     model_state["phi_i"] = model_state["phi_i"] + phi_pert
     model_state = dss_model_state(model_state, h_grid, dims, hydrostatic=False)
     pairs, empirical_tendencies = calc_energy_quantities(model_state, h_grid, v_grid, model_config, dims)
