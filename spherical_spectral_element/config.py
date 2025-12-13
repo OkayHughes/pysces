@@ -38,6 +38,9 @@ if wrapper_type == "jax" and use_wrapper==True:
       return jax.vmap(func, in_axes=(in_axis), out_axes=(out_axis))(vector)
   def flip(array, axis):
     return jnp.flip(array, axis=axis)
+  
+  def remainder(array, divisor):
+    return jnp.mod(array, divisor)
 
 elif wrapper_type == "torch" and use_wrapper==True:
   import torch as jnp
@@ -71,6 +74,8 @@ elif wrapper_type == "torch" and use_wrapper==True:
       return torch.vmap(func, in_dims=(in_axis), out_dims=(out_axis))(vector)
   def flip(array, axis):
     return jnp.flip(array, dims=(axis,))
+  def remainder(array, divisor):
+    return torch.remainder(array, divisor)
 else:
   import numpy as jnp
 
@@ -97,3 +102,6 @@ else:
 
   def flip(array, axis):
     return jnp.flip(array, axis=axis)
+
+  def remainder(array, divisor):
+    return jnp.mod(array, divisor)

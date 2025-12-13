@@ -1,4 +1,4 @@
-from ..config import jnp
+from ..config import jnp, device_wrapper
 from .model_state import init_model_struct, init_tracer_struct
 from .infra import get_delta
 from .vertical_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_interface
@@ -42,12 +42,12 @@ def init_model_pressure(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func,
   vtheta_dpi = vtheta * dpi
   u = u_func(lat, lon, z_mid)
   v = v_func(lat, lon, z_mid)
-  initial_state = init_model_struct(jnp.stack((u, v), axis=-1),
-                                    vtheta_dpi,
-                                    dpi,
-                                    phi_surf,
-                                    phi_i,
-                                    w_i,
+  initial_state = init_model_struct(device_wrapper(jnp.stack((u, v), axis=-1)),
+                                    device_wrapper(vtheta_dpi),
+                                    device_wrapper(dpi),
+                                    device_wrapper(phi_surf),
+                                    device_wrapper(phi_i),
+                                    device_wrapper(w_i),
                                     h_grid,
                                     dims,
                                     config)

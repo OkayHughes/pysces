@@ -1,4 +1,4 @@
-from ..config import jnp, jit
+from ..config import jnp, jit, np
 from functools import partial
 
 
@@ -16,8 +16,8 @@ def succeeded(code):
 
 @jit
 def vel_model_to_interface(field_model, dpi, dpi_i):
-  mid_levels = (dpi[:, :, :, :-1, jnp.newaxis] * field_model[:, :, :, :-1, :] +
-                dpi[:, :, :, 1:, jnp.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, jnp.newaxis])
+  mid_levels = (dpi[:, :, :, :-1, np.newaxis] * field_model[:, :, :, :-1, :] +
+                dpi[:, :, :, 1:, np.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, np.newaxis])
   return jnp.concatenate((field_model[:, :, :, 0:1, :],
                           mid_levels,
                           field_model[:, :, :, -1:, :]), axis=-2)
@@ -51,8 +51,8 @@ def get_delta(field_interface):
 @jit
 def get_surface_sum(dfield_model, val_surf):
   return jnp.concatenate((jnp.cumsum(dfield_model[:, :, :, ::-1], axis=-1)[:, :, :, ::-1] +
-                          val_surf[:, :, :, jnp.newaxis],
-                          val_surf[:, :, :, jnp.newaxis]), axis=-1)
+                          val_surf[:, :, :, np.newaxis],
+                          val_surf[:, :, :, np.newaxis]), axis=-1)
 
 
 @partial(jit, static_argnames=["deep"])

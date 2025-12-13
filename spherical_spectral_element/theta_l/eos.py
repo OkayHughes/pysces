@@ -1,4 +1,4 @@
-from ..config import jnp, jit
+from ..config import jnp, jit, np
 from .infra import model_to_interface, get_delta, r_hat_from_phi
 from functools import partial
 
@@ -44,9 +44,9 @@ def get_mu(state, phi_i, v_grid, config, deep=False, hydrostatic=True):
     dpnh_dpi_top = 2 * (p_model[:, :, :, 0] - p_top) / dpi_i[:, :, :, 0]
     dpnh_dpi_bottom = jnp.ones_like(p_model[:, :, :, 0])
     dpnh_dpi_int = get_delta(p_model) / dpi_i[:, :, :, 1:-1]
-    dpnh_dpi = jnp.concatenate((dpnh_dpi_top[:, :, :, jnp.newaxis],
+    dpnh_dpi = jnp.concatenate((dpnh_dpi_top[:, :, :, np.newaxis],
                                 dpnh_dpi_int,
-                                dpnh_dpi_bottom[:, :, :, jnp.newaxis]), axis=-1)
+                                dpnh_dpi_bottom[:, :, :, np.newaxis]), axis=-1)
     if deep:
       dpnh_dpi *= r_hat_i**2
   return p_model, exner, r_hat_i, dpnh_dpi
@@ -65,7 +65,7 @@ def get_balanced_phi(phi_surf, p_mid, vtheta_dpi, config):
   dphi = config["Rgas"] * (vtheta_dpi *
                            (p_mid / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])
   dphi_augment = jnp.concatenate((dphi[:, :, :, :-1],
-                                  (dphi[:, :, :, -1] + phi_surf)[:, :, :, jnp.newaxis]),
+                                  (dphi[:, :, :, -1] + phi_surf)[:, :, :, np.newaxis]),
                                  axis=-1)[:, :, :, ::-1]
   phi_i_above_surf = jnp.cumsum(dphi_augment, axis=-1)
-  return jnp.concatenate((phi_i_above_surf[:, :, :, ::-1], phi_surf[:, :, :, jnp.newaxis]), axis=-1)
+  return jnp.concatenate((phi_i_above_surf[:, :, :, ::-1], phi_surf[:, :, :, np.newaxis]), axis=-1)

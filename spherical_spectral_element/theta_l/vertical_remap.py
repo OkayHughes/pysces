@@ -1,4 +1,4 @@
-from ..config import jnp, jit, versatile_assert
+from ..config import jnp, jit, versatile_assert, np
 from functools import partial
 
 
@@ -37,32 +37,32 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
   model_below = jnp.take_along_axis(pi_int_model, idxs + 1, axis=-1)
 
   zgam = (pi_int_reference - model_above) / (model_below - model_above)
-  zgam = jnp.concatenate((jnp.zeros_like(zgam[:, :, :, 0])[:, :, :, jnp.newaxis],
+  zgam = jnp.concatenate((jnp.zeros_like(zgam[:, :, :, 0])[:, :, :, np.newaxis],
                           zgam[:, :, :, 1:-1],
-                          jnp.ones_like(zgam[:, :, :, -1])[:, :, :, jnp.newaxis]), axis=-1)
+                          jnp.ones_like(zgam[:, :, :, -1])[:, :, :, np.newaxis]), axis=-1)
 
   zhdp = pi_int_model[:, :, :, 1:] - pi_int_model[:, :, :, :-1]
 
   h = 1 / zhdp
 
-  zarg = Qdp * h[:, :, :, :, jnp.newaxis]
+  zarg = Qdp * h[:, :, :, :, np.newaxis]
   brc = jnp.ones((1, 1, 1, 1, Qdp.shape[4]))
   diag_top = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc
-  diag_mid = 2.0 * (h[:, :, :, 1:, jnp.newaxis] + h[:, :, :, :-1, jnp.newaxis]) * brc
+  diag_mid = 2.0 * (h[:, :, :, 1:, np.newaxis] + h[:, :, :, :-1, np.newaxis]) * brc
   diag_bottom = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc
 
   rhs_top = 3.0 * zarg[:, :, :, 0:1, :]
-  rhs_mid = 3.0 * (zarg[:, :, :, 1:, :] * h[:, :, :, 1:, jnp.newaxis] +
-                   zarg[:, :, :, :-1, :] * h[:, :, :, :-1, jnp.newaxis])
+  rhs_mid = 3.0 * (zarg[:, :, :, 1:, :] * h[:, :, :, 1:, np.newaxis] +
+                   zarg[:, :, :, :-1, :] * h[:, :, :, :-1, np.newaxis])
   rhs_bottom = 3.0 * zarg[:, :, :, -1:, :]
   rhs_base = jnp.concatenate((rhs_top / diag_top, rhs_mid, rhs_bottom), axis=-2)
 
   lower_diag_top = jnp.ones_like(zarg[:, :, :, 0:1, :])
-  lower_diag_mid = h[:, :, :, :-1, jnp.newaxis] * brc
+  lower_diag_mid = h[:, :, :, :-1, np.newaxis] * brc
   lower_diag_bottom = jnp.ones_like(zarg[:, :, :, -1:, :])
   lower_diag = jnp.concatenate((lower_diag_top, lower_diag_mid, lower_diag_bottom), axis=-2)
   upper_diag_top = jnp.ones_like(zarg[:, :, :, 0:1, :])
-  upper_diag_mid = h[:, :, :, 1:, jnp.newaxis] * brc
+  upper_diag_mid = h[:, :, :, 1:, np.newaxis] * brc
   upper_diag_bottom = jnp.zeros_like(zarg[:, :, :, -1:, :])
 
   upper_diag = jnp.concatenate((upper_diag_top, upper_diag_mid, upper_diag_bottom), axis=-2)
@@ -224,21 +224,21 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
     za1 = -4.0 * rhs[:, :, :, :-1, :] - 2.0 * rhs[:, :, :, 1:, :] + 6 * zarg
     za2 = 3.0 * rhs[:, :, :, :-1, :] + 3.0 * rhs[:, :, :, 1:, :] - 6 * zarg
 
-  zhdp_mapped = jnp.take_along_axis(zhdp, idxs[:, :, :, 1:], axis=-1)[:, :, :, :, jnp.newaxis]
+  zhdp_mapped = jnp.take_along_axis(zhdp, idxs[:, :, :, 1:], axis=-1)[:, :, :, :, np.newaxis]
   zv1 = jnp.zeros_like(Qdp[:, :, :, 0, :])
-  zv_mapped = jnp.take_along_axis(values_model[:, :, :, :-1, :], idxs[:, :, :, 1:, jnp.newaxis], axis=-2)
-  za0_mapped = jnp.take_along_axis(za0[:, :, :, :, :], idxs[:, :, :, 1:, jnp.newaxis], axis=-2)
-  za1_mapped = jnp.take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, jnp.newaxis], axis=-2)
-  za2_mapped = jnp.take_along_axis(za2[:, :, :, :, :], idxs[:, :, :, 1:, jnp.newaxis], axis=-2)
+  zv_mapped = jnp.take_along_axis(values_model[:, :, :, :-1, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
+  za0_mapped = jnp.take_along_axis(za0[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
+  za1_mapped = jnp.take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
+  za2_mapped = jnp.take_along_axis(za2[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], axis=-2)
 
   Qdp_out = []
   for k_idx in range(num_lev):
     zv2 = zv_mapped[:, :, :, k_idx, :] + (za0_mapped[:, :, :, k_idx, :] *
-                                          zgam[:, :, :, k_idx + 1, jnp.newaxis] +
+                                          zgam[:, :, :, k_idx + 1, np.newaxis] +
                                           za1_mapped[:, :, :, k_idx, :] / 2.0 *
-                                          zgam[:, :, :, k_idx + 1, jnp.newaxis]**2 +
+                                          zgam[:, :, :, k_idx + 1, np.newaxis]**2 +
                                           za2_mapped[:, :, :, k_idx, :] / 3.0 *
-                                          zgam[:, :, :, k_idx + 1, jnp.newaxis]**3
+                                          zgam[:, :, :, k_idx + 1, np.newaxis]**3
                                           ) * zhdp_mapped[:, :, :, k_idx, :]
     Qdp_out.append(zv2 - zv1)
     zv1 = zv2

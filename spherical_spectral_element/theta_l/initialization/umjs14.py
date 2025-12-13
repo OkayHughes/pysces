@@ -1,4 +1,4 @@
-from ...config import jnp
+from ...config import jnp, device_wrapper, np, remainder
 
 
 def get_umjs_config(T0E=310,
@@ -45,44 +45,44 @@ def get_umjs_config(T0E=310,
     Rgas = model_config["Rgas"]
     Rvap = model_config["Rvap"]
     gravity = model_config["gravity"]
-  mountain_lat_scales = [lat_width / (2.0 * (-jnp.log(0.1))**(1.0 / 6.0))
+  mountain_lat_scales = [lat_width / (2.0 * (-np.log(0.1))**(1.0 / 6.0))
                          for lat_width in mountain_lat_widths]
-  mountain_lon_scales = [lon_width / (2.0 * (-jnp.log(0.1))**(1.0 / 2.0))
+  mountain_lon_scales = [lon_width / (2.0 * (-np.log(0.1))**(1.0 / 2.0))
                          for lon_width in mountain_lon_widths]
-  return {"T0E": T0E,
-          "T0P": T0P,
-          "B": B,
-          "K": K,
-          "lapse": lapse,
-          "pertu0": pertu0,
-          "pertr": pertr,
-          "pertup": pertup,
-          "pertexpr": pertexpr,
-          "pertlon": pertlon,
-          "pertlat": pertlat,
-          "pertz": pertz,
-          "dx_epsilon": dx_epsilon,
-          "moistqlat": moistqlat,
-          "moistqp": moistqp,
-          "moisttr": moisttr,
-          "moistqs": moistqs,
-          "moistq0": moistq0,
-          "moistqr": moistqr,
-          "moisteps": moisteps,
-          "moistT0": moistT0,
-          "moistE0Ast": moistE0Ast,
-          "p0": p0,
-          "radius_earth": radius_earth,
-          "period_earth": period_earth,
-          "Rgas": Rgas,
-          "Rvap": Rvap,
-          "gravity": gravity,
-          "alpha": alpha,
-          "mountain_heights": mountain_heights,
-          "mountain_lats": mountain_lats,
-          "mountain_lons": mountain_lons,
-          "mountain_lat_scales": mountain_lat_scales,
-          "mountain_lon_scales": mountain_lon_scales,
+  return {"T0E": device_wrapper(T0E),
+          "T0P": device_wrapper(T0P),
+          "B": device_wrapper(B),
+          "K": device_wrapper(K),
+          "lapse": device_wrapper(lapse),
+          "pertu0": device_wrapper(pertu0),
+          "pertr": device_wrapper(pertr),
+          "pertup": device_wrapper(pertup),
+          "pertexpr": device_wrapper(pertexpr),
+          "pertlon": device_wrapper(pertlon),
+          "pertlat": device_wrapper(pertlat),
+          "pertz": device_wrapper(pertz),
+          "dx_epsilon": device_wrapper(dx_epsilon),
+          "moistqlat": device_wrapper(moistqlat),
+          "moistqp": device_wrapper(moistqp),
+          "moisttr": device_wrapper(moisttr),
+          "moistqs": device_wrapper(moistqs),
+          "moistq0": device_wrapper(moistq0),
+          "moistqr": device_wrapper(moistqr),
+          "moisteps": device_wrapper(moisteps),
+          "moistT0": device_wrapper(moistT0),
+          "moistE0Ast": device_wrapper(moistE0Ast),
+          "p0": device_wrapper(p0),
+          "radius_earth": device_wrapper(radius_earth),
+          "period_earth": device_wrapper(period_earth),
+          "Rgas": device_wrapper(Rgas),
+          "Rvap": device_wrapper(Rvap),
+          "gravity": device_wrapper(gravity),
+          "alpha": device_wrapper(alpha),
+          "mountain_heights": device_wrapper(mountain_heights),
+          "mountain_lats": device_wrapper(mountain_lats),
+          "mountain_lons": device_wrapper(mountain_lons),
+          "mountain_lat_scales": device_wrapper(mountain_lat_scales),
+          "mountain_lon_scales": device_wrapper(mountain_lon_scales),
           }
 
 
@@ -142,7 +142,7 @@ def get_z_surface(lat, lon, config, mountain=False):
                                     config["mountain_lons"],
                                     config["mountain_lat_scales"],
                                     config["mountain_lon_scales"]):
-      d0 = jnp.mod(lon - mountain_lon, 2.0 * jnp.pi)
+      d0 = remainder(lon - mountain_lon, 2.0 * jnp.pi)
       d0 = jnp.minimum(d0, 2.0 * jnp.pi - d0)
       zs += mountain_height * jnp.exp(-(((lat - mountain_lat) / mountain_lat_scale)**6 +
                                         (d0 / mountain_lon_scale)**2))
@@ -173,8 +173,9 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 
   r_hat = get_r_hat(z, config, deep=deep)
 
-  inttermT = ((r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**K -
-              K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**(K + 2))
+  inttermT = ((r_hat * jnp.cos(lat)[:, :, :, 
+                                    np.newaxis])**K -
+              K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, np.newaxis])**(K + 2))
 
   temperature = 1.0 / (r_hat**2 * (tau1 - tau2 * inttermT))
   pressure = config["p0"] * jnp.exp(-config["gravity"] / config["Rgas"] *
@@ -184,7 +185,7 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 
 def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
   z_surface = get_z_surface(lat, lon, config, mountain=mountain)
-  p_surface = evaluate_pressure_temperature(z_surface[:, :, :, jnp.newaxis],
+  p_surface = evaluate_pressure_temperature(z_surface[:, :, :, np.newaxis],
                                             lat, config, deep=deep)[0][:, :, :, 0]
   return z_surface, p_surface
 
@@ -193,7 +194,7 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type="none
   K = config["K"]
   inttau2 = get_inttau2(z, config)
   r_hat = get_r_hat(z, config, deep=deep)
-  cos_lat = jnp.cos(lat)[:, :, :, jnp.newaxis]
+  cos_lat = jnp.cos(lat)[:, :, :, np.newaxis]
   inttermU = ((r_hat * cos_lat)**(K - 1.0) -
               (r_hat * cos_lat)**(K + 1.0))
   pressure, temp = evaluate_pressure_temperature(z, lat, config, deep=deep)
@@ -254,7 +255,7 @@ def taper_fn(z, config):
 
 
 def evaluate_exponential(lat, lon, z, config):
-  greatcircle_dist = great_circle_dist(lat, lon, config)[:, :, :, jnp.newaxis]
+  greatcircle_dist = great_circle_dist(lat, lon, config)[:, :, :, np.newaxis]
   taper = taper_fn(z, config)
 
   pert_inside_circle = (config["pertup"] *

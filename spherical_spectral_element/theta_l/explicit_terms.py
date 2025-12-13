@@ -1,4 +1,4 @@
-from ..config import jnp, jit
+from ..config import jnp, jit, np
 from .infra import vel_model_to_interface, model_to_interface, interface_to_model, interface_to_model_vec
 from .infra import z_from_phi, g_from_z, g_from_phi, sphere_dot
 from .eos import get_mu, get_balanced_phi, get_p_mid
@@ -49,10 +49,10 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
   grad_exner = sphere_gradient_3d(exner, h_grid, config) / r_hat_m
   vtheta = state["vtheta_dpi"] / dpi
   grad_phi_i = sphere_gradient_3d(phi_i, h_grid, config)
-  v_over_r_hat_i = vel_model_to_interface(u / r_hat_m[:, :, :, jnp.newaxis],
+  v_over_r_hat_i = vel_model_to_interface(u / r_hat_m[:, :, :, np.newaxis],
                                           dpi, dpi_i)
-  div_dp = sphere_divergence_3d(dpi[:, :, :, :, jnp.newaxis] * u /
-                                r_hat_m[:, :, :, :, jnp.newaxis], h_grid, config)
+  div_dp = sphere_divergence_3d(dpi[:, :, :, :, np.newaxis] * u /
+                                r_hat_m[:, :, :, :, np.newaxis], h_grid, config)
   u_i = vel_model_to_interface(u, dpi, dpi_i)
   return (phi_i, phi, dpi_i, pnh, exner,
           r_hat_i, mu, r_hat_m, r_m, g,
@@ -66,8 +66,8 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
 def vorticity_term(u, fcor, r_hat_m, h_grid, config):
   vort = sphere_vorticity_3d(u, h_grid, config)
   vort /= r_hat_m
-  vort_term = jnp.stack((u[:, :, :, :, 1] * (fcor[:, :, :, jnp.newaxis] + vort),
-                         -u[:, :, :, :, 0] * (fcor[:, :, :, jnp.newaxis] + vort)), axis=-1)
+  vort_term = jnp.stack((u[:, :, :, :, 1] * (fcor[:, :, :, np.newaxis] + vort),
+                         -u[:, :, :, :, 0] * (fcor[:, :, :, np.newaxis] + vort)), axis=-1)
   return vort_term
 
 
@@ -87,34 +87,34 @@ def grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config):
 
 @jit
 def w_vorticity_correction_term(w_i, grad_w_i, r_hat_m):
-  w_grad_w_m = interface_to_model_vec(w_i[:, :, :, :, jnp.newaxis] * grad_w_i)
-  w_grad_w_m /= r_hat_m[:, :, :, :, jnp.newaxis]
+  w_grad_w_m = interface_to_model_vec(w_i[:, :, :, :, np.newaxis] * grad_w_i)
+  w_grad_w_m /= r_hat_m[:, :, :, :, np.newaxis]
   return w_grad_w_m
 
 
 @jit
 def u_metric_term(u, w_m, r_m):
-  return -w_m[:, :, :, :, jnp.newaxis] * u / r_m[:, :, :, jnp.newaxis]
+  return -w_m[:, :, :, :, np.newaxis] * u / r_m[:, :, :, np.newaxis]
 
 
 @jit
 def u_nct_term(w_m, fcorcos):
-  return -jnp.stack((w_m, jnp.zeros_like(w_m)), axis=-1) * fcorcos[:, :, :, jnp.newaxis, jnp.newaxis]
+  return -jnp.stack((w_m, jnp.zeros_like(w_m)), axis=-1) * fcorcos[:, :, :, np.newaxis, np.newaxis]
 
 
 @jit
 def pgrad_pressure_term(vtheta, grad_exner, exner, r_hat_m, h_grid, config):
-  grad_p_term_1 = config["cp"] * vtheta[:, :, :, :, jnp.newaxis] * grad_exner
+  grad_p_term_1 = config["cp"] * vtheta[:, :, :, :, np.newaxis] * grad_exner
   grad_vtheta_exner = sphere_gradient_3d(vtheta * exner, h_grid, config) / r_hat_m
   grad_vtheta = sphere_gradient_3d(vtheta, h_grid, config) / r_hat_m
-  grad_p_term_2 = config["cp"] * (grad_vtheta_exner - exner[:, :, :, :, jnp.newaxis] * grad_vtheta)
+  grad_p_term_2 = config["cp"] * (grad_vtheta_exner - exner[:, :, :, :, np.newaxis] * grad_vtheta)
   return -(grad_p_term_1 + grad_p_term_2) / 2.0
 
 
 @jit
 def pgrad_phi_term(mu, grad_phi_i, r_hat_m):
-  pgf_gradphi_m = interface_to_model_vec(mu[:, :, :, :, jnp.newaxis] * grad_phi_i)
-  pgf_gradphi_m /= r_hat_m[:, :, :, :, jnp.newaxis]
+  pgf_gradphi_m = interface_to_model_vec(mu[:, :, :, :, np.newaxis] * grad_phi_i)
+  pgf_gradphi_m /= r_hat_m[:, :, :, :, np.newaxis]
   return -pgf_gradphi_m
 
 
@@ -133,7 +133,7 @@ def w_metric_term(u, r_m, dpi, dpi_i):
 
 @jit
 def w_nct_term(u_i, fcorcos):
-  return u_i[:, :, :, :, 0] * fcorcos[:, :, :, jnp.newaxis]
+  return u_i[:, :, :, :, 0] * fcorcos[:, :, :, np.newaxis]
 
 
 @jit
@@ -155,7 +155,7 @@ def phi_acceleration_v_term(g, w_i):
 
 @jit
 def vtheta_divergence_term(u, vtheta_dpi, vtheta, div_dp, dpi, r_hat_m, h_grid, config):
-  v_vtheta = u * vtheta_dpi[:, :, :, :, jnp.newaxis]
+  v_vtheta = u * vtheta_dpi[:, :, :, :, np.newaxis]
   v_vtheta /= r_hat_m
   div_v_vtheta = sphere_divergence_3d(v_vtheta, h_grid, config) / 2.0
   grad_vtheta = sphere_gradient_3d(vtheta, h_grid, config)
@@ -188,7 +188,7 @@ def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=Fals
                                          hydrostatic=hydrostatic,
                                          deep=deep)
   if hydrostatic:
-    mu = jnp.array(mu)[jnp.newaxis, jnp.newaxis, jnp.newaxis, jnp.newaxis]
+    mu = jnp.array(mu)[np.newaxis, np.newaxis, np.newaxis, np.newaxis]
 
   u_tend = (vorticity_term(u, fcor, r_hat_m, h_grid, config) +
             grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config) +
@@ -386,6 +386,6 @@ def lower_boundary_correction(state_in, dt, config, hydrostatic=True, deep=False
     mu_surf += 1.0
 
     w_corrected = w_lowest + dt * g_surf * (mu_surf - 1)
-    u_corrected = u_lowest - dt * (mu_surf[:, :, :, jnp.newaxis] - 1) * grad_phi_surf / 2.0
+    u_corrected = u_lowest - dt * (mu_surf[:, :, :, np.newaxis] - 1) * grad_phi_surf / 2.0
 
   return u_corrected, w_corrected, mu_surf

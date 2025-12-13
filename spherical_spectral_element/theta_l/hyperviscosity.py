@@ -1,4 +1,4 @@
-from ..config import jnp, vmap_1d_apply, jit
+from ..config import jnp, vmap_1d_apply, jit, np
 from .infra import get_delta, interface_to_model
 from ..operators import sphere_vec_laplacian_wk, sphere_laplacian_wk
 from .model_state import wrap_model_struct, dss_model_state
@@ -88,7 +88,7 @@ def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
 def get_nu_ramp(v_grid, n_sponge):
   pressure_ratio = ((v_grid["hybrid_a_i"][0] + v_grid["hybrid_b_i"][0])/
                     (v_grid["hybrid_a_i"][:n_sponge] + v_grid["hybrid_b_i"][:n_sponge]))
-  nu_ramp = jnp.minimum(8.0, (16.0 * pressure_ratio**2 / (pressure_ratio**2 + 1.0))[jnp.newaxis, jnp.newaxis, jnp.newaxis, :])
+  nu_ramp = jnp.minimum(8.0, (16.0 * pressure_ratio**2 / (pressure_ratio**2 + 1.0))[np.newaxis, np.newaxis, np.newaxis, :])
   return nu_ramp
 
 
@@ -112,7 +112,7 @@ def sponge_layer(state, dt, h_grid, v_grid, config, dims, n_sponge, hydrostatic=
   hyperdiff_dpi *= nu_ramp
   hyperdiff_u = vector_harmonic_3d(state["u"][:, :, :, :n_sponge, :],
                                    h_grid, config, 1.0)
-  hyperdiff_u *= nu_ramp[:, :, :, :, jnp.newaxis]
+  hyperdiff_u *= nu_ramp[:, :, :, :, np.newaxis]
   hyperdiff_state =  wrap_model_struct(hyperdiff_u,
                            hyperdiff_vtheta,
                            hyperdiff_dpi,

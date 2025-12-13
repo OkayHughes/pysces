@@ -1,4 +1,4 @@
-
+from ..config import device_wrapper
 def init_config(Rgas=287.0,
                 radius_earth=-1,
                 period_earth=7.292e-5,
@@ -20,17 +20,17 @@ def init_config(Rgas=287.0,
   nu = nu_base * ((30 / ne) * (radius_earth / radius_earth_base))**3.2
   nu_phi = nu if nu_phi < 0 else nu_phi
   nu_dpi = nu if nu_dpi < 0 else nu_dpi
-  return {"Rgas": Rgas,
-          "Rvap": Rvap,
-          "cp": cp,
-          "gravity": gravity,
-          "radius_earth": radius_earth,
-          "period_earth": period_earth,
-          "p0": p0,
-          "diffusion": {"nu": nu,
-                        "nu_phi": nu_phi,
-                        "nu_dpi": nu_dpi,
-                        "nu_div_factor": nu_div_factor,
-                        "nu_top": nu_top},
-          "reference_profiles": {"T_ref": T_ref,
-                                 "T_ref_lapse": T_ref_lapse}}
+  return {"Rgas": device_wrapper(Rgas),
+          "Rvap": device_wrapper(Rvap),
+          "cp": device_wrapper(cp),
+          "gravity": device_wrapper(gravity),
+          "radius_earth": device_wrapper(radius_earth),
+          "period_earth": device_wrapper(period_earth),
+          "p0": device_wrapper(p0),
+          "diffusion": {"nu": device_wrapper(nu),
+                        "nu_phi": device_wrapper(nu_phi),
+                        "nu_dpi": device_wrapper(nu_dpi),
+                        "nu_div_factor": device_wrapper(nu_div_factor),
+                        "nu_top": device_wrapper(nu_top)},
+          "reference_profiles": {"T_ref": device_wrapper(T_ref),
+                                 "T_ref_lapse": device_wrapper(T_ref_lapse)}}

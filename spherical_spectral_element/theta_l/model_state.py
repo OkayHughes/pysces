@@ -1,4 +1,4 @@
-from ..config import jnp, vmap_1d_apply, jit
+from ..config import jnp, vmap_1d_apply, jit, np
 from ..assembly import dss_scalar, dss_scalar_for
 from ..operators import sphere_gradient
 from .vertical_remap import zerroukat_remap
@@ -60,7 +60,7 @@ def dss_scalar_3d_for(variable, h_grid, dims, scaled=True):
   levs = []
   for lev_idx in range(variable.shape[-1]):
     levs.append(dss_scalar_for(variable[:, :, :, lev_idx], h_grid))
-  return jnp.stack(levs, axis=-1)
+  return np.stack(levs, axis=-1)
 
 
 @partial(jit, static_argnames=["dims", "scaled", "hydrostatic"])
@@ -124,7 +124,7 @@ def remap_state(state_in, v_grid, config, num_lev, hydrostatic=True, deep=False)
                  u_remap[:, :, :, -1, 1] * state_in["grad_phi_surf"][:, :, :, 1]) /
                 g_from_phi(state_in["phi_surf"], config, deep=deep))
     w_i_upper = jnp.cumsum(-Qdp[:, :, :, ::-1, 4], axis=-1)[:, :, :, ::-1] + state_in["w_i"][:, :, :, -1:]
-    w_i_remap = jnp.concatenate((w_i_upper, w_i_surf[:, :, :, jnp.newaxis]), axis=-1)
+    w_i_remap = jnp.concatenate((w_i_upper, w_i_surf[:, :, :, np.newaxis]), axis=-1)
   else:
     phi_i_remap = state_in["phi_i"]
     w_i_remap = state_in["w_i"]
