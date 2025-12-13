@@ -6,7 +6,7 @@ npt = 4
 
 use_wrapper = True
 wrapper_type = "torch"
-use_cpu = False
+use_cpu = True
 use_double = True
 
 if use_double:
@@ -48,8 +48,12 @@ elif wrapper_type == "torch" and use_wrapper==True:
   #   jax.config.update("jax_default_device", jax.devices("cpu")[0])
   # if use_double:
   #   jax.config.update("jax_enable_x64", True)
+  if use_double:
+    default_dtype=jnp.float64
+  else:
+    default_dtype=jnp.float32
 
-  def device_wrapper(x, dtype=jnp.float32):
+  def device_wrapper(x, dtype=default_dtype):
     return jnp.tensor(x, dtype=dtype).to(device)
 
   def device_unwrapper(x):
@@ -64,7 +68,7 @@ elif wrapper_type == "torch" and use_wrapper==True:
   from functools import partial
 
   def vmap_1d_apply(func, vector, in_axis, out_axis):
-      return torch.vmap(func, in_axes=(in_axis), out_axes=(out_axis))(vector)
+      return torch.vmap(func, in_dims=(in_axis), out_dims=(out_axis))(vector)
   def flip(array, axis):
     return jnp.flip(array, dims=(axis,))
 else:
