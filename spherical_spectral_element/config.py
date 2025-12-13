@@ -4,9 +4,9 @@ import numpy as np
 DEBUG = True
 npt = 4
 
-use_wrapper = False
+use_wrapper = True
 wrapper_type = "torch"
-use_cpu = False
+use_cpu = True
 use_double = True
 
 if use_double:
@@ -22,8 +22,8 @@ if wrapper_type == "jax" and use_wrapper==True:
   if use_double:
     jax.config.update("jax_enable_x64", True)
 
-  def wrapper(x):
-    return jnp.array(x)
+  def wrapper(x, dtype=jnp.float64):
+    return jnp.array(x, dtype=dtype)
 
   def unwrapper(x):
     return np.asarray(x)
@@ -42,14 +42,15 @@ if wrapper_type == "jax" and use_wrapper==True:
 elif wrapper_type == "torch" and use_wrapper==True:
   import torch as jnp
   import torch
+  device = torch.device("mps:0" if torch.backends.mps.is_available() and not use_cpu else "cpu")
+  print(device)
   # if use_cpu:
   #   jax.config.update("jax_default_device", jax.devices("cpu")[0])
   # if use_double:
   #   jax.config.update("jax_enable_x64", True)
 
-  def wrapper(x):
-    return jnp.tensor(x, dtype=jnp.float64
-                      )
+  def wrapper(x, dtype=jnp.float32):
+    return jnp.tensor(x, dtype=dtype).to(device)
 
   def unwrapper(x):
     return x.cpu().detach().numpy()
@@ -69,7 +70,7 @@ elif wrapper_type == "torch" and use_wrapper==True:
 else:
   import numpy as jnp
 
-  def wrapper(x):
+  def wrapper(x, dtype=np.float64):
     return x
 
   def unwrapper(x):

@@ -1,4 +1,4 @@
-from .config import jnp, jit, flip
+from .config import jnp, jit, flip, np
 from functools import partial
 
 
@@ -12,7 +12,7 @@ def sphere_gradient(f, grid, a=1.0):
 
 @jit
 def sphere_divergence(u, grid, a=1.0):
-  u_contra = 1.0 / a * grid["met_det"][:, :, :, jnp.newaxis] * sph_to_contra(u, grid)
+  u_contra = 1.0 / a * grid["met_det"][:, :, :, np.newaxis] * sph_to_contra(u, grid)
   du_da = jnp.einsum("fij,ki->fkj", u_contra[:, :, :, 0], grid["deriv"])
   du_db = jnp.einsum("fij,kj->fik", u_contra[:, :, :, 1], grid["deriv"])
   div = grid["recip_met_det"][:, :, :] * (du_da + du_db)
@@ -87,11 +87,11 @@ def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
   laplacian = sphere_gradient_wk_cov(div, grid, a=a) - sphere_curl_wk_cov(vor, grid, a=a)
   gll_weights = grid["gll_weights"]
   if damp:
-    out = laplacian + jnp.stack((2 * (gll_weights[jnp.newaxis, :, jnp.newaxis] *
-                                      gll_weights[jnp.newaxis, jnp.newaxis, :] *
+    out = laplacian + jnp.stack((2 * (gll_weights[np.newaxis, :, np.newaxis] *
+                                      gll_weights[np.newaxis, np.newaxis, :] *
                                       grid["met_det"] * u[:, :, :, 0] * (1 / a)**2),
-                                     (gll_weights[jnp.newaxis, :, jnp.newaxis] *
-                                      gll_weights[jnp.newaxis, jnp.newaxis, :] *
+                                     (gll_weights[np.newaxis, :, np.newaxis] *
+                                      gll_weights[np.newaxis, np.newaxis, :] *
                                       grid["met_det"] * u[:, :, :, 1] * (1 / a)**2)), axis=-1)
   else:
     out = laplacian
@@ -121,11 +121,12 @@ def sph_to_contra(u, grid):
 
 @jit
 def sph_to_cov(u, grid):
-  return jnp.einsum("fijs,fijsg->fijg", flip(u, -1), grid["jacobian"])
+  return jnp.einsum("fijs,fijsg->fijg", flip(u, -1
+                                             ), grid["jacobian"])
 
 
 @jit
 def inner_prod(f, g, grid):
   return jnp.sum(f * g * (grid["met_det"] *
-                          grid["gll_weights"][jnp.newaxis, :, jnp.newaxis] *
-                          grid["gll_weights"][jnp.newaxis, jnp.newaxis, :]))
+                          grid["gll_weights"][np.newaxis, :, np.newaxis] *
+                          grid["gll_weights"][np.newaxis, np.newaxis, :]))

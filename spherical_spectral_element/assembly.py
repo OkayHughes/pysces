@@ -1,7 +1,9 @@
-from .config import np, use_wrapper, jit, wrapper_type
+from .config import np, use_wrapper, jit, wrapper_type, jnp
 from functools import partial
 if use_wrapper and wrapper_type=="jax":
     import jax
+if use_wrapper and wrapper_type=="torch":
+    import torch
 
 
 def dss_scalar_for(f, grid, *args):
@@ -34,16 +36,30 @@ def segment_sum(data, segment_ids, N):
   np.add.at(s, segment_ids, data)
   return s
 
+def dss_scalar_torch(f, grid, dims, scaled=True):
+  (data, data_un, rows, cols) = grid["dss_triple"]
+  if scaled:
+    relevant_data = f.flatten()[cols] * data
+  else:
+    relevant_data = f.flatten()[cols] * data_un
+  if use_wrapper and wrapper_type=="torch":
+    return jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"])
+  else:
+    return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+
 
 @partial(jit, static_argnames=["dims", "scaled"])
 def dss_scalar_jax(f, grid, dims, scaled=True):
   (data, data_un, rows, cols) = grid["dss_triple"]
+  
   if scaled:
     relevant_data = f.flatten().take(cols) * data
   else:
     relevant_data = f.flatten().take(cols) * data_un
   if use_wrapper and wrapper_type=="jax":
     return jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  elif use_wrapper and wrapper_type=="torch":
+    return jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"])
   else:
     return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
 
@@ -52,7 +68,7 @@ def dss_scalar_jax(f, grid, dims, scaled=True):
 
 if use_wrapper and wrapper_type=="jax":
   dss_scalar = dss_scalar_jax
-if use_wrapper and wrapper_type=="torch":
-  dss_scalar = dss_scalar_sparse
+elif use_wrapper and wrapper_type=="torch":
+  dss_scalar = dss_scalar_torch
 else:
   dss_scalar = dss_scalar_sparse

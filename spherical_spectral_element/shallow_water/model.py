@@ -1,4 +1,4 @@
-from ..config import jnp, jit, versatile_assert, wrapper
+from ..config import jnp, jit, versatile_assert, wrapper, np
 from ..assembly import dss_scalar
 from ..operators import sphere_vorticity, sphere_gradient, sphere_divergence
 from ..operators import sphere_laplacian_wk, sphere_vec_laplacian_wk
@@ -40,7 +40,7 @@ def calc_rhs(state_in, grid, config):
   energy_grad = sphere_gradient(energy, grid, a=config["radius_earth"])
   u_tend = abs_vort * state_in["u"][:, :, :, 1] - energy_grad[:, :, :, 0]
   v_tend = -abs_vort * state_in["u"][:, :, :, 0] - energy_grad[:, :, :, 1]
-  h_tend = -sphere_divergence(state_in["h"][:, :, :, jnp.newaxis] * state_in["u"], grid, a=config["radius_earth"])
+  h_tend = -sphere_divergence(state_in["h"][:, :, :, np.newaxis] * state_in["u"], grid, a=config["radius_earth"])
   return create_state_struct(jnp.stack((u_tend, v_tend), axis=-1), h_tend, state_in["hs"])
 
 

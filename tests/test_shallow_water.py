@@ -87,7 +87,7 @@ def test_galewsky():
   config = get_config_sw(ne=15)
 
   deg = 100
-  pts, weights = np.polynomial.legendre.leggauss(deg)
+  pts, weights = wrapper(np.polynomial.legendre.leggauss(deg))
   pts = (pts + 1.0) / 2.0
   weights /= 2.0
   u_max = 80

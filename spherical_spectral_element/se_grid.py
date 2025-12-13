@@ -1,4 +1,5 @@
-from .config import np, npt, wrapper, use_wrapper, wrapper_type
+from .config import np, npt, wrapper, use_wrapper, wrapper_type, jnp
+from .config import wrapper as a_wrapper
 from .spectral import deriv
 from scipy.sparse import coo_array
 from frozendict import frozendict
@@ -55,9 +56,9 @@ def create_spectral_element_grid(latlon,
   # note: test code sometimes sets jax=False to test jax vs stock numpy
   # this extra conditional is not extraneous.
   if jax:
-    wrapper = wrapper
+    wrapper = a_wrapper
   else:
-    def wrapper(x):
+    def wrapper(x, dtype=None):
       return x
   NELEM = metdet.shape[0]
   ret = {"physical_coords": wrapper(latlon),
@@ -74,8 +75,8 @@ def create_spectral_element_grid(latlon,
          "gll_weights": wrapper(deriv["gll_weights"]),
          "dss_triple": (wrapper(dss_triple[0]),
                         wrapper(dss_triple[1]),
-                        wrapper(dss_triple[2]),
-                        wrapper(dss_triple[3])),
+                        wrapper(dss_triple[2], dtype=jnp.int64),
+                        wrapper(dss_triple[3], dtype=jnp.int64)),
          }
 
   if not jax:
