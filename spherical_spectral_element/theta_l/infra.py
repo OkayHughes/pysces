@@ -1,4 +1,4 @@
-from ..config import jnp, jit, np
+from ..config import jnp, jit, np, flip
 from functools import partial
 
 
@@ -50,7 +50,7 @@ def get_delta(field_interface):
 
 @jit
 def get_surface_sum(dfield_model, val_surf):
-  return jnp.concatenate((jnp.cumsum(dfield_model[:, :, :, ::-1], axis=-1)[:, :, :, ::-1] +
+  return jnp.concatenate((flip(jnp.cumsum(flip(dfield_model, -1), axis=-1), -1) +
                           val_surf[:, :, :, np.newaxis],
                           val_surf[:, :, :, np.newaxis]), axis=-1)
 
