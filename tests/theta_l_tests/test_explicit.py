@@ -25,7 +25,7 @@ def test_notopo():
     model_state["u"] += device_wrapper(np.random.normal(scale=0.1, size=model_state["u"].shape))
     model_state["w_i"] += device_wrapper(np.random.normal(scale=0.1, size=model_state["w_i"].shape))
     phi_pert = jnp.concatenate((device_wrapper(np.random.normal(scale=1.0,
-                                                             size=model_state["phi_i"][:, :, :, :-1].shape)),
+                                                                size=model_state["phi_i"][:, :, :, :-1].shape)),
                                 jnp.zeros_like(model_state["phi_surf"])[:, :, :, np.newaxis]), axis=-1)
     model_state["phi_i"] = model_state["phi_i"] + phi_pert
     model_state = dss_model_state(model_state, h_grid, dims, hydrostatic=False)

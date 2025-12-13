@@ -15,7 +15,6 @@ def test_vector_identites():
   iprod_vort = inner_prod(vort, vort, grid)
   assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
   v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
-                 
                  jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
 
   grad = sphere_gradient(fn, grid)
@@ -61,10 +60,10 @@ def test_divergence():
   vec = device_wrapper(vec)
 
   vort_analytic = device_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
-                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
+                                  3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
 
   div_analytic = device_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
-                  3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
+                                 3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
   div = dss_scalar(sphere_divergence(vec, grid), grid, dims)
   div_wk = dss_scalar(sphere_divergence_wk(vec, grid), grid, dims, scaled=False)
   vort = dss_scalar(sphere_vorticity(vec, grid), grid, dims)

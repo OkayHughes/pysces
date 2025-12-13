@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import jnp, np, DEBUG, device_unwrapper, device_wrapper, use_wrapper
+from spherical_spectral_element.config import jnp, np, DEBUG, device_unwrapper, device_wrapper
 from spherical_spectral_element.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.operators import inner_prod, sphere_vorticity
@@ -14,14 +14,13 @@ if DEBUG:
 def test_sw_model():
   nx = 15
   grid, dims = create_quasi_uniform_grid(nx)
-  config = get_config_sw(alpha=
-                         jnp.pi / 4, ne=15)
+  config = get_config_sw(alpha=jnp.pi / 4, ne=15)
   u0 = 2.0 * jnp.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
   h0 = 2.94e4 / config["gravity"]
 
   def williamson_tc2_u(lat, lon):
     wind = jnp.stack((u0 * (jnp.cos(lat) * jnp.cos(config["alpha"]) +
-                             jnp.cos(lon) * jnp.sin(lat) * jnp.sin(config["alpha"])),
+                            jnp.cos(lon) * jnp.sin(lat) * jnp.sin(config["alpha"])),
                      -u0 * (jnp.sin(lon) * jnp.sin(config["alpha"]))), axis=-1)
     return wind
 
@@ -80,7 +79,6 @@ def test_sw_model():
 
 
 def test_galewsky():
-  
   nx = 61
   grid, dims = create_quasi_uniform_grid(nx)
 
@@ -106,7 +104,6 @@ def test_galewsky():
     u = jnp.zeros_like(lat)
     mask = jnp.logical_and(lat > phi0, lat < phi1)
     u = jnp.where(mask, u_max / e_norm * jnp.exp(1 / ((lat - phi0) * (lat - phi1))), u)
-    
     return u
 
   def galewsky_wind(lat, lon):
@@ -122,7 +119,7 @@ def test_galewsky():
     f = 2.0 * Omega * jnp.sin(phi_quad)
     integrand = a * u_quad * (f + jnp.tan(phi_quad) / a * u_quad)
     h = h0 - 1.0 / config["gravity"] * jnp.sum(integrand * weights_quad, axis=-1)
-    h_prime = hat_h *jnp.cos(lat) * jnp.exp(-(lon / alpha)**2) * jnp.exp(-((pert_center - lat) / beta)**2)
+    h_prime = hat_h * jnp.cos(lat) * jnp.exp(-(lon / alpha)**2) * jnp.exp(-((pert_center - lat) / beta)**2)
     return h + h_prime
 
   def galewsky_hs(lat, lon):
@@ -136,9 +133,10 @@ def test_galewsky():
   final_state = simulate_sw(T, nx, init_state, grid, config, dims, diffusion=True)
   mass_init = inner_prod(h_init, h_init, grid)
   mass_final = inner_prod(final_state["h"], final_state["h"], grid)
+
   assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
   assert (not jnp.any(jnp.isnan(final_state["u"])))
-  
+
   if DEBUG:
     fig_dir = get_figdir()
     makedirs(fig_dir, exist_ok=True)
@@ -166,7 +164,7 @@ def test_galewsky():
     plt.savefig(join(fig_dir, "galewsky_h_final.pdf"))
     plt.figure()
     plt.title(f"vorticity at time {T}s")
-    plt.tricontourf(lon.flatten(), lat.flatten(), 
+    plt.tricontourf(lon.flatten(), lat.flatten(),
                     device_unwrapper(vort.flatten()),
                     vmin=-0.0002, vmax=0.0002)
     plt.colorbar()

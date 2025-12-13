@@ -37,4 +37,5 @@ def test_dss_equiv_3d_rand():
                                             vert_redundancy, jax=use_wrapper)
   for _ in range(20):
     fn_rand = np.random.uniform(size=(*grid["physical_coords"][:, :, :, 1].shape, nlev))
-    assert (np.allclose(device_unwrapper(dss_scalar_3d(device_wrapper(fn_rand), grid_jax, dims_jax)), dss_scalar_3d_for(fn_rand, grid, dims)))
+    assert (np.allclose(device_unwrapper(dss_scalar_3d(device_wrapper(fn_rand), grid_jax, dims_jax)),
+                        dss_scalar_3d_for(fn_rand, grid, dims)))

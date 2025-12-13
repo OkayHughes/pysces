@@ -1,5 +1,4 @@
-from spherical_spectral_element.config import np, npt, device_wrapper, use_wrapper, wrapper_type, device_unwrapper
-
+from spherical_spectral_element.config import np, npt, device_wrapper, use_wrapper, wrapper_type
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar_jax, dss_scalar_sparse, dss_scalar
@@ -56,7 +55,7 @@ def test_dss_equiv_rand():
                                             jax=use_wrapper)
   for _ in range(20):
     fn_rand = np.random.uniform(size=grid["physical_coords"][:, :, :, 1].shape)
-    if wrapper_type=="jax":
+    if wrapper_type == "jax":
       assert (np.allclose(np.asarray(dss_scalar_jax(fn_rand, grid_jax, dims_jax)), dss_scalar_for(fn_rand, grid)))
 
     assert (np.allclose(dss_scalar_sparse(device_wrapper(fn_rand), grid), dss_scalar_for(fn_rand, grid)))

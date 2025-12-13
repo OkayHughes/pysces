@@ -54,7 +54,6 @@ def test_deep():
       z_above = device_wrapper((z + eps) * jnp.ones((*lat.shape, 1)))
       pressure_above, _ = evaluate_pressure_temperature(z_above, lat, config_deep, deep=True)
       z_below = device_wrapper((z - eps) * jnp.ones((*lat.shape, 1)))
-      
       pressure_below, _ = evaluate_pressure_temperature(z_below, lat, config_deep, deep=True)
       z_center = device_wrapper(z * jnp.ones((*lat.shape, 1)))
       u, v, pressure, temperature, _ = evaluate_state(lat, lon, z_center, config_deep, deep=True)
@@ -63,6 +62,6 @@ def test_deep():
       metric_terms = -(u**2 + v**2) / (z_center + config_deep["radius_earth"])
       ncts = -u * 2.0 * config_deep["period_earth"] * jnp.cos(lat)[:, :, :, np.newaxis]
       assert (np.max(np.abs(device_unwrapper(dp_dz / rho + g_from_z(z_center,
-                                                   config_deep,
-                                                   deep=True) +
-                            metric_terms + ncts))) < 1e-3)
+                                                                    config_deep,
+                                                                    deep=True) +
+                                             metric_terms + ncts))) < 1e-3)
