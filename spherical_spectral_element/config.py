@@ -6,7 +6,7 @@ npt = 4
 
 use_wrapper = True
 wrapper_type = "torch"
-use_cpu = True
+use_cpu = False
 use_double = True
 
 if use_double:
@@ -22,10 +22,10 @@ if wrapper_type == "jax" and use_wrapper==True:
   if use_double:
     jax.config.update("jax_enable_x64", True)
 
-  def wrapper(x, dtype=jnp.float64):
+  def device_wrapper(x, dtype=jnp.float64):
     return jnp.array(x, dtype=dtype)
 
-  def unwrapper(x):
+  def device_unwrapper(x):
     return np.asarray(x)
   jit = jax.jit
 
@@ -49,10 +49,10 @@ elif wrapper_type == "torch" and use_wrapper==True:
   # if use_double:
   #   jax.config.update("jax_enable_x64", True)
 
-  def wrapper(x, dtype=jnp.float32):
+  def device_wrapper(x, dtype=jnp.float32):
     return jnp.tensor(x, dtype=dtype).to(device)
 
-  def unwrapper(x):
+  def device_unwrapper(x):
     return x.cpu().detach().numpy()
   
   def jit(func, *_, **__):
@@ -70,10 +70,10 @@ elif wrapper_type == "torch" and use_wrapper==True:
 else:
   import numpy as jnp
 
-  def wrapper(x, dtype=np.float64):
+  def device_wrapper(x, dtype=np.float64):
     return x
 
-  def unwrapper(x):
+  def device_unwrapper(x):
     return x
 
   def jit(func, *_, **__):

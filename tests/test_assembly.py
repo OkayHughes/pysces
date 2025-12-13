@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import np, npt, wrapper, use_wrapper, wrapper_type, unwrapper
+from spherical_spectral_element.config import np, npt, device_wrapper, use_wrapper, wrapper_type, device_unwrapper
 
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
@@ -22,7 +22,7 @@ def test_dss():
           if (i_idx, j_idx) in vert_redundancy_gll[face_idx].keys():
             for remote_face_id, remote_i, remote_j in vert_redundancy_gll[face_idx][(i_idx, j_idx)]:
               fn[remote_face_id, remote_i, remote_j] = 1.0
-        assert (np.allclose((dss_scalar(wrapper(fn), grid, dims)), fn))
+        assert (np.allclose((dss_scalar(device_wrapper(fn), grid, dims)), fn))
 
 
 def test_dss_equiv():
@@ -35,10 +35,10 @@ def test_dss_equiv():
                                             face_position_2d,
                                             vert_redundancy,
                                             jax=use_wrapper)
-  fn = wrapper(np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0]))
+  fn = device_wrapper(np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0]))
   assert (np.allclose(dss_scalar(fn, grid_jax, dims), fn))
   ones = np.ones_like(grid["met_det"])
-  ones_out = dss_scalar(wrapper(ones), grid_jax, dims)
+  ones_out = dss_scalar(device_wrapper(ones), grid_jax, dims)
   assert (np.allclose(np.asarray(ones_out), ones))
   ones_out_for = dss_scalar_for(np.asarray(ones), grid)
   assert (np.allclose(ones_out_for, ones))
@@ -59,4 +59,4 @@ def test_dss_equiv_rand():
     if wrapper_type=="jax":
       assert (np.allclose(np.asarray(dss_scalar_jax(fn_rand, grid_jax, dims_jax)), dss_scalar_for(fn_rand, grid)))
 
-    assert (np.allclose(dss_scalar_sparse(wrapper(fn_rand), grid), dss_scalar_for(fn_rand, grid)))
+    assert (np.allclose(dss_scalar_sparse(device_wrapper(fn_rand), grid), dss_scalar_for(fn_rand, grid)))

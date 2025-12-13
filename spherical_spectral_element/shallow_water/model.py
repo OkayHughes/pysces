@@ -1,4 +1,4 @@
-from ..config import jnp, jit, versatile_assert, wrapper, np
+from ..config import jnp, jit, versatile_assert, device_wrapper, np
 from ..assembly import dss_scalar
 from ..operators import sphere_vorticity, sphere_gradient, sphere_divergence
 from ..operators import sphere_laplacian_wk, sphere_vec_laplacian_wk
@@ -12,11 +12,11 @@ def create_state_struct(u, h, hs):
 
 
 def get_config_sw(radius_earth=6371e3, earth_period=7.292e-5, gravity=9.81, alpha=0.0, ne=30):
-  return {"radius_earth": wrapper(radius_earth),
-          "earth_period": wrapper(earth_period),
-          "gravity": wrapper(gravity),
-          "alpha": wrapper(alpha),
-          "nu": wrapper(2.5e15 * ((30.0 * radius_earth) / (ne * 6371e3))**3.2)}
+  return {"radius_earth": device_wrapper(radius_earth),
+          "earth_period": device_wrapper(earth_period),
+          "gravity": device_wrapper(gravity),
+          "alpha": device_wrapper(alpha),
+          "nu": device_wrapper(2.5e15 * ((30.0 * radius_earth) / (ne * 6371e3))**3.2)}
 
 
 @partial(jit, static_argnames=["dims"])
