@@ -1,4 +1,6 @@
 from ..config import device_wrapper
+
+
 def init_config(Rgas=287.0,
                 radius_earth=-1,
                 period_earth=7.292e-5,

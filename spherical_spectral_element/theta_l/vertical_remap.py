@@ -30,8 +30,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
                      idxs)
     frac *= 0.5
   versatile_assert(jnp.all(converged))
-  idxs = cast_type(jnp.floor(idxs), 
-                   jnp.int64)
+  idxs = cast_type(jnp.floor(idxs), jnp.int64)
   idxs = jnp.concatenate((jnp.zeros_like(idxs[:, :, :, 0:1]),
                           idxs,
                           (num_lev - 1) * jnp.ones_like(idxs[:, :, :, 0:1])), axis=-1)
@@ -240,8 +239,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
                                           za1_mapped[:, :, :, k_idx, :] / 2.0 *
                                           zgam[:, :, :, k_idx + 1, np.newaxis]**2 +
                                           za2_mapped[:, :, :, k_idx, :] / 3.0 *
-                                          zgam[:, :, :, k_idx + 1, 
-                                               np.newaxis]**3
+                                          zgam[:, :, :, k_idx + 1, np.newaxis]**3
                                           ) * zhdp_mapped[:, :, :, k_idx, :]
     Qdp_out.append(zv2 - zv1)
     zv1 = zv2

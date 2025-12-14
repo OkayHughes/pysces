@@ -173,8 +173,7 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 
   r_hat = get_r_hat(z, config, deep=deep)
 
-  inttermT = ((r_hat * jnp.cos(lat)[:, :, :, 
-                                    np.newaxis])**K -
+  inttermT = ((r_hat * jnp.cos(lat)[:, :, :, np.newaxis])**K -
               K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, np.newaxis])**(K + 2))
 
   temperature = 1.0 / (r_hat**2 * (tau1 - tau2 * inttermT))

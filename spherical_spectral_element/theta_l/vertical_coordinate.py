@@ -1,4 +1,4 @@
-from ..config import jnp, jit, np
+from ..config import jit, np
 
 
 def create_vertical_grid(hybrid_a_i, hybrid_b_i, p0):

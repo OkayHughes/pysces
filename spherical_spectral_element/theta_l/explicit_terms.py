@@ -44,7 +44,7 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
     grad_w_i = sphere_gradient_3d(w_i, h_grid, config)
   else:
     w_m = 0.0
-    grad_w_i=0.0
+    grad_w_i = 0.0
 
   grad_exner = sphere_gradient_3d(exner, h_grid, config) / r_hat_m
   vtheta = state["vtheta_dpi"] / dpi
@@ -177,7 +177,6 @@ def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=Fals
   u = state["u"]
   w_i = state["w_i"]
   vtheta_dpi = state["vtheta_dpi"]
-
 
   (phi_i, phi, dpi_i, pnh, exner,
    r_hat_i, mu, r_hat_m, r_m, g,

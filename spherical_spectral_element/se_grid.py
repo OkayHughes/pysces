@@ -82,9 +82,13 @@ def create_spectral_element_grid(latlon,
     ret["vert_redundancy"] = vert_redundancy
     ret["dss_matrix"] = dss_matrix
     ret["dss_matrix_unscaled"] = dss_matrix_unscaled
-  if use_wrapper and wrapper_type=="torch":
+  if use_wrapper and wrapper_type == "torch":
     from .config import torch
-    ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]), dss_triple[0], size=(NELEM * npt * npt, NELEM * npt * npt))
-    ret["dss_matrix_unscaled"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]), dss_triple[1], size=(NELEM * npt * npt, NELEM * npt * npt))
+    ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
+                                                dss_triple[0],
+                                                size=(NELEM * npt * npt, NELEM * npt * npt))
+    ret["dss_matrix_unscaled"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
+                                                         dss_triple[1],
+                                                         size=(NELEM * npt * npt, NELEM * npt * npt))
   grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0])
   return ret, grid_dims

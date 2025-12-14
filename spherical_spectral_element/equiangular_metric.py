@@ -170,7 +170,8 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
   return gll_latlon, cube_to_sphere_jacobian
 
 
-def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacobian, vert_redundancy_gll, jax=use_wrapper):
+def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
+                          cube_to_sphere_jacobian, vert_redundancy_gll, jax=use_wrapper):
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
   too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
