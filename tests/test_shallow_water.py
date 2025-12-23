@@ -3,7 +3,7 @@ from spherical_spectral_element.shallow_water.model import get_config_sw, create
 from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.operators import inner_prod, sphere_vorticity
 from spherical_spectral_element.assembly import dss_scalar
-from .context import get_figdir
+from .context import get_figdir, test_division_factor
 from os import makedirs
 from os.path import join
 
@@ -125,7 +125,7 @@ def test_galewsky():
   def galewsky_hs(lat, lon):
     return jnp.zeros_like(lat)
 
-  T = (144 * 3600) / 3600
+  T = (144 * 3600) / test_division_factor
   u_init = device_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   h_init = device_wrapper(galewsky_h(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   hs_init = device_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))

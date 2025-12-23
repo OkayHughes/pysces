@@ -4,6 +4,7 @@ from spherical_spectral_element.processor_decomposition import (get_decomp,
                                                                 create_mapping)
 from .context import get_figdir
 
+
 def test_get_decomp():
   for _ in range(20):
     num_faces = np.random.randint(0, int(1e3))
@@ -61,12 +62,20 @@ def test_mapping():
     import matplotlib.pyplot as plt
     for face in range(6):
       plt.figure()
+      delta = 3e-3
       for elem_idx, face_idx in enumerate(face_idxs[:-1]):
         if face_idxs[elem_idx+1] == face_idxs[elem_idx] and face_idxs[elem_idx] == face:
           lats_tmp = [y[elem_idx],
                       y[elem_idx+1]]
           lons_tmp = [x[elem_idx],
                       x[elem_idx+1]]
+          plt.plot(lons_tmp, lats_tmp, c="orange")
+      for elem_idx, face_idx in enumerate(face_idxs[:-1]):
+        if face_idxs[elem_idx+1] == face_idxs[elem_idx] and face_idxs[elem_idx] == face:
+          lats_tmp = [y[elem_idx]+delta,
+                      y[elem_idx+1]+delta]
+          lons_tmp = [x[elem_idx]-delta,
+                      x[elem_idx+1]-delta]
           plt.plot(lons_tmp, lats_tmp, c="k")
       plt.savefig(f"{get_figdir()}/pairs_{face}.pdf")
     print(max_dist_x)
@@ -87,3 +96,4 @@ def test_mapping():
     plt.scatter(lons, lats, c=np.arange(len(lons)))
     plt.colorbar()
     plt.savefig(f"{get_figdir()}/idxs.pdf")
+    

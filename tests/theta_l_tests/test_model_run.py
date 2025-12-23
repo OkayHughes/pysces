@@ -1,6 +1,6 @@
 from .test_init import get_umjs_state
 from .vertical_grids import cam30
-from ..context import get_figdir
+from ..context import get_figdir, test_division_factor
 from spherical_spectral_element.config import device_unwrapper, jnp, np
 from spherical_spectral_element.theta_l.constants import init_config
 from spherical_spectral_element.theta_l.initialization.umjs14 import get_umjs_config
@@ -10,7 +10,6 @@ from spherical_spectral_element.theta_l.vertical_coordinate import create_vertic
 
 
 def test_theta_steady_state():
-  return
   nx = 16
   h_grid, dims = create_quasi_uniform_grid(nx)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
@@ -19,7 +18,7 @@ def test_theta_steady_state():
   model_config = init_config()
   test_config = get_umjs_config(model_config=model_config)
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=False, hydrostatic=False)
-  total_time = (3600.0 * 24.0 * 1.0)
+  total_time = (3600.0 * 24.0 * 10.0) / (test_division_factor)
   for diffusion in [False, True]:
     end_state = simulate_theta(total_time, nx, model_state,
                                h_grid, v_grid,
@@ -79,7 +78,7 @@ def test_theta_baro_wave():
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config,
                                   test_config, dims, mountain=False, hydrostatic=False,
                                   pert_type="exponential")
-  total_time = (3600.0 * 24.0 * 1)
+  total_time = (3600.0 * 24.0 * 30.0) / (test_division_factor)
   end_state = simulate_theta(total_time, nx, model_state,
                              h_grid, v_grid,
                              model_config, dims,

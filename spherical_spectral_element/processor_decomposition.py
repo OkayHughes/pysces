@@ -47,7 +47,6 @@ def get_face_idx_pos(lat, lon):
   right_mask = face_idx == 2
   back_mask = face_idx == 1
 
-
   y_provisional[top_mask] = -np.cos(lon[top_mask]+np.pi/4) / np.tan(lat[top_mask])
   y_provisional[bottom_mask] = -np.cos(lon[bottom_mask]+np.pi/4) / np.tan(lat[bottom_mask])
   x_provisional[top_mask] = np.sin(lon[top_mask]+np.pi/4) / np.tan(lat[top_mask])
@@ -107,3 +106,5 @@ def elem_idx_global_to_proc_idx(elem_idxs_global, decomp):
     mask = np.logical_and(elem_idxs_global < end, elem_idxs_global >= begin)
     out[mask] = proc_idx
   return out
+
+
