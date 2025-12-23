@@ -8,7 +8,7 @@ from .context import get_figdir
 def test_get_decomp():
   for _ in range(20):
     num_faces = np.random.randint(0, int(1e3))
-    for num_procs in range(1, int(num_faces/3.0)):
+    for num_procs in range(1, int(num_faces / 3.0)):
       segments = get_decomp(num_faces, num_procs)
 
       for seg_idx, segment in enumerate(segments[1:]):
@@ -16,16 +16,12 @@ def test_get_decomp():
         assert segment[1] - segment[0] > 0
       assert segments[0][0] == 0
       assert segments[-1][1] == num_faces
-      #print([segment[1] - segment[0] for segment in segments])
 
 
 def test_mapping():
-  num_faces = int(5e4)
-  # lats_flat = np.random.uniform(-np.pi/2.0, np.pi/2.0, num_faces)
-  # lons_flat = np.random.uniform(0, 2 * np.pi, num_faces)
   num_lat = 200
-  lats, lons = np.meshgrid(np.linspace(-np.pi/2.0, np.pi/2.0, num_lat),
-                           np.linspace(0.0, 2.0*np.pi, 2 * num_lat))
+  lats, lons = np.meshgrid(np.linspace(-np.pi / 2.0, np.pi / 2.0, num_lat),
+                           np.linspace(0.0, 2.0 * np.pi, 2 * num_lat))
   lats_flat = lats.flatten()
   lons_flat = lons.flatten()
   latlons = np.stack((lats_flat,
@@ -44,9 +40,9 @@ def test_mapping():
   lats = []
   lons = []
   for elem_idx, face_idx in enumerate(face_idxs[:-1]):
-    if face_idxs[elem_idx+1] == face_idxs[elem_idx]:
-      x_dist = np.abs(x[elem_idx] - x[elem_idx+1])
-      y_dist = np.abs(y[elem_idx] - y[elem_idx+1])
+    if face_idxs[elem_idx + 1] == face_idxs[elem_idx]:
+      x_dist = np.abs(x[elem_idx] - x[elem_idx + 1])
+      y_dist = np.abs(y[elem_idx] - y[elem_idx + 1])
       lats.append(latlons[elem_idx, 0])
       lons.append(latlons[elem_idx, 1])
       dists_x.append(x_dist)
@@ -62,20 +58,12 @@ def test_mapping():
     import matplotlib.pyplot as plt
     for face in range(6):
       plt.figure()
-      delta = 3e-3
       for elem_idx, face_idx in enumerate(face_idxs[:-1]):
-        if face_idxs[elem_idx+1] == face_idxs[elem_idx] and face_idxs[elem_idx] == face:
+        if face_idxs[elem_idx + 1] == face_idxs[elem_idx] and face_idxs[elem_idx] == face:
           lats_tmp = [y[elem_idx],
-                      y[elem_idx+1]]
+                      y[elem_idx + 1]]
           lons_tmp = [x[elem_idx],
-                      x[elem_idx+1]]
-          plt.plot(lons_tmp, lats_tmp, c="orange")
-      for elem_idx, face_idx in enumerate(face_idxs[:-1]):
-        if face_idxs[elem_idx+1] == face_idxs[elem_idx] and face_idxs[elem_idx] == face:
-          lats_tmp = [y[elem_idx]+delta,
-                      y[elem_idx+1]+delta]
-          lons_tmp = [x[elem_idx]-delta,
-                      x[elem_idx+1]-delta]
+                      x[elem_idx + 1]]
           plt.plot(lons_tmp, lats_tmp, c="k")
       plt.savefig(f"{get_figdir()}/pairs_{face}.pdf")
     print(max_dist_x)
@@ -96,4 +84,3 @@ def test_mapping():
     plt.scatter(lons, lats, c=np.arange(len(lons)))
     plt.colorbar()
     plt.savefig(f"{get_figdir()}/idxs.pdf")
-    
