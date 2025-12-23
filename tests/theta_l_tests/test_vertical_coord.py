@@ -1,7 +1,7 @@
-from spherical_spectral_element.theta_l.vertical_coordinate import (create_vertical_grid,
-                                                                    mass_from_coordinate_midlev,
-                                                                    mass_from_coordinate_interface)
-from spherical_spectral_element.config import jnp, np
+from pysces.theta_l.vertical_coordinate import (create_vertical_grid,
+                                                mass_from_coordinate_midlev,
+                                                mass_from_coordinate_interface)
+from pysces.config import jnp, np
 from .vertical_grids import cam30
 
 

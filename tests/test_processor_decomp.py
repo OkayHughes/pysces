@@ -1,7 +1,7 @@
-from spherical_spectral_element.config import np
-from spherical_spectral_element.processor_decomposition import (get_decomp,
-                                                                get_face_idx_pos,
-                                                                create_mapping)
+from pysces.config import np
+from pysces.processor_decomposition import (get_decomp,
+                                            get_face_idx_pos,
+                                            create_mapping)
 from .context import get_figdir
 
 

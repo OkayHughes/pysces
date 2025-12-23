@@ -1,14 +1,14 @@
 from .test_init import get_umjs_state
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
+from pysces.equiangular_metric import create_quasi_uniform_grid
 from .vertical_grids import cam30
-from spherical_spectral_element.theta_l.model_state import dss_model_state
-from spherical_spectral_element.theta_l.vertical_coordinate import create_vertical_grid
-from spherical_spectral_element.theta_l.initialization.umjs14 import get_umjs_config
-from spherical_spectral_element.config import jnp, device_wrapper, np
-from spherical_spectral_element.theta_l.constants import init_config
-from spherical_spectral_element.theta_l.explicit_terms import calc_energy_quantities
-from spherical_spectral_element.operators import inner_prod
-from spherical_spectral_element.assembly import dss_scalar
+from pysces.theta_l.model_state import dss_model_state
+from pysces.theta_l.vertical_coordinate import create_vertical_grid
+from pysces.theta_l.initialization.umjs14 import get_umjs_config
+from pysces.config import jnp, device_wrapper, np
+from pysces.theta_l.constants import init_config
+from pysces.theta_l.explicit_terms import calc_energy_quantities
+from pysces.operators import inner_prod
+from pysces.assembly import dss_scalar
 
 
 def test_notopo():

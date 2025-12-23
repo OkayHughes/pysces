@@ -1,6 +1,6 @@
-from spherical_spectral_element.config import jnp, np, device_wrapper
-from spherical_spectral_element.theta_l.vert_remap_reference import for_loop_remap
-from spherical_spectral_element.theta_l.vertical_remap import zerroukat_remap
+from pysces.config import jnp, np, device_wrapper
+from pysces.theta_l.vert_remap_reference import for_loop_remap
+from pysces.theta_l.vertical_remap import zerroukat_remap
 
 
 def get_testbed(seed=True, random=False, wrap=False):
@@ -14,6 +14,7 @@ def get_testbed(seed=True, random=False, wrap=False):
     np.random.seed(1)
   ints = np.concatenate(([0.0],
                          np.sort(np.random.uniform(size=nlev - 1)),
+                         
                          [1.0]))
   deltas = (ints[1:] - ints[:-1])[np.newaxis, np.newaxis, np.newaxis, :] * np.ones((nF, npt, npt, 1))
   deltas_ref = ((reference_levs[1:] - reference_levs[:-1])[np.newaxis, np.newaxis, np.newaxis, :] *

@@ -1,12 +1,12 @@
 from .test_init import get_umjs_state
 from .vertical_grids import cam30
 from ..context import get_figdir, test_division_factor
-from spherical_spectral_element.config import device_unwrapper, jnp, np
-from spherical_spectral_element.theta_l.constants import init_config
-from spherical_spectral_element.theta_l.initialization.umjs14 import get_umjs_config
-from spherical_spectral_element.theta_l.run_model import simulate_theta
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
-from spherical_spectral_element.theta_l.vertical_coordinate import create_vertical_grid
+from pysces.config import device_unwrapper, jnp, np
+from pysces.theta_l.constants import init_config
+from pysces.theta_l.initialization.umjs14 import get_umjs_config
+from pysces.theta_l.run_model import simulate_theta
+from pysces.equiangular_metric import create_quasi_uniform_grid
+from pysces.theta_l.vertical_coordinate import create_vertical_grid
 
 
 def test_theta_steady_state():

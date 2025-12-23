@@ -1,8 +1,8 @@
-from spherical_spectral_element.config import jnp, np, DEBUG, device_unwrapper, device_wrapper
-from spherical_spectral_element.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
-from spherical_spectral_element.operators import inner_prod, sphere_vorticity
-from spherical_spectral_element.assembly import dss_scalar
+from pysces.config import jnp, np, DEBUG, device_unwrapper, device_wrapper
+from pysces.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
+from pysces.equiangular_metric import create_quasi_uniform_grid
+from pysces.operators import inner_prod, sphere_vorticity
+from pysces.assembly import dss_scalar
 from .context import get_figdir, test_division_factor
 from os import makedirs
 from os.path import join

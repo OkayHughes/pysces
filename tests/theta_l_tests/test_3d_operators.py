@@ -1,12 +1,12 @@
 
-from spherical_spectral_element.config import np, jnp, eps, device_wrapper, device_unwrapper
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
-from spherical_spectral_element.operators import inner_prod
-from spherical_spectral_element.theta_l.operators_3d import (sphere_divergence_3d,
-                                                             sphere_gradient_3d,
-                                                             sphere_vorticity_3d,
-                                                             sphere_vec_laplacian_wk_3d)
-from spherical_spectral_element.theta_l.model_state import dss_scalar_3d
+from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
+from pysces.equiangular_metric import create_quasi_uniform_grid
+from pysces.operators import inner_prod
+from pysces.theta_l.operators_3d import (sphere_divergence_3d,
+                                         sphere_gradient_3d,
+                                         sphere_vorticity_3d,
+                                         sphere_vec_laplacian_wk_3d)
+from pysces.theta_l.model_state import dss_scalar_3d
 
 
 def threedify(field, nlev, axis=-1):

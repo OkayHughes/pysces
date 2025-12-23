@@ -1,9 +1,9 @@
-from spherical_spectral_element.config import npt
-from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE
-from spherical_spectral_element.grid_definitions import BACK_FACE, LEFT_FACE, RIGHT_FACE
-from spherical_spectral_element.cubed_sphere import elem_id_fn
-from spherical_spectral_element.mesh import mesh_to_cart_bilinear, gen_gll_redundancy
+from pysces.config import npt
+from pysces.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE
+from pysces.grid_definitions import BACK_FACE, LEFT_FACE, RIGHT_FACE
+from pysces.cubed_sphere import elem_id_fn
+from pysces.mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 
 
 def test_gen_bilinear_grid_cs():

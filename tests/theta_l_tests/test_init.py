@@ -1,18 +1,17 @@
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
-from spherical_spectral_element.operators import sphere_gradient
-from spherical_spectral_element.assembly import dss_scalar
+from pysces.equiangular_metric import create_quasi_uniform_grid
+from pysces.operators import sphere_gradient
+from pysces.assembly import dss_scalar
 from .vertical_grids import cam30
-from spherical_spectral_element.theta_l.vertical_coordinate import (create_vertical_grid,
-                                                                    mass_from_coordinate_interface)
-from spherical_spectral_element.theta_l.init_model import z_from_p_monotonic, init_model_pressure
-from spherical_spectral_element.theta_l.constants import init_config
-from spherical_spectral_element.theta_l.infra import get_delta
-from spherical_spectral_element.config import jnp, device_wrapper
-
-from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_config,
-                                                                      evaluate_surface_state,
-                                                                      evaluate_pressure_temperature,
-                                                                      evaluate_state)
+from pysces.theta_l.vertical_coordinate import (create_vertical_grid,
+                                                mass_from_coordinate_interface)
+from pysces.theta_l.init_model import z_from_p_monotonic, init_model_pressure
+from pysces.theta_l.constants import init_config
+from pysces.theta_l.infra import get_delta
+from pysces.config import jnp, device_wrapper
+from pysces.theta_l.initialization.umjs14 import (get_umjs_config,
+                                                  evaluate_surface_state,
+                                                  evaluate_pressure_temperature,
+                                                  evaluate_state)
 
 
 def get_umjs_state(h_grid, v_grid,

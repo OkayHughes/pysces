@@ -1,8 +1,8 @@
-from spherical_spectral_element.config import np, jnp, eps, device_wrapper, device_unwrapper
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
-from spherical_spectral_element.assembly import dss_scalar
-from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
-from spherical_spectral_element.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
+from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
+from pysces.equiangular_metric import create_quasi_uniform_grid
+from pysces.assembly import dss_scalar
+from pysces.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
+from pysces.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
 
 
 def test_vector_identites():

@@ -1,12 +1,12 @@
-from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_config,
-                                                                      evaluate_pressure_temperature)
-from spherical_spectral_element.theta_l.constants import init_config
-from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
-from spherical_spectral_element.config import jnp
+from pysces.theta_l.initialization.umjs14 import (get_umjs_config,
+                                                  evaluate_pressure_temperature)
+from pysces.theta_l.constants import init_config
+from pysces.equiangular_metric import create_quasi_uniform_grid
+from pysces.config import jnp
 from .vertical_grids import vertical_grid_finite_diff
-from spherical_spectral_element.theta_l.infra import interface_to_model
-from spherical_spectral_element.theta_l.vertical_coordinate import create_vertical_grid
-from spherical_spectral_element.theta_l.eos import get_mu, get_p_mid, get_balanced_phi
+from pysces.theta_l.infra import interface_to_model
+from pysces.theta_l.vertical_coordinate import create_vertical_grid
+from pysces.theta_l.eos import get_mu, get_p_mid, get_balanced_phi
 from .test_init import get_umjs_state
 
 

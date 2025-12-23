@@ -1,7 +1,7 @@
-from spherical_spectral_element.config import np, npt, use_wrapper, device_wrapper, device_unwrapper
-from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
-from spherical_spectral_element.theta_l.model_state import dss_scalar_3d, dss_scalar_3d_for
+from pysces.config import np, npt, use_wrapper, device_wrapper, device_unwrapper
+from pysces.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.equiangular_metric import gen_metric_from_topo
+from pysces.theta_l.model_state import dss_scalar_3d, dss_scalar_3d_for
 
 
 def test_dss_3d():

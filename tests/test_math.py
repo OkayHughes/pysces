@@ -1,7 +1,7 @@
-from spherical_spectral_element.config import np, npt
-from spherical_spectral_element.mathops import bilinear, bilinear_jacobian
-from spherical_spectral_element.cubed_sphere import gen_cube_topo
-from spherical_spectral_element.spectral import deriv
+from pysces.config import np, npt
+from pysces.mathops import bilinear, bilinear_jacobian
+from pysces.cubed_sphere import gen_cube_topo
+from pysces.spectral import deriv
 
 
 def test_bilinear():

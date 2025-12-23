@@ -1,7 +1,7 @@
-from spherical_spectral_element.config import np
-from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, gen_metric_from_topo
-from spherical_spectral_element.mesh import mesh_to_cart_bilinear, gen_gll_redundancy
+from pysces.config import np
+from pysces.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.equiangular_metric import gen_metric_terms_equiangular, gen_metric_from_topo
+from pysces.mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 
 
 def test_gen_metric():

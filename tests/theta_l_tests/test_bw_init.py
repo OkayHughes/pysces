@@ -1,11 +1,11 @@
-from spherical_spectral_element.config import np, jnp, device_unwrapper, device_wrapper, use_wrapper, wrapper_type
+from pysces.config import np, jnp, device_unwrapper, device_wrapper, use_wrapper, wrapper_type
 
-from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
-from spherical_spectral_element.theta_l.initialization.umjs14 import (get_umjs_config,
-                                                                      evaluate_pressure_temperature,
-                                                                      evaluate_state)
-from spherical_spectral_element.theta_l.infra import g_from_z
+from pysces.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.equiangular_metric import gen_metric_from_topo
+from pysces.theta_l.initialization.umjs14 import (get_umjs_config,
+                                                  evaluate_pressure_temperature,
+                                                  evaluate_state)
+from pysces.theta_l.infra import g_from_z
 
 
 def test_shallow():

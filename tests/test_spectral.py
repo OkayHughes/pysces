@@ -1,5 +1,5 @@
-from spherical_spectral_element.config import np
-from spherical_spectral_element.spectral import deriv
+from pysces.config import np
+from pysces.spectral import deriv
 
 
 def test_quadrature():

@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import jnp, np, device_wrapper
+from pysces.config import jnp, np, device_wrapper
 
 cam30 = {"hybrid_a_i": device_wrapper(np.array([0.00225523952394724, 0.00503169186413288, 0.0101579474285245,
                                                 0.0185553170740604, 0.0306691229343414, 0.0458674766123295,
