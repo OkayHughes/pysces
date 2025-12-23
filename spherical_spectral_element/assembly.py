@@ -1,8 +1,8 @@
 from .config import np, use_wrapper, jit, wrapper_type, jnp
 from functools import partial
-
 if use_wrapper and wrapper_type == "jax":
     import jax
+
 
 def dss_scalar_for(f, grid, *args):
   # assumes that values from remote processors have already been accumulated
@@ -21,7 +21,6 @@ def dss_scalar_for(f, grid, *args):
   # this line works even for multi-processor decompositions.
   workspace *= inv_mass_mat
   return workspace
-
 
 
 def dss_scalar_sparse(f, grid, *args, scaled=True):
@@ -46,9 +45,10 @@ def dss_scalar_torch(f, grid, dims, scaled=True):
   else:
     relevant_data = f.flatten()[cols]
   if use_wrapper and wrapper_type == "torch":
-    return jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"]) * grid["mass_matrix_inv"]
+    ret = jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"])
   else:
-    return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"]) * grid["mass_matrix_inv"]
+    ret = segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  return ret * grid["mass_matrix_inv"]
 
 
 @partial(jit, static_argnames=["dims", "scaled"])
@@ -61,11 +61,12 @@ def dss_scalar_jax(f, grid, dims, scaled=True):
     relevant_data = f.flatten().take(cols)
 
   if use_wrapper and wrapper_type == "jax":
-    return jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"]) * grid["mass_matrix_inv"]
+    ret = jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
   elif use_wrapper and wrapper_type == "torch":
-    return jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"]) * grid["mass_matrix_inv"]
+    ret = jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"])
   else:
-    return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"]) * grid["mass_matrix_inv"]
+    ret = segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  return ret * grid["mass_matrix_inv"]
 
 
 if use_wrapper and wrapper_type == "jax":

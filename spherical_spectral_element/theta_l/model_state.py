@@ -48,6 +48,10 @@ def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, co
 def init_tracer_struct(Q):
   return {"Q": Q}
 
+# TODO 12/23/25: add wrapper functions that apply
+# summation, and dss_scalar so model interface remains identical.
+# also: refactor into separate file, since these are non-jittable
+
 
 @partial(jit, static_argnames=["dims", "scaled"])
 def dss_scalar_3d(variable, h_grid, dims, scaled=True):
