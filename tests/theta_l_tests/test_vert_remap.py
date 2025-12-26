@@ -14,7 +14,6 @@ def get_testbed(seed=True, random=False, wrap=False):
     np.random.seed(1)
   ints = np.concatenate(([0.0],
                          np.sort(np.random.uniform(size=nlev - 1)),
-                         
                          [1.0]))
   deltas = (ints[1:] - ints[:-1])[np.newaxis, np.newaxis, np.newaxis, :] * np.ones((nF, npt, npt, 1))
   deltas_ref = ((reference_levs[1:] - reference_levs[:-1])[np.newaxis, np.newaxis, np.newaxis, :] *
