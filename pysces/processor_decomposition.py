@@ -118,4 +118,6 @@ def elem_idx_global_to_proc_idx(elem_idxs_global, decomp):
   for proc_idx, (begin, end) in enumerate(decomp):
     mask = np.logical_and(elem_idxs_global < end, elem_idxs_global >= begin)
     out[mask] = proc_idx
+  if out.size == 1:
+    out = out.item()
   return out
