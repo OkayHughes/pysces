@@ -3,11 +3,11 @@ from .spectral import deriv
 from .processor_decomposition import get_decomp
 from .se_grid import create_spectral_element_grid
 
+
 def init_periodic_plane(nx, ny, length_x=2.0, length_y=2.0):
-  NELEM = nx * ny
   gll_pts = deriv["gll_points"]
-  elem_boundaries_x_1d = np.linspace(-length_x/2.0, length_x/2.0, nx+1)
-  elem_boundaries_y_1d = np.flip(np.linspace(-length_y/2.0, length_y/2.0, ny+1))
+  elem_boundaries_x_1d = np.linspace(-length_x / 2.0, length_x / 2.0, nx + 1)
+  elem_boundaries_y_1d = np.linspace(length_y / 2.0, -length_y / 2.0, ny + 1)
   elem_boundaries_x, elem_boundaries_y = np.meshgrid(elem_boundaries_x_1d,
                                                      elem_boundaries_y_1d)
   elem_boundaries_x = elem_boundaries_x.flatten()
@@ -22,28 +22,29 @@ def init_periodic_plane(nx, ny, length_x=2.0, length_y=2.0):
   elem_centers_x = elem_centers_x.flatten()
   elem_centers_y = elem_centers_y.flatten()
   idx_hack = np.arange(l_idxs.size).reshape(l_idxs_2d.shape)
-  
 
   dx = elem_boundaries_x_1d[1] - elem_boundaries_x_1d[0]
   dy = elem_boundaries_y_1d[1] - elem_boundaries_y_1d[0]
-  gll_squished_x, gll_squished_y = np.meshgrid(dx/2.0 * gll_pts,
-                                               dy/2.0 * gll_pts)
+  gll_squished_x, gll_squished_y = np.meshgrid(dx / 2.0 * gll_pts,
+                                               dy / 2.0 * gll_pts)
   x_pos = gll_squished_x[np.newaxis, :, :] + elem_centers_x[:, np.newaxis, np.newaxis]
   y_pos = gll_squished_y[np.newaxis, :, :] + elem_centers_y[:, np.newaxis, np.newaxis]
   x_pos = np.flip(np.swapaxes(x_pos, 1, 2), axis=1)
   y_pos = np.swapaxes(y_pos, 1, 2)
   physical_coords = np.stack((x_pos, y_pos), axis=-1)
-  ref_to_planar_gs = np.array([[dx/2.0, 0],
-                               [0, -dy/2.0]], dtype=np.float64)
+  ref_to_planar_gs = np.array([[dx / 2.0, 0],
+                               [0, -dy / 2.0]], dtype=np.float64)
   ref_to_planar = (ref_to_planar_gs[np.newaxis, np.newaxis, np.newaxis, :, :] *
                    np.ones_like(x_pos)[:, :, :, np.newaxis, np.newaxis])
-  
+
   vert_redundancy_gll = {}
+
   def wrap(f_idx, i_idx, j_idx):
     if f_idx not in vert_redundancy_gll.keys():
       vert_redundancy_gll[f_idx] = {}
     if (i_idx, j_idx) not in vert_redundancy_gll[f_idx].keys():
       vert_redundancy_gll[f_idx][(i_idx, j_idx)] = set()
+
   last_pt = npt - 1
   first_pt = 0
   for f_idx in range(elem_centers_x.shape[0]):
@@ -90,9 +91,10 @@ def init_periodic_plane(nx, ny, length_x=2.0, length_y=2.0):
     wrap(f_idx, first_pt, first_pt)
     vert_redundancy_gll[f_idx][(first_pt, first_pt)].add((bottom_left_element, last_pt, last_pt))
   return physical_coords, ref_to_planar, vert_redundancy_gll
-        
 
-def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, jax=use_wrapper, proc_idx=-1, decomp=None):
+
+def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll,
+                          jax=use_wrapper, proc_idx=-1, decomp=None):
   if proc_idx < 0:
     NELEM = physical_coords.shape[0]
     proc_idx = 0
@@ -122,6 +124,7 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                       rmetdet, metdet, mass_mat,
                                       inv_mass_mat, vert_redundancy_gll,
                                       proc_idx, decomp, jax=jax)
+
 
 def create_uniform_grid(nx, ny, proc_idx=-1, decomp=None, length_x=2.0, length_y=2.0):
     physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, length_x=length_x, length_y=length_y)
