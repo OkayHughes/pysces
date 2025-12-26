@@ -3,11 +3,29 @@ from pysces.equiangular_metric import create_quasi_uniform_grid
 from pysces.assembly import dss_scalar
 from pysces.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
 from pysces.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
+from pysces.periodic_plane import create_uniform_grid
 
-
-def test_vector_identites():
+def test_vector_identites_sphere():
   nx = 31
   grid, dims = create_quasi_uniform_grid(nx)
+  fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
+  grad = sphere_gradient(fn, grid)
+  vort = sphere_vorticity(grad, grid)
+
+  iprod_vort = inner_prod(vort, vort, grid)
+  assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
+  v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
+                 jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
+
+  grad = sphere_gradient(fn, grid)
+  discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
+                             inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                             inner_prod(fn, sphere_divergence(v, grid), grid))
+  assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
+
+def test_vector_identities_plane():
+  nx, ny = (31, 33)
+  grid, dims = create_uniform_grid(nx, ny, length_x=jnp.pi, length_y=jnp.pi)
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   grad = sphere_gradient(fn, grid)
   vort = sphere_vorticity(grad, grid)
