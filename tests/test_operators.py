@@ -5,6 +5,7 @@ from pysces.operators import sphere_gradient, sphere_divergence, sphere_vorticit
 from pysces.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
 from pysces.periodic_plane import create_uniform_grid
 
+
 def test_vector_identites_sphere():
   nx = 31
   grid, dims = create_quasi_uniform_grid(nx)
@@ -22,6 +23,7 @@ def test_vector_identites_sphere():
                              inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                              inner_prod(fn, sphere_divergence(v, grid), grid))
   assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
+
 
 def test_vector_identities_plane():
   nx, ny = (31, 33)
@@ -42,10 +44,35 @@ def test_vector_identities_plane():
   assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
-def test_vector_identites_rand():
+def test_vector_identites_rand_sphere():
   np.random.seed(0)
   nx = 31
   grid, dims = create_quasi_uniform_grid(nx)
+  for _ in range(10):
+    fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
+    fn = dss_scalar(fn, grid, dims)
+    grad = sphere_gradient(fn, grid)
+    vort = sphere_vorticity(grad, grid)
+    grad = jnp.stack((dss_scalar(grad[:, :, :, 0], grid, dims),
+                      dss_scalar(grad[:, :, :, 1], grid, dims)), axis=-1)
+    vort = dss_scalar(vort, grid, dims)
+    iprod_vort = inner_prod(vort, vort, grid)
+    assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
+    v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
+    v = jnp.stack((dss_scalar(v[:, :, :, 0], grid, dims),
+                   dss_scalar(v[:, :, :, 1], grid, dims)), axis=-1)
+    div = sphere_divergence(v, grid)
+    div = dss_scalar(sphere_divergence(v, grid), grid, dims)
+    discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
+                               inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                               inner_prod(fn, div, grid))
+    assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
+
+
+def test_vector_identites_rand_plane():
+  np.random.seed(0)
+  nx, ny = (31, 33)
+  grid, dims = create_uniform_grid(nx, ny)
   for _ in range(10):
     fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
     fn = dss_scalar(fn, grid, dims)
