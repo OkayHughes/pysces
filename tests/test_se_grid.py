@@ -1,7 +1,7 @@
-from pysces.equiangular_metric import gen_metric_from_topo
+from pysces.equiangular_metric import gen_metric_from_topo, create_quasi_uniform_grid
 from pysces.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from pysces.processor_decomposition import get_decomp, local_to_global
-from pysces.se_grid import triage_vert_redundancy, subset_var, init_dss_global, init_dss_matrix_local
+from pysces.se_grid import triage_vert_redundancy, subset_var, init_dss_global, init_dss_matrix_local, create_spectral_element_grid
 from .handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np
 
@@ -152,13 +152,88 @@ def test_dss_init():
     for remote_proc_idx in triples_send.keys():
       assert (remote_proc_idx in triples_receive.keys())
       # column refers to order of summation, which may not match.
-      flip_trip_send = [x[:-1] for x in flip_triple(triples_send[remote_proc_idx])]
+      flip_trip_send = [x for x in flip_triple(triples_send[remote_proc_idx])]
+      flip_double_send = [x[:-1] for x in flip_trip_send]
       ct -= len(flip_trip_send)
-      flip_trip_recv = [x[:-1] for x in flip_triple(triples_receive[remote_proc_idx])]
-      for (value, row) in flip_trip_send:
-        assert (value, row) in flip_trip_recv
-      for (value, row) in flip_trip_recv:
-        assert (value, row) in flip_trip_send
+      flip_trip_recv = [x for x in flip_triple(triples_receive[remote_proc_idx])]
+      flip_double_recv = [x[:-1] for x in flip_trip_send]
+      for (value, row, _) in flip_trip_send:
+        assert (value, row) in flip_double_recv
+      for (value, row, _) in flip_trip_recv:
+        assert (value, row) in flip_double_send
+      
   assert ct == 0
 
 
+def test_triples_order():
+  for nx in range(1, 5):
+    for nproc in range(1, 3):
+      grid_total, dim_total = create_quasi_uniform_grid(nx)
+      decomp = get_decomp(dim_total["num_elem"], nproc)
+      grids = []
+      grids_nojax = []
+      dims = []
+      pairs = {}
+      vert_redundancy = grid_total["vert_redundancy"]
+      for proc_idx in range(nproc):
+        grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
+                                                grid_total["jacobian"],
+                                                grid_total["jacobian_inv"],
+                                                grid_total["recip_met_det"],
+                                                grid_total["met_det"],
+                                                grid_total["mass_mat"],
+                                                grid_total["mass_matrix_inv"],
+                                                grid_total["vert_redundancy"],
+                                                proc_idx, decomp, jax=True)
+        grid_nojax, _ = create_spectral_element_grid(grid_total["physical_coords"],
+                                                grid_total["jacobian"],
+                                                grid_total["jacobian_inv"],
+                                                grid_total["recip_met_det"],
+                                                grid_total["met_det"],
+                                                grid_total["mass_mat"],
+                                                grid_total["mass_matrix_inv"],
+                                                grid_total["vert_redundancy"],
+                                                proc_idx, decomp, jax=False)
+        grids.append(grid)
+        grids_nojax.append(grid_nojax)
+        dims.append(dim)
+      for local_proc_idx in range(nproc):
+        # check that triples and vert redundancy structs are identical
+        local_triples_send = grids[local_proc_idx]["triples_send"]
+        local_triples_recv = grids[local_proc_idx]["triples_receive"]
+        local_vert_red_send = grids_nojax[local_proc_idx]["vert_redundancy_send"]
+        local_vert_red_recv = grids_nojax[local_proc_idx]["vert_redundancy_receive"]
+        local_coords = grids[local_proc_idx]["physical_coords"]
+        for remote_proc_idx in local_triples_send.keys():
+          assert remote_proc_idx in local_triples_recv.keys()
+          assert remote_proc_idx in local_vert_red_send.keys()
+          assert remote_proc_idx in local_vert_red_recv.keys()
+          remote_triples_send = grids[remote_proc_idx]["triples_send"]
+          remote_triples_recv = grids[remote_proc_idx]["triples_receive"]
+          remote_vert_red_send = grids_nojax[remote_proc_idx]["vert_redundancy_send"]
+          remote_vert_red_recv = grids_nojax[remote_proc_idx]["vert_redundancy_receive"]
+          grid_remote = grids[remote_proc_idx]
+          remote_coords = grids[remote_proc_idx]["physical_coords"] 
+          for k_idx in range(local_triples_send[remote_proc_idx][0].size):
+            f_idx, i_idx, j_idx = local_vert_red_send[remote_proc_idx][k_idx]
+            # test that vert_red_send struct and triples_send point to coincident local points
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
+                              local_coords[:, :, :, 0].flatten()[local_triples_send[remote_proc_idx][1][k_idx]]))
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
+                              local_coords[:, :, :, 1].flatten()[local_triples_send[remote_proc_idx][1][k_idx]]))
+            # test that local vert_red_send struct and remote triples_recv point to coincident points
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
+                              remote_coords[:, :, :, 0].flatten()[remote_triples_recv[local_proc_idx][1][k_idx]]))
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
+                              remote_coords[:, :, :, 1].flatten()[remote_triples_recv[local_proc_idx][1][k_idx]]))
+            f_idx, i_idx, j_idx = local_vert_red_recv[remote_proc_idx][k_idx]
+            # test that vert_red_recv struct and triples_recv point to coincident local points
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
+                              local_coords[:, :, :, 0].flatten()[local_triples_recv[remote_proc_idx][1][k_idx]]))
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
+                              local_coords[:, :, :, 1].flatten()[local_triples_recv[remote_proc_idx][1][k_idx]]))
+            # test that local vert_red_recv struct and remote triples_send point to coincident points
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
+                              remote_coords[:, :, :, 0].flatten()[remote_triples_send[local_proc_idx][1][k_idx]]))
+            assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
+                              remote_coords[:, :, :, 1].flatten()[remote_triples_send[local_proc_idx][1][k_idx]]))
