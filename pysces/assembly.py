@@ -3,15 +3,26 @@ from functools import partial
 if use_wrapper and wrapper_type == "jax":
     import jax
 
+def summation_local_for(f, grid, *args):
+  vert_redundancy_gll = grid["vert_redundancy"]
+  workspace = f.copy()
+  for local_face_idx in vert_redundancy_gll.keys():
+    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
+      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
+        workspace[remote_face_id, remote_i, remote_j] += f[local_face_idx, local_i, local_j]
+  # this line works even for multi-processor decompositions.
 
-def dss_scalar_for(f, grid, *args):
+  return workspace
+
+def dss_scalar_for(f, grid, *args, scaled=True):
   # assumes that values from remote processors have already been accumulated
   metdet = grid["met_det"]
   inv_mass_mat = grid["mass_matrix_inv"]
   vert_redundancy_gll = grid["vert_redundancy"]
   gll_weights = grid["gll_weights"]
   workspace = f.copy()
-  workspace *= metdet * (gll_weights[np.newaxis, :, np.newaxis] * gll_weights[np.newaxis, np.newaxis, :])
+  if scaled:
+    workspace *= metdet * (gll_weights[np.newaxis, :, np.newaxis] * gll_weights[np.newaxis, np.newaxis, :])
   for local_face_idx in vert_redundancy_gll.keys():
     for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
       for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:

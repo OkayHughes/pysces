@@ -88,7 +88,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
           jac_tmp[1, 0] = dlat_dy[face_idx, i_idx, j_idx]
           jac_tmp[1, 1] = dlon_dy[face_idx, i_idx, j_idx]
           err_str = f"""Face: {face_idx},\nvvvvvvvvvvvvvvvvvvv\nNumerical jac: \n{jac_tmp}, \nAnalytic jac: \n{cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n^^^^^^^^^^^^^^^^^\n """
-          print(dedent(err_str))
+          # print(dedent(err_str))
 
   # front face
   def front_lat(x, y):
@@ -172,11 +172,10 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
 
 
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
-                          cube_to_sphere_jacobian, vert_redundancy_gll, jax=use_wrapper, proc_idx=-1, decomp=None):
-  if proc_idx < 0:
-    NELEM = gll_latlon.shape[0]
-    proc_idx = 0
-    decomp = get_decomp(NELEM, 1)
+                          cube_to_sphere_jacobian, vert_redundancy_gll, jax=use_wrapper):
+  NELEM = gll_latlon.shape[0]
+  proc_idx = 0
+  decomp = get_decomp(NELEM, 1)
 
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
@@ -217,16 +216,15 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
 
 
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy,
-                         jax=use_wrapper, proc_idx=-1, decomp=None):
+                         jax=use_wrapper):
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d)
   cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy)
   gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy)
   return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy,
-                               jax=jax, proc_idx=proc_idx, decomp=decomp)
+                               jax=jax)
 
 
-def create_quasi_uniform_grid(nx, proc_idx=-1, decomp=None):
+def create_quasi_uniform_grid(nx):
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy,
-                              proc_idx=proc_idx, decomp=decomp)
+  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)

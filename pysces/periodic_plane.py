@@ -94,11 +94,10 @@ def init_periodic_plane(nx, ny, length_x=2.0, length_y=2.0):
 
 
 def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll,
-                          jax=use_wrapper, proc_idx=-1, decomp=None):
-  if proc_idx < 0:
-    NELEM = physical_coords.shape[0]
-    proc_idx = 0
-    decomp = get_decomp(NELEM, 1)
+                          jax=use_wrapper):
+  NELEM = physical_coords.shape[0]
+  proc_idx = 0
+  decomp = get_decomp(NELEM, 1)
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 
@@ -126,6 +125,6 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                       proc_idx, decomp, jax=jax)
 
 
-def create_uniform_grid(nx, ny, proc_idx=-1, decomp=None, length_x=2.0, length_y=2.0):
+def create_uniform_grid(nx, ny, length_x=2.0, length_y=2.0):
     physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, length_x=length_x, length_y=length_y)
-    return generate_metric_terms(physical_coords, ref_to_planar, vert_red, proc_idx=proc_idx, decomp=decomp)
+    return generate_metric_terms(physical_coords, ref_to_planar, vert_red)

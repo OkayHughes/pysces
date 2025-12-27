@@ -1,6 +1,6 @@
 from pysces.config import np
 from pysces.spectral import deriv
-from pysces.equiangular_metric import generate_metric_terms
+from pysces.periodic_plane import generate_metric_terms
 # (1, 3, 3)||(1, 0, 3)(1, 1, 3)(1, 2, 3)(1, 3, 3)||(1, 0, 3)
 # =========||====================================||=========
 # (0, 3, 0)||(0, 0, 0)(0, 1, 0)(0, 2, 0)(0, 3, 0)||(0, 0, 0)
@@ -132,5 +132,4 @@ def init_test_grid():
   cart_pts = np.array([x1, x2], dtype=np.float64)
   gll_to_cube_jacobian = (np.eye(2)[np.newaxis, np.newaxis, np.newaxis, :, :] *
                           np.ones_like(cart_pts[:, :, :, 0])[:, :, :, np.newaxis, np.newaxis])
-  return generate_metric_terms(cart_pts, gll_to_cube_jacobian,
-                               gll_to_cube_jacobian, vert_redundancy_gll, jax=False)
+  return generate_metric_terms(cart_pts, gll_to_cube_jacobian, vert_redundancy_gll, jax=False)

@@ -5,13 +5,12 @@ from frozendict import frozendict
 from .processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
 
 
-def init_dss_matrix_local(metdet, vert_redundancy_gll):
+def init_dss_matrix_local(NELEM, vert_redundancy_local):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
   # and that remote_face_idx corresponds to processor local
   # ids.
-  NELEM = metdet.shape[0]
   index_hack = np.zeros((NELEM, npt, npt), dtype=np.int64)
   # hack: easier than figuring out indexing conventions
   index_hack = np.arange(index_hack.size).reshape(index_hack.shape)
@@ -26,9 +25,9 @@ def init_dss_matrix_local(metdet, vert_redundancy_gll):
         data.append(1.0)
         rows.append(index_hack[face_idx, i_idx, j_idx])
         cols.append(index_hack[face_idx, i_idx, j_idx])
-  for local_face_idx in vert_redundancy_gll.keys():
-    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
-      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
+  for local_face_idx in vert_redundancy_local.keys():
+    for local_i, local_j in vert_redundancy_local[local_face_idx].keys():
+      for remote_face_id, remote_i, remote_j in vert_redundancy_local[local_face_idx][(local_i, local_j)]:
         data.append(1.0)
         rows.append(index_hack[remote_face_id, remote_i, remote_j])
         cols.append(index_hack[local_face_idx, local_i, local_j])
@@ -43,13 +42,12 @@ def init_dss_matrix_local(metdet, vert_redundancy_gll):
   return dss_matrix, (data, rows, cols)
 
 
-def init_dss_global(metdet, vert_redundancy_send, vert_redundancy_receive):
+def init_dss_global(NELEM, vert_redundancy_send, vert_redundancy_receive):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
   # and that remote_face_idx corresponds to processor local
   # ids.
-  NELEM = metdet.shape[0]
   index_hack = np.zeros((NELEM, npt, npt), dtype=np.int64)
   # hack: easier than figuring out indexing conventions
   index_hack = np.arange(index_hack.size).reshape(index_hack.shape)
@@ -66,7 +64,7 @@ def init_dss_global(metdet, vert_redundancy_send, vert_redundancy_receive):
       data = triples[source_proc_idx][0]
       rows = triples[source_proc_idx][1]
       cols = triples[source_proc_idx][2]
-      for col_idx, ((target_local_idx, target_i, target_j), _) in enumerate(vert_redundancy[source_proc_idx]):
+      for col_idx, (target_local_idx, target_i, target_j) in enumerate(vert_redundancy[source_proc_idx]):
         data.append(1.0)
         rows.append(index_hack[target_local_idx, target_i, target_j])
         cols.append(col_idx)
@@ -89,22 +87,22 @@ def triage_vert_redundancy(vert_redundancy_gll,
         target_proc_idx = elem_idx_global_to_proc_idx(target_global_idx, decomp)
         source_proc_idx = elem_idx_global_to_proc_idx(source_global_idx, decomp)
         if (target_proc_idx == proc_idx and source_proc_idx == proc_idx):
-          target_local_idx = global_to_local(target_global_idx, proc_idx, decomp)
+          target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
           if target_local_idx not in vert_redundancy_local.keys():
             vert_redundancy_local[target_local_idx] = {}
           if (target_i, target_j) not in vert_redundancy_local[target_local_idx].keys():
             vert_redundancy_local[target_local_idx][(target_i, target_j)] = []
-          source_local_idx = global_to_local(source_global_idx, proc_idx, decomp)
+          source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
           vert_redundancy_local[target_local_idx][target_i, target_j].append((source_local_idx, source_i, source_j))
         elif (target_proc_idx == proc_idx and not
               source_proc_idx == proc_idx):
-          target_local_idx = global_to_local(target_global_idx, proc_idx, decomp)
+          target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
           if source_proc_idx not in vert_redundancy_receive.keys():
             vert_redundancy_receive[source_proc_idx] = []
           vert_redundancy_receive[source_proc_idx].append(((target_local_idx, target_i, target_j)))
         elif (not target_proc_idx == proc_idx and
               source_proc_idx == proc_idx):
-          source_local_idx = global_to_local(source_global_idx, proc_idx, decomp)
+          source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
           if target_proc_idx not in vert_redundancy_send.keys():
             vert_redundancy_send[target_proc_idx] = []
           vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
@@ -129,16 +127,15 @@ def create_spectral_element_grid(latlon,
                                  proc_idx,
                                  decomp,
                                  element_reordering=None,
-                                 jax=use_wrapper,
-                                 device=""):
-  NELEM = metdet.shape[0]
+                                 jax=use_wrapper):
+  NELEM = subset_var(metdet, proc_idx, decomp).shape[0]
   # This function currently assumes that the full grid can be loaded into memory.
   # This should be fine up to, e.g., quarter-degree grids.
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(vert_redundancy_gll,
                                                                         proc_idx,
                                                                         decomp)
-  dss_matrix, dss_triple = init_dss_matrix_local(metdet, vert_red_local)
-  triples_send, triples_recv = init_dss_global(metdet, vert_red_send, vert_red_recv)
+  dss_matrix, dss_triple = init_dss_matrix_local(NELEM, vert_red_local)
+  triples_send, triples_recv = init_dss_global(NELEM, vert_red_send, vert_red_recv)
 
   # note: test code sometimes sets jax=False to test jax vs stock numpy
   # this extra conditional is not extraneous.
@@ -154,15 +151,16 @@ def create_spectral_element_grid(latlon,
   mass_matrix = (metdet *
                  deriv["gll_weights"][np.newaxis, :, np.newaxis] *
                  deriv["gll_weights"][np.newaxis, np.newaxis, :])
-  for proc_idx in triples_recv.keys():
-    triples_recv[proc_idx] = (wrapper(triples_recv[0]),
-                              wrapper(triples_recv[1], dtype=jnp.int64),
-                              wrapper(triples_recv[2], dtype=jnp.int64))
+  for proc_idx_recv in triples_recv.keys():
+    triples_recv[proc_idx_recv] = (wrapper(triples_recv[proc_idx_recv][0]),
+                              wrapper(triples_recv[proc_idx_recv][1], dtype=jnp.int64),
+                              wrapper(triples_recv[proc_idx_recv][2], dtype=jnp.int64))
 
-  for proc_idx in triples_send.keys():
-    triples_send[proc_idx] = (wrapper(triples_send[0]),
-                              wrapper(triples_send[1], dtype=jnp.int64),
-                              wrapper(triples_send[2], dtype=jnp.int64))
+  for proc_idx_send in triples_send.keys():
+    triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
+                              wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
+                              wrapper(triples_send[proc_idx_send]
+                                      [2], dtype=jnp.int64))
 
   ret = {"physical_coords": wrapper(subset_var(latlon, proc_idx, decomp,
                                                element_reordering=element_reordering)),
