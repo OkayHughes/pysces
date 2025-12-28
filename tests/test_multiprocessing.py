@@ -3,7 +3,7 @@ from pysces.multiprocessing import (dss_scalar_for_stub, exchange_buffers_mpi,
                                     dss_scalar_for_pack, dss_scalar_for_unpack,
                                     exchange_buffers_stub, extract_fields_jax, extract_fields_for,
                                     accumulate_fields_for, accumulate_fields_jax)
-from pysces.se_grid import create_spectral_element_grid
+from pysces.se_grid import create_spectral_element_grid, subset_var
 from pysces.periodic_plane import create_uniform_grid
 from pysces.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
 from pysces.config import jnp, device_unwrapper, np, do_mpi_communication, npt, mpi_rank, mpi_size, mpi_comm
@@ -159,101 +159,98 @@ def test_stub_exchange():
         
 def test_extract_fields_triples():
   np.random.seed(0)
-  nx = 1
-  global_grids = [create_uniform_grid(1, 2), create_quasi_uniform_grid(nx)]
-  for random, num_iters in zip([False, True], [1, 10]):
-    for _ in range(num_iters):
+  for nx in range(1, 3):
+    global_grids = [create_uniform_grid(nx, nx+1), create_quasi_uniform_grid(nx)]
+    for random, num_iters in zip([False, True], [1, 10]):
+      for _ in range(num_iters):
 
-      nproc = 2
-      grid_total, dim_total = global_grids[0]
-      idx_test = np.arange(grid_total["met_det"].size).reshape(grid_total["met_det"].shape)
-      decomp = get_decomp(dim_total["num_elem"], nproc)
-      grids = []
-      grids_nojax = []
-      dims = []
-      fs = []
-      total_elems = 0
-      nlev = 2
-      pairs = {}
-      proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-      vert_redundancy = grid_total["vert_redundancy"]
-      for target_face_idx in vert_redundancy.keys():
-        for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
-          pair_key = (proc_ids[target_face_idx], global_to_local(target_face_idx, proc_ids[target_face_idx], decomp), target_i, target_j)
-          pair_set = set()
-          for (source_face_idx, source_i, source_j) in vert_redundancy[target_face_idx][(target_i, target_j)]:
-            pair_set.add((proc_ids[source_face_idx], global_to_local(source_face_idx, proc_ids[source_face_idx], decomp), source_i, source_j))
-          pairs[pair_key] = pair_set.copy()
-      for proc_idx in range(nproc):
-        grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                grid_total["jacobian"],
-                                                grid_total["jacobian_inv"],
-                                                grid_total["recip_met_det"],
-                                                grid_total["met_det"],
-                                                grid_total["mass_mat"],
-                                                grid_total["mass_matrix_inv"],
-                                                grid_total["vert_redundancy"],
-                                                proc_idx, decomp, jax=True)
-        grid_nojax, _ = create_spectral_element_grid(grid_total["physical_coords"],
-                                                grid_total["jacobian"],
-                                                grid_total["jacobian_inv"],
-                                                grid_total["recip_met_det"],
-                                                grid_total["met_det"],
-                                                grid_total["mass_mat"],
-                                                grid_total["mass_matrix_inv"],
-                                                grid_total["vert_redundancy"],
-                                                proc_idx, decomp, jax=False)
-        grids.append(grid)
-        grids_nojax.append(grid_nojax)
-        dims.append(dim)
-        if random:
-          fs.append([np.random.normal(size=(*grid["physical_coords"][:, :, :, 0].shape, nlev)),
-                    np.random.normal(size=(*grid["physical_coords"][:, :, :, 0].shape, nlev+1))])
-        else:
-          #fs.append([np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
-          #           np.ones((1, 1, 1, nlev)),
-          #           np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
-          #           np.ones((1, 1, 1, nlev+1))])
-          fs.append([np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
-                     np.ones((1, 1, 1, nlev))])
+        nproc = 2
+        grid_total, dim_total = global_grids[0]
+        idx_test = np.arange(grid_total["met_det"].size).reshape(grid_total["met_det"].shape)
+        decomp = get_decomp(dim_total["num_elem"], nproc)
+        grids = []
+        grids_nojax = []
+        dims = []
+        fs = []
+        total_elems = 0
+        nlev = 2
+        pairs = {}
+        proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
+        vert_redundancy = grid_total["vert_redundancy"]
+        for target_face_idx in vert_redundancy.keys():
+          for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
+            pair_key = (proc_ids[target_face_idx], global_to_local(target_face_idx, proc_ids[target_face_idx], decomp), target_i, target_j)
+            pair_set = set()
+            for (source_face_idx, source_i, source_j) in vert_redundancy[target_face_idx][(target_i, target_j)]:
+              pair_set.add((proc_ids[source_face_idx], global_to_local(source_face_idx, proc_ids[source_face_idx], decomp), source_i, source_j))
+            pairs[pair_key] = pair_set.copy()
+        for proc_idx in range(nproc):
+          grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
+                                                  grid_total["jacobian"],
+                                                  grid_total["jacobian_inv"],
+                                                  grid_total["recip_met_det"],
+                                                  grid_total["met_det"],
+                                                  grid_total["mass_mat"],
+                                                  grid_total["mass_matrix_inv"],
+                                                  grid_total["vert_redundancy"],
+                                                  proc_idx, decomp, jax=True)
+          grid_nojax, _ = create_spectral_element_grid(grid_total["physical_coords"],
+                                                  grid_total["jacobian"],
+                                                  grid_total["jacobian_inv"],
+                                                  grid_total["recip_met_det"],
+                                                  grid_total["met_det"],
+                                                  grid_total["mass_mat"],
+                                                  grid_total["mass_matrix_inv"],
+                                                  grid_total["vert_redundancy"],
+                                                  proc_idx, decomp, jax=False)
+          grids.append(grid)
+          grids_nojax.append(grid_nojax)
+          dims.append(dim)
+          if random:
+            fs.append([np.random.normal(size=(*grid["physical_coords"][:, :, :, 0].shape, nlev)),
+                      np.random.normal(size=(*grid["physical_coords"][:, :, :, 0].shape, nlev+1))])
+          else:
+            fs.append([np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
+                      np.ones((1, 1, 1, nlev)),
+                      np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
+                      np.ones((1, 1, 1, nlev+1))])
 
-        total_elems += dim["num_elem"]
-      buffers_for = []
-      buffers_jax = []
-      for (f, grid, grid_nojax, dim) in zip(fs, grids, grids_nojax, dims):
-        buffers_for.append(extract_fields_for(f, grid_nojax["vert_redundancy_send"]))
-        buffer_for = buffers_for[-1]
-        buffers_jax.append(extract_fields_jax(f, grid["triples_send"]))
-        buffer_jax = buffers_jax[-1]
-        for proc_idx in buffer_for.keys():
-          assert proc_idx in buffer_jax.keys()
-          assert len(buffer_for[proc_idx]) == len(buffer_jax[proc_idx])
-          for k_idx in range(len(buffer_for[proc_idx])):
-            assert buffer_for[proc_idx][k_idx].shape == buffer_jax[proc_idx][k_idx].shape 
-            assert np.allclose(buffer_for[proc_idx][k_idx], buffer_jax[proc_idx][k_idx])
-      buffers_for = exchange_buffers_stub(buffers_for)
-      buffers_jax = exchange_buffers_stub(buffers_jax)
-      for proc_idx, f, in enumerate(fs):
-        print(f"proc_idx: {proc_idx}")
-        print(f[0][:, :, :, 0])
-      print(fs)
-      for (f, grid, grid_nojax, dim, buffer_for, buffer_jax) in zip(fs, grids, grids_nojax, dims, buffers_for, buffers_jax):
-        f_jax = [np.copy(ff) for ff in f]
-        for remote_idx in buffer_for.keys():
-          for field_idx in range(len(buffer_for[remote_idx])):
-            assert np.allclose(buffer_for[remote_idx][field_idx], buffer_jax[remote_idx][field_idx])
+          total_elems += dim["num_elem"]
+        buffers_for = []
+        buffers_jax = []
+        for (f, grid, grid_nojax, dim) in zip(fs, grids, grids_nojax, dims):
+          buffers_for.append(extract_fields_for(f, grid_nojax["vert_redundancy_send"]))
+          buffer_for = buffers_for[-1]
+          buffers_jax.append(extract_fields_jax(f, grid["triples_send"]))
+          buffer_jax = buffers_jax[-1]
+          for proc_idx in buffer_for.keys():
+            assert proc_idx in buffer_jax.keys()
+            assert len(buffer_for[proc_idx]) == len(buffer_jax[proc_idx])
+            for k_idx in range(len(buffer_for[proc_idx])):
+              assert buffer_for[proc_idx][k_idx].shape == buffer_jax[proc_idx][k_idx].shape 
+              assert np.allclose(buffer_for[proc_idx][k_idx], buffer_jax[proc_idx][k_idx])
+        buffers_for = exchange_buffers_stub(buffers_for)
+        buffers_jax = exchange_buffers_stub(buffers_jax)
+        for proc_idx, f, in enumerate(fs):
+          print(f"proc_idx: {proc_idx}")
+          print(f[0][:, :, :, 0])
+        for (f, grid, grid_nojax, dim, buffer_for, buffer_jax) in zip(fs, grids, grids_nojax, dims, buffers_for, buffers_jax):
+          f_jax = [np.copy(ff) for ff in f]
+          for remote_idx in buffer_for.keys():
+            for field_idx in range(len(buffer_for[remote_idx])):
+              assert np.allclose(buffer_for[remote_idx][field_idx], buffer_jax[remote_idx][field_idx])
+              assert np.allclose(f[field_idx], f_jax[field_idx])
+          fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nojax["vert_redundancy_receive"])
+          print("\n" * 10)
+          fijk_fields_jax = accumulate_fields_jax(f_jax, buffer_jax, grid["triples_receive"])
+          assert len(fijk_fields_for) == len(fijk_fields_jax)
+          for field_idx in range(len(fijk_fields_for)):
+            print("starting nonsense")
+            print(fijk_fields_for[field_idx][:, :, :, 0])
+            print(fijk_fields_jax[field_idx][:, :, :, 0])
+            print(fijk_fields_for[field_idx][:, :, :, 0] - fijk_fields_jax[field_idx][:, :, :, 0])
             assert np.allclose(f[field_idx], f_jax[field_idx])
-        fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nojax["vert_redundancy_receive"])
-        print("\n" * 10)
-        fijk_fields_jax = accumulate_fields_jax(f_jax, buffer_jax, grid["triples_receive"])
-        assert len(fijk_fields_for) == len(fijk_fields_jax)
-        for field_idx in range(len(fijk_fields_for)):
-          print("starting nonsense")
-          print(fijk_fields_for[field_idx][:, :, :, 0])
-          print(fijk_fields_jax[field_idx][:, :, :, 0])
-          print(fijk_fields_for[field_idx][:, :, :, 0] - fijk_fields_jax[field_idx][:, :, :, 0])
-          assert np.allclose(f[field_idx], f_jax[field_idx])
-          assert np.allclose(fijk_fields_for[field_idx], fijk_fields_jax[field_idx])
+            assert np.allclose(fijk_fields_for[field_idx], fijk_fields_jax[field_idx])
 
       
 

@@ -1,4 +1,4 @@
-from .config import np, jnp, has_mpi, put_along_axis_pk
+from .config import np, jnp, has_mpi, put_along_axis_pk, use_wrapper, wrapper_type
 from .assembly import summation_local_for
 
 
@@ -58,16 +58,8 @@ def accumulate_fields_for(fijk_fields, buffers, vert_redundancy_receive):
   # designed for device code to be tested against, but this is much more transparent
   for remote_proc_idx in buffers.keys():
     for field_idx in range(len(fijk_fields)):
-      print("beginning thing")
-      print("before")
-      tmp = np.copy(fijk_fields[field_idx][:, :, :, 0])
-      print(tmp)
       for col_idx, (target_local_idx, target_i, target_j) in enumerate(vert_redundancy_receive[remote_proc_idx]):
           fijk_fields[field_idx][target_local_idx, target_i, target_j, :] += buffers[remote_proc_idx][field_idx][:, col_idx]
-      print("after")
-      print(fijk_fields[field_idx][:, :, :, 0])
-      print("diff")
-      print(fijk_fields[field_idx][:, :, :, 0] - tmp)
   return fijk_fields
 
 
@@ -101,7 +93,6 @@ def extract_fields_matrix():
   pass
 
 
-
 def extract_fields_jax(fijk_fields, vert_redundancy_send):
   buffers = {}
   for remote_proc_idx in vert_redundancy_send.keys():
@@ -112,28 +103,19 @@ def extract_fields_jax(fijk_fields, vert_redundancy_send):
       buffers[remote_proc_idx].append(relevant_data.T)
   return buffers
 
+def sum_into(fijk_field, buffer, rows):
+  for k_idx in range(fijk_field.shape[-1]):
+    res = fijk_field[:, :, :, k_idx].flatten()
+    np.add.at(res, rows, buffer[k_idx, :])
+    fijk_field[:, :, :, k_idx] = res.reshape(fijk_field.shape[:-1])
+  return fijk_field
+
 def accumulate_fields_jax(fijk_fields, buffers, vert_redundancy_receive):
   for remote_proc_idx in buffers.keys():
     for field_idx in range(len(fijk_fields)):
-      (data, rows, cols) = vert_redundancy_receive[remote_proc_idx]
-      relevant_data = jnp.take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])), rows[:, np.newaxis], axis=0)
-      relevant_data += buffers[remote_proc_idx][field_idx].T
-      print("beginning field")
+      (_, rows, _) = vert_redundancy_receive[remote_proc_idx]
       tmp = np.copy(fijk_fields[field_idx][:, :, :, 0])
-      print("before")
-      print(fijk_fields[field_idx][:, :, :, 0])
-      np.put_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])),
-                        rows[:, np.newaxis],
-                        relevant_data,
-                        axis=0
-                        )
-      print("after")
-      print(fijk_fields[field_idx][:, :, :, 0])
-      print("diff" "")
-      print(fijk_fields[field_idx][:, :, :, 0] - tmp)
-      print("ending field""")
-      #fijk_fields[field_idx] = put_along_axis_pk(fijk_fields[field_idx],
-      #
-      #                                            rows[:, np.newaxis],
-      #                                           relevant_data)
+      fijk_fields[field_idx] = sum_into(fijk_fields[field_idx],
+                                        buffers[remote_proc_idx][field_idx],
+                                        rows)
   return fijk_fields
