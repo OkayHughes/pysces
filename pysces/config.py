@@ -6,7 +6,7 @@ npt = 4
 
 has_mpi = False
 
-use_wrapper = True
+use_wrapper = False
 wrapper_type = "jax"
 use_cpu = True
 use_double = True
@@ -50,6 +50,9 @@ if wrapper_type == "jax" and use_wrapper:
 
   def cast_type(arr, dtype):
     return arr.astype(dtype)
+  
+  def put_along_axis_pk(array, idxs, vals):
+    return jnp.put_along_axis(array.reshape((-1, array.shape[0])), idxs, vals, axis=0).reshape(array.shape)
 
 elif wrapper_type == "torch" and use_wrapper:
   import torch as jnp
@@ -90,12 +93,15 @@ elif wrapper_type == "torch" and use_wrapper:
 
   def cast_type(arr, dtype):
     return arr.type(dtype)
+  
+  def take_along_axis_pk(array, idxs, vals):
+    return array.reshape((-1, array.shape[-1])).scatter(0, idxs, vals).reshape(array.shape)
 
 else:
   import numpy as jnp
 
   def device_wrapper(x, dtype=np.float64):
-    return x
+    return np.array(x, dtype=dtype)
 
   def device_unwrapper(x):
     return x
@@ -126,12 +132,21 @@ else:
 
   def cast_type(arr, dtype):
     return arr.astype(dtype)
+  
+  def put_along_axis_pk(array, idxs, vals):
+    arr_flat = array.reshape((-1, array.shape[-1]))
+    jnp.put_along_axis(arr_flat, idxs, vals, axis=0)
+    return arr_flat.reshape(array.shape)
 
 if has_mpi:
   from mpi4py import MPI
   mpi_comm = MPI.COMM_WORLD
   mpi_rank = mpi_comm.Get_rank()
   mpi_size = mpi_comm.Get_size()
+  
 else:
+  mpi_comm = None
   mpi_rank = 0
   mpi_size = 1
+
+do_mpi_communication = mpi_size > 1

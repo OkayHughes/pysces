@@ -50,7 +50,7 @@ def init_dss_global(NELEM, vert_redundancy_send, vert_redundancy_receive):
   # ids.
   index_hack = np.zeros((NELEM, npt, npt), dtype=np.int64)
   # hack: easier than figuring out indexing conventions
-  index_hack = np.arange(index_hack.size).reshape(index_hack.shape)
+  index_hack = np.arange(index_hack.size, dtype=np.int64).reshape(index_hack.shape)
 
   # convention: when scaled=True, remote values are
   # pre-multiplied by numerator
@@ -158,9 +158,8 @@ def create_spectral_element_grid(latlon,
 
   for proc_idx_send in triples_send.keys():
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
-                              wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
-                              wrapper(triples_send[proc_idx_send]
-                                      [2], dtype=jnp.int64))
+                                   wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
+                                   wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
 
   ret = {"physical_coords": wrapper(subset_var(latlon, proc_idx, decomp,
                                                element_reordering=element_reordering)),

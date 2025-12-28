@@ -5,7 +5,6 @@ from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT
 from .se_grid import create_spectral_element_grid
 from .cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from .processor_decomposition import get_decomp
-from textwrap import dedent
 
 
 def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
@@ -87,8 +86,14 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
           jac_tmp[0, 1] = dlon_dx[face_idx, i_idx, j_idx]
           jac_tmp[1, 0] = dlat_dy[face_idx, i_idx, j_idx]
           jac_tmp[1, 1] = dlon_dy[face_idx, i_idx, j_idx]
-          err_str = f"""Face: {face_idx},\nvvvvvvvvvvvvvvvvvvv\nNumerical jac: \n{jac_tmp}, \nAnalytic jac: \n{cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n^^^^^^^^^^^^^^^^^\n """
-          # print(dedent(err_str))
+          err_str = (f"Face: {face_idx},\n"
+                      "vvvvvvvvvvvvvvvvvvv\n"
+                      "Numerical jac: \n"
+                      f"{jac_tmp}, \n"
+                      f"Analytic jac: \n"
+                      f"{cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n"
+                      "^^^^^^^^^^^^^^^^^\n ")
+          #print(err_str)
 
   # front face
   def front_lat(x, y):
