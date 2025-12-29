@@ -1,13 +1,13 @@
-from .config import np, npt, DEBUG, use_wrapper
-from .spectral import deriv
+from .config import np, DEBUG, use_wrapper
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from .se_grid import create_spectral_element_grid
 from .cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from .processor_decomposition import get_decomp
+from .spectral import init_spectral
 
 
-def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
+def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt):
   NFACES = cube_points_2d.shape[0]
 
   top_face_mask = (face_mask == TOP_FACE)[:, np.newaxis, np.newaxis]
@@ -172,18 +172,47 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
 
   if DEBUG:
     test_face(bottom_lat, bottom_lon, bottom_face_mask)
+  
+  gll_latlon[:, :, :, 1] = np.mod(gll_latlon[:, :, :, 1], 2*np.pi - 1e-9)
+  too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
+  too_close_to_bottom = np.abs(gll_latlon[:, :, :, 0] + np.pi / 2) < 1e-8
+  mask = np.logical_or(too_close_to_top,
+                       too_close_to_bottom)
+  gll_latlon[:, :, :, 1] = np.where(mask, 0.0, gll_latlon[:, :, :, 1])
+  # if True:
+  #   theta = 1e-5
+  #   lat = gll_latlon[:, :, :, 0]
+  #   lon = gll_latlon[:, :, :, 1]
+  #   xyz = np.stack((np.cos(lon) * np.cos(lat),
+  #                   np.sin(lon) * np.cos(lat),
+  #                   np.sin(lat)), axis=-1)
+
+  #   rotation_matrix = np.array([[1.0, 0.0, 0.0],
+  #                               [0.0, np.cos(theta), -np.sin(theta)],
+  #                               (0.0, np.sin(theta), np.cos(theta))])
+  #   xyz_rotated = np.einsum("kl, fijk", rotation_matrix, xyz)
+  #   gll_latlon = np.stack((np.asin(xyz_rotated[:, :, :, 2]),
+  #                          np.atan2(xyz_rotated[:, :, :, 1],
+  #                                   xyz_rotated[:, :, :, 0])), axis=-1)
+
 
   return gll_latlon, cube_to_sphere_jacobian
 
 
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
-                          cube_to_sphere_jacobian, vert_redundancy_gll, jax=use_wrapper):
+                          cube_to_sphere_jacobian, vert_redundancy_gll, npt, jax=use_wrapper):
+  
   NELEM = gll_latlon.shape[0]
   proc_idx = 0
   decomp = get_decomp(NELEM, 1)
 
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
+  gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
+
+  rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
+
+  metdet = 1.0 / rmetdet
   too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
   too_close_to_bottom = np.abs(gll_latlon[:, :, :, 0] + np.pi / 2) < 1e-8
   for i_idx, j_idx, entry in zip([0, 1, 0, 1],
@@ -194,21 +223,22 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                                                                   too_close_to_bottom),
                                                     entry,
                                                     gll_to_sphere_jacobian[:, :, :, i_idx, j_idx])
-  gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
+    gll_to_sphere_jacobian_inv[:, :, :,
+                           i_idx, j_idx] = np.where(np.logical_or(too_close_to_top,
+                                                                  too_close_to_bottom),
+                                                    entry,
+                                                    gll_to_sphere_jacobian_inv[:, :, :, i_idx, j_idx])
+  spectrals = init_spectral(npt)
 
-  rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
-
-  metdet = 1.0 / rmetdet
-
-  mass_mat = metdet.copy() * (deriv["gll_weights"][np.newaxis, :, np.newaxis] *
-                              deriv["gll_weights"][np.newaxis, np.newaxis, :])
+  mass_mat = metdet.copy() * (spectrals["gll_weights"][np.newaxis, :, np.newaxis] *
+                              spectrals["gll_weights"][np.newaxis, np.newaxis, :])
 
   for local_face_idx in vert_redundancy_gll.keys():
     for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
       for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
         mass_mat[remote_face_id, remote_i, remote_j] += (metdet[local_face_idx, local_i, local_j] *
-                                                         (deriv["gll_weights"][local_i] *
-                                                          deriv["gll_weights"][local_j]))
+                                                         (spectrals["gll_weights"][local_i] *
+                                                          spectrals["gll_weights"][local_j]))
 
   inv_mass_mat = 1.0 / mass_mat
 
@@ -220,16 +250,16 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                                       proc_idx, decomp, jax=jax)
 
 
-def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy,
+def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt,
                          jax=use_wrapper):
-  gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d)
-  cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy)
-  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy)
-  return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy,
+  gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
+  cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
+  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy, npt)
+  return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, npt,
                                jax=jax)
 
 
-def create_quasi_uniform_grid(nx, jax=use_wrapper):
+def create_quasi_uniform_grid(nx, npt, jax=use_wrapper):
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=jax)
+  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, jax=jax)

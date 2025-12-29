@@ -1,11 +1,12 @@
-from .config import np, npt, use_wrapper
-from .spectral import deriv
+from .config import np, use_wrapper
+from .spectral import init_spectral
 from .processor_decomposition import get_decomp
 from .se_grid import create_spectral_element_grid
 
 
-def init_periodic_plane(nx, ny, length_x=2.0, length_y=2.0):
-  gll_pts = deriv["gll_points"]
+def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
+  spectrals = init_spectral(npt)
+  gll_pts = spectrals["gll_points"]
   elem_boundaries_x_1d = np.linspace(-length_x / 2.0, length_x / 2.0, nx + 1)
   elem_boundaries_y_1d = np.linspace(length_y / 2.0, -length_y / 2.0, ny + 1)
   elem_boundaries_x, elem_boundaries_y = np.meshgrid(elem_boundaries_x_1d,
@@ -93,8 +94,9 @@ def init_periodic_plane(nx, ny, length_x=2.0, length_y=2.0):
   return physical_coords, ref_to_planar, vert_redundancy_gll
 
 
-def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll,
+def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, npt,
                           jax=use_wrapper):
+  spectrals = init_spectral(npt)
   NELEM = physical_coords.shape[0]
   proc_idx = 0
   decomp = get_decomp(NELEM, 1)
@@ -105,15 +107,15 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
 
   metdet = 1.0 / rmetdet
 
-  mass_mat = metdet.copy() * (deriv["gll_weights"][np.newaxis, :, np.newaxis] *
-                              deriv["gll_weights"][np.newaxis, np.newaxis, :])
+  mass_mat = metdet.copy() * (spectrals["gll_weights"][np.newaxis, :, np.newaxis] *
+                              spectrals["gll_weights"][np.newaxis, np.newaxis, :])
 
   for local_face_idx in vert_redundancy_gll.keys():
     for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
       for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
         mass_mat[remote_face_id, remote_i, remote_j] += (metdet[local_face_idx, local_i, local_j] *
-                                                         (deriv["gll_weights"][local_i] *
-                                                          deriv["gll_weights"][local_j]))
+                                                         (spectrals["gll_weights"][local_i] *
+                                                          spectrals["gll_weights"][local_j]))
 
   inv_mass_mat = 1.0 / mass_mat
 
@@ -125,6 +127,6 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                       proc_idx, decomp, jax=jax)
 
 
-def create_uniform_grid(nx, ny, length_x=2.0, length_y=2.0, jax=use_wrapper):
-    physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, length_x=length_x, length_y=length_y)
-    return generate_metric_terms(physical_coords, ref_to_planar, vert_red, jax=jax)
+def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, jax=use_wrapper):
+    physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
+    return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, jax=jax)

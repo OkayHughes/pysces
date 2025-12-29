@@ -2,7 +2,6 @@ import numpy as np
 
 
 DEBUG = True
-npt = 4
 
 has_mpi = False
 
@@ -51,9 +50,6 @@ if wrapper_type == "jax" and use_wrapper:
   def cast_type(arr, dtype):
     return arr.astype(dtype)
   
-  def put_along_axis_pk(array, idxs, vals):
-    return jnp.put_along_axis(array.reshape((-1, array.shape[0])), idxs, vals, axis=0).reshape(array.shape)
-
 elif wrapper_type == "torch" and use_wrapper:
   import torch as jnp
   import torch
@@ -93,9 +89,6 @@ elif wrapper_type == "torch" and use_wrapper:
 
   def cast_type(arr, dtype):
     return arr.type(dtype)
-  
-  def take_along_axis_pk(array, idxs, vals):
-    return array.reshape((-1, array.shape[-1])).scatter(0, idxs, vals).reshape(array.shape)
 
 else:
   import numpy as jnp
@@ -133,11 +126,6 @@ else:
   def cast_type(arr, dtype):
     return arr.astype(dtype)
   
-  def put_along_axis_pk(array, idxs, vals):
-    arr_flat = array.reshape((-1, array.shape[-1]))
-    jnp.put_along_axis(arr_flat, idxs, vals, axis=0)
-    return arr_flat.reshape(array.shape)
-
 if has_mpi:
   from mpi4py import MPI
   mpi_comm = MPI.COMM_WORLD

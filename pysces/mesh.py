@@ -1,10 +1,12 @@
-from .config import np, npt, DEBUG
+from .config import np, DEBUG
 from .mathops import bilinear, bilinear_jacobian
-from .spectral import deriv
 from .grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
+from .spectral import init_spectral
 
 
-def mesh_to_cart_bilinear(face_position):
+def mesh_to_cart_bilinear(face_position, npt):
+
+  spectrals = init_spectral(npt)
   cart_dim = face_position.shape[2]
   NFACES = face_position.shape[0]
 
@@ -13,8 +15,8 @@ def mesh_to_cart_bilinear(face_position):
 
   for i_idx in range(npt):
     for j_idx in range(npt):
-        alpha = deriv["gll_points"][i_idx]
-        beta = deriv["gll_points"][j_idx]
+        alpha = spectrals["gll_points"][i_idx]
+        beta = spectrals["gll_points"][j_idx]
         gll_position[:, i_idx, j_idx, :] = bilinear(face_position[:, 0, :],
                                                     face_position[:, 1, :],
                                                     face_position[:, 2, :],
@@ -30,7 +32,7 @@ def mesh_to_cart_bilinear(face_position):
   return gll_position, gll_jacobian
 
 
-def gen_gll_redundancy(face_connectivity, vert_redundancy):
+def gen_gll_redundancy(face_connectivity, vert_redundancy, npt):
   # temporary note: we can assume here that this is mpi-local.
   # note:
   # count DOFs

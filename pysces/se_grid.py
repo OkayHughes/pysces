@@ -1,11 +1,11 @@
-from .config import np, npt, device_wrapper, use_wrapper, wrapper_type, device_unwrapper, jnp
-from .spectral import deriv
+from .config import np, device_wrapper, use_wrapper, wrapper_type, device_unwrapper, jnp
 from scipy.sparse import coo_array
 from frozendict import frozendict
 from .processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
+from .spectral import init_spectral
 
 
-def init_dss_matrix_local(NELEM, vert_redundancy_local):
+def init_dss_matrix_local(NELEM, npt, vert_redundancy_local):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
@@ -42,7 +42,7 @@ def init_dss_matrix_local(NELEM, vert_redundancy_local):
   return dss_matrix, (data, rows, cols)
 
 
-def init_dss_global(NELEM, vert_redundancy_send, vert_redundancy_receive):
+def init_dss_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
@@ -150,24 +150,25 @@ def create_spectral_element_grid(latlon,
                               element_reordering=element_reordering, jax=jax)
   
   NELEM = subset_wrapper(metdet).shape[0]
+  npt = metdet.shape[1]
   # This function currently assumes that the full grid can be loaded into memory.
   # This should be fine up to, e.g., quarter-degree grids.
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(vert_redundancy_gll,
                                                                         proc_idx,
                                                                         decomp)
-  dss_matrix, dss_triple = init_dss_matrix_local(NELEM, vert_red_local)
-  triples_send, triples_recv = init_dss_global(NELEM, vert_red_send, vert_red_recv)
+  dss_matrix, dss_triple = init_dss_matrix_local(NELEM, npt, vert_red_local)
+  triples_send, triples_recv = init_dss_global(NELEM, npt, vert_red_send, vert_red_recv)
 
   # note: test code sometimes sets jax=False to test jax vs stock numpy
   # this extra conditional is not extraneous.
-   
+  spectrals = init_spectral(npt)
 
   met_inv = np.einsum("fijgs, fijhs->fijgh",
                       gll_to_sphere_jacobian_inv,
                       gll_to_sphere_jacobian_inv)
   mass_matrix = (metdet *
-                 deriv["gll_weights"][np.newaxis, :, np.newaxis] *
-                 deriv["gll_weights"][np.newaxis, np.newaxis, :])
+                 spectrals["gll_weights"][np.newaxis, :, np.newaxis] *
+                 spectrals["gll_weights"][np.newaxis, np.newaxis, :])
   for proc_idx_recv in triples_recv.keys():
     triples_recv[proc_idx_recv] = (wrapper(triples_recv[proc_idx_recv][0]),
                               wrapper(triples_recv[proc_idx_recv][1], dtype=jnp.int64),
@@ -177,7 +178,6 @@ def create_spectral_element_grid(latlon,
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
                                    wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
                                    wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
-
   ret = {"physical_coords": subset_wrapper(latlon),
          "jacobian": subset_wrapper(gll_to_sphere_jacobian),
          "jacobian_inv": subset_wrapper(gll_to_sphere_jacobian_inv),
@@ -187,8 +187,8 @@ def create_spectral_element_grid(latlon,
          "mass_matrix_inv": subset_wrapper(inv_mass_mat),
          "met_inv": subset_wrapper(met_inv),
          "mass_matrix": subset_wrapper(mass_matrix),
-         "deriv": wrapper(deriv["deriv"]),
-         "gll_weights": wrapper(deriv["gll_weights"]),
+         "deriv": wrapper(spectrals["deriv"]),
+         "gll_weights": wrapper(spectrals["gll_weights"]),
          "dss_triple": (wrapper(dss_triple[0]),
                         wrapper(dss_triple[1], dtype=jnp.int64),
                         wrapper(dss_triple[2], dtype=jnp.int64)),

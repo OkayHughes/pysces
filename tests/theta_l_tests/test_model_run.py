@@ -69,7 +69,7 @@ def test_theta_steady_state():
 
 
 def test_theta_baro_wave():
-  npt = 4
+  npt = 3
   nx = 30
   h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
