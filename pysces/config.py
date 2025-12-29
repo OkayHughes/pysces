@@ -1,19 +1,38 @@
+import os
 import numpy as np
+from json import loads
 
 
-DEBUG = True
+def get_config_filepath():
+  return os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
-has_mpi = False
 
-use_wrapper = False
-wrapper_type = "jax"
-use_cpu = True
-use_double = True
+def parse_config_file():
+  config_filename = get_config_filepath()
+  assert os.path.isfile(config_filename), "Config file is not written"
+  with open(config_filename, "r") as f:
+    config_vars = loads(f.read())
+  return config_vars
+
+
+config_vars = parse_config_file()
+
+DEBUG = config_vars["debug"]
+
+has_mpi = config_vars["use_mpi"]
+
+
+use_wrapper = config_vars["use_wrapper"]
+wrapper_type = config_vars["wrapper_type"]
+use_cpu = config_vars["use_cpu"]
+use_double = config_vars["use_double"]
 
 if use_double:
   eps = 1e-11
 else:
   eps = 1e-6
+
+  
 
 if wrapper_type == "jax" and use_wrapper:
   import jax.numpy as jnp
