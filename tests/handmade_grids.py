@@ -1,5 +1,5 @@
 from pysces.config import np
-from pysces.spectral import deriv
+from pysces.spectral import _gll_points
 from pysces.periodic_plane import generate_metric_terms
 # (1, 3, 3)||(1, 0, 3)(1, 1, 3)(1, 2, 3)(1, 3, 3)||(1, 0, 3)
 # =========||====================================||=========
@@ -123,13 +123,13 @@ vert_recvs_ref = [{1: [(0, 3, 3),
                        (0, 0, 0),
                        (0, 3, 0)]}]
 
-
 def init_test_grid():
-  gll_pts = deriv["gll_points"]
+  npt = 4
+  gll_pts = _gll_points[npt]["points"]
   x, y = np.meshgrid(gll_pts, gll_pts)
   x1 = np.stack((x, y + 1.0), axis=-1)
   x2 = np.stack((x, y), axis=-1)
   cart_pts = np.array([x1, x2], dtype=np.float64)
   gll_to_cube_jacobian = (np.eye(2)[np.newaxis, np.newaxis, np.newaxis, :, :] *
                           np.ones_like(cart_pts[:, :, :, 0])[:, :, :, np.newaxis, np.newaxis])
-  return generate_metric_terms(cart_pts, gll_to_cube_jacobian, vert_redundancy_gll, jax=False)
+  return generate_metric_terms(cart_pts, gll_to_cube_jacobian, vert_redundancy_gll, npt, jax=False)

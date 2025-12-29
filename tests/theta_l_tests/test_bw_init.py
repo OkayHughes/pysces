@@ -9,13 +9,14 @@ from pysces.theta_l.infra import g_from_z
 
 
 def test_shallow():
+  npt = 4
   if use_wrapper and wrapper_type == "torch":
     # getting double precision init is not a priority
     return
   nx = 31
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt)
   config_shallow = get_umjs_config(pertu0=0.0,
                                    pertup=0.0)
   lat = grid["physical_coords"][:, :, :, 0]
@@ -34,13 +35,14 @@ def test_shallow():
 
 
 def test_deep():
+  npt = 4
   if use_wrapper and wrapper_type == "torch":
     # getting double precision init is not a priority
     return
   nx = 31
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt)
   lat = grid["physical_coords"][:, :, :, 0]
   lon = grid["physical_coords"][:, :, :, 1]
   eps = device_wrapper(1e-3)

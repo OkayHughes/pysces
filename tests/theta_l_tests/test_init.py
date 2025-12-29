@@ -75,8 +75,9 @@ def test_z_p_func():
 
 
 def test_init():
+  npt = 4
   nx = 15
-  h_grid, dims = create_quasi_uniform_grid(nx)
+  h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"])

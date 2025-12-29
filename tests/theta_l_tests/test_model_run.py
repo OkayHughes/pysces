@@ -10,8 +10,9 @@ from pysces.theta_l.vertical_coordinate import create_vertical_grid
 
 
 def test_theta_steady_state():
+  npt = 4
   nx = 16
-  h_grid, dims = create_quasi_uniform_grid(nx)
+  h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"])
@@ -68,8 +69,9 @@ def test_theta_steady_state():
 
 
 def test_theta_baro_wave():
+  npt = 4
   nx = 30
-  h_grid, dims = create_quasi_uniform_grid(nx)
+  h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"])

@@ -12,8 +12,9 @@ if DEBUG:
 
 
 def test_sw_model():
+  npt = 4
   nx = 15
-  grid, dims = create_quasi_uniform_grid(nx)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
   config = get_config_sw(alpha=jnp.pi / 4, ne=15)
   u0 = 2.0 * jnp.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
   h0 = 2.94e4 / config["gravity"]
@@ -79,8 +80,9 @@ def test_sw_model():
 
 
 def test_galewsky():
+  npt = 4
   nx = 61
-  grid, dims = create_quasi_uniform_grid(nx)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
 
   config = get_config_sw(ne=15)
 

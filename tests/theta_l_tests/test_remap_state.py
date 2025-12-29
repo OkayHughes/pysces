@@ -10,8 +10,9 @@ from pysces.theta_l.model_state import remap_state
 
 
 def test_remap_state():
+  npt = 4
   nx = 5
-  h_grid, dims = create_quasi_uniform_grid(nx)
+  h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"])

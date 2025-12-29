@@ -11,8 +11,9 @@ from .test_init import get_umjs_state
 
 
 def test_eos_hydro():
+  npt = 4
   nx = 5
-  h_grid, dims = create_quasi_uniform_grid(nx)
+  h_grid, dims = create_quasi_uniform_grid(nx, npt)
   lat = h_grid["physical_coords"][:, :, :, 0]
   vstruct = vertical_grid_finite_diff(200)
   v_grid = create_vertical_grid(vstruct["hybrid_a_i"],
@@ -45,8 +46,9 @@ def test_eos_hydro():
 
 
 def test_eos_nonhydro():
+  npt = 4
   nx = 5
-  h_grid, dims = create_quasi_uniform_grid(nx)
+  h_grid, dims = create_quasi_uniform_grid(nx, npt)
   lat = h_grid["physical_coords"][:, :, :, 0]
   vstruct = vertical_grid_finite_diff(100)
   v_grid = create_vertical_grid(vstruct["hybrid_a_i"],

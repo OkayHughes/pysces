@@ -24,9 +24,10 @@ def threedify(field, nlev, axis=-1):
 
 
 def test_vector_identites():
+  npt = 4
   nx = 31
   nlev = 3
-  grid, dims = create_quasi_uniform_grid(nx)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
   config = {"radius_earth": 1.0}
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   fn_3d = device_wrapper(threedify(fn, nlev) * jnp.arange(nlev).reshape((1, 1, 1, -1)))
@@ -48,9 +49,10 @@ def test_vector_identites():
 
 
 def test_divergence():
+  npt = 4
   nx = 31
   nlev = 3
-  grid, dims = create_quasi_uniform_grid(nx)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
   config = {"radius_earth": 1.0}
   vec = np.zeros_like(grid["physical_coords"])
   lat = grid["physical_coords"][:, :, :, 0]
@@ -75,9 +77,10 @@ def test_divergence():
 
 
 def test_analytic_soln():
+  npt = 4
   nx = 31
   nlev = 3
-  grid, dims = create_quasi_uniform_grid(nx)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
   config = {"radius_earth": 1.0}
 
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
@@ -92,9 +95,10 @@ def test_analytic_soln():
 
 
 def test_vector_laplacian():
+  npt = 4
   nx = 31
   nlev = 3
-  grid, dims = create_quasi_uniform_grid(nx)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
   vec = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                    jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
   config = {"radius_earth": 1.0}
