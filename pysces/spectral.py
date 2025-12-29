@@ -17,8 +17,25 @@ def init_deriv(gll_points):
   return np.dot(leg_der, coeffs)
 
 
-gll_points = np.array([1.0, np.sqrt(1 / 5), -np.sqrt(1 / 5), -1.0])
+gll_points = {3: {"points": np.array([-1.0, 0.0, 1.0]),
+                  "weights": np.array([1.0/3.0, 4.0/3.0, 1.0/3.0])},
+              4: {"points": np.array([1.0, np.sqrt(1 / 5), -np.sqrt(1 / 5), -1.0]),
+                  "weights": np.array([1 / 6, 5 / 6, 5 / 6, 1 / 6])},
+              5: {"points": np.array([1.0, np.sqrt(3 / 7), 0.0, -np.sqrt(3 / 7), -1.0]),
+                  "weights": np.array([1.0 / 10.0, 49.0/90.0, 32.0 / 45.0, 49.0/90.0, 1.0/10.0])},
+              6: {"points": np.array([1.0,
+                                      np.sqrt(1.0 / 3.0 + 2.0 * np.sqrt(7) / 21.0),
+                                      np.sqrt(1.0 / 3.0 - 2.0 * np.sqrt(7) / 21.0),
+                                      -np.sqrt(1.0 / 3.0 - 2.0 * np.sqrt(7) / 21.0),
+                                      -np.sqrt(1.0 / 3.0 + 2.0 * np.sqrt(7) / 21.0),
+                                      -1.0]),
+                  "weights": np.array([1.0/15.0,
+                                       (14.0 - np.sqrt(7))/30.0,
+                                       (14.0 + np.sqrt(7))/30.0,
+                                       (14.0 + np.sqrt(7))/30.0,
+                                       (14.0 - np.sqrt(7))/30.0,
+                                       1.0/15.0])}}
 
-deriv = {"gll_points": np.array([1.0, np.sqrt(1 / 5), -np.sqrt(1 / 5), -1.0]),
-         "gll_weights": np.array([1 / 6, 5 / 6, 5 / 6, 1 / 6]),
-         "deriv": init_deriv(gll_points)}
+deriv = {"gll_points": gll_points[npt]["points"],
+         "gll_weights": gll_points[npt]["weights"],
+         "deriv": init_deriv(gll_points[npt]["points"])}
