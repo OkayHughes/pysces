@@ -12,6 +12,11 @@ def dss_scalar_for_pack(fs_local, grid):
   return buffers
 
 
+def dss_scalar_triple_pack(fs_local, grid):
+  buffers = extract_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local], grid["vert_redundancy_send"])
+  return buffers
+
+
 def dss_scalar_for_unpack(fs_local, buffers, grid, *args):
   return [f[:, :, :, 0] for f in accumulate_fields_for([f.reshape((*f.shape, 1)) for f in fs_local], buffers, grid["vert_redundancy_receive"])]
 
@@ -89,11 +94,7 @@ def exchange_buffers_mpi(buffer):
   return buffer
 
 
-def extract_fields_matrix():
-  pass
-
-
-def extract_fields_jax(fijk_fields, vert_redundancy_send):
+def extract_fields_triple(fijk_fields, vert_redundancy_send):
   buffers = {}
   for remote_proc_idx in vert_redundancy_send.keys():
     buffers[remote_proc_idx] = []
@@ -102,6 +103,7 @@ def extract_fields_jax(fijk_fields, vert_redundancy_send):
       relevant_data = take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])), rows[:, np.newaxis], 0) * data[:, np.newaxis]
       buffers[remote_proc_idx].append(relevant_data.T)
   return buffers
+
 
 def sum_into(fijk_field, buffer, rows, dims):
   if not use_wrapper:
@@ -118,12 +120,11 @@ def sum_into(fijk_field, buffer, rows, dims):
   return fijk_field
 
 
-def accumulate_fields_jax(fijk_fields, buffers, vert_redundancy_receive, dim):
+def accumulate_fields_triple(fijk_fields, buffers, vert_redundancy_receive, dims):
   for remote_proc_idx in buffers.keys():
     for field_idx in range(len(fijk_fields)):
       (_, rows, _) = vert_redundancy_receive[remote_proc_idx]
-      tmp = np.copy(fijk_fields[field_idx][:, :, :, 0])
       fijk_fields[field_idx] = sum_into(fijk_fields[field_idx],
                                         buffers[remote_proc_idx][field_idx],
-                                        rows, dim)
+                                        rows, dims)
   return fijk_fields
