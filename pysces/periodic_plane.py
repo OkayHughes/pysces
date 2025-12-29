@@ -125,6 +125,6 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                       proc_idx, decomp, jax=jax)
 
 
-def create_uniform_grid(nx, ny, length_x=2.0, length_y=2.0):
+def create_uniform_grid(nx, ny, length_x=2.0, length_y=2.0, jax=use_wrapper):
     physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, length_x=length_x, length_y=length_y)
-    return generate_metric_terms(physical_coords, ref_to_planar, vert_red)
+    return generate_metric_terms(physical_coords, ref_to_planar, vert_red, jax=jax)

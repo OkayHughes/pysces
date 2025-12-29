@@ -103,19 +103,26 @@ def extract_fields_jax(fijk_fields, vert_redundancy_send):
       buffers[remote_proc_idx].append(relevant_data.T)
   return buffers
 
-def sum_into(fijk_field, buffer, rows):
-  for k_idx in range(fijk_field.shape[-1]):
-    res = fijk_field[:, :, :, k_idx].flatten()
-    np.add.at(res, rows, buffer[k_idx, :])
-    fijk_field[:, :, :, k_idx] = res.reshape(fijk_field.shape[:-1])
+def sum_into(fijk_field, buffer, rows, dims):
+  if not use_wrapper:
+    for k_idx in range(fijk_field.shape[-1]):
+      res = fijk_field[:, :, :, k_idx].flatten()
+      np.add.at(res, rows, buffer[k_idx, :])
+      fijk_field[:, :, :, k_idx] = res.reshape(fijk_field.shape[:-1])
+  elif wrapper_type == "jax":
+    import jax
+    fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1])).at[rows, :].add(buffer.T).reshape((*dims["shape"], fijk_field.shape[-1]))
+  elif wrapper_type == "torch":
+    fijk_field.reshape((-1, fijk_field.shape[-1])).scatter_add_(0, rows, buffer).reshape(dims["shape"])
   return fijk_field
 
-def accumulate_fields_jax(fijk_fields, buffers, vert_redundancy_receive):
+
+def accumulate_fields_jax(fijk_fields, buffers, vert_redundancy_receive, dim):
   for remote_proc_idx in buffers.keys():
     for field_idx in range(len(fijk_fields)):
       (_, rows, _) = vert_redundancy_receive[remote_proc_idx]
       tmp = np.copy(fijk_fields[field_idx][:, :, :, 0])
       fijk_fields[field_idx] = sum_into(fijk_fields[field_idx],
                                         buffers[remote_proc_idx][field_idx],
-                                        rows)
+                                        rows, dim)
   return fijk_fields

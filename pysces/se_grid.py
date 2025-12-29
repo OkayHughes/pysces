@@ -60,14 +60,16 @@ def init_dss_global(NELEM, vert_redundancy_send, vert_redundancy_receive):
   for vert_redundancy, triples in zip([vert_redundancy_receive, vert_redundancy_send],
                                       [triples_receive, triples_send]):
     for source_proc_idx in vert_redundancy.keys():
-      triples[source_proc_idx] = ([], [], [])
-      data = triples[source_proc_idx][0]
-      rows = triples[source_proc_idx][1]
-      cols = triples[source_proc_idx][2]
+      data = []
+      rows = []
+      cols = []
       for col_idx, (target_local_idx, target_i, target_j) in enumerate(vert_redundancy[source_proc_idx]):
         data.append(1.0)
         rows.append(index_hack[target_local_idx, target_i, target_j])
         cols.append(col_idx)
+      triples[source_proc_idx] = (np.array(data, dtype=np.float64),
+                                  np.array(rows, dtype=np.int64),
+                                  np.array(cols, dtype=np.int64))
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
   return triples_send, triples_receive
 
@@ -109,11 +111,14 @@ def triage_vert_redundancy(vert_redundancy_gll,
   return vert_redundancy_local, vert_redundancy_send, vert_redundancy_receive
 
 
-def subset_var(var, proc_idx, decomp, element_reordering=None):
+def subset_var(var, proc_idx, decomp, element_reordering=None, jax=use_wrapper):
   NELEM_GLOBAL = var.shape[0]
   if element_reordering is None:
     element_reordering = np.arange(0, NELEM_GLOBAL)
-  return np.take(var, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
+  if jax:
+    return jnp.take(var, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
+  else:
+    return np.take(var, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
 
 
 def create_spectral_element_grid(latlon,
@@ -128,7 +133,7 @@ def create_spectral_element_grid(latlon,
                                  decomp,
                                  element_reordering=None,
                                  jax=use_wrapper):
-  NELEM = subset_var(metdet, proc_idx, decomp).shape[0]
+  NELEM = subset_var(metdet, proc_idx, decomp, jax=jax).shape[0]
   # This function currently assumes that the full grid can be loaded into memory.
   # This should be fine up to, e.g., quarter-degree grids.
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(vert_redundancy_gll,
@@ -140,10 +145,14 @@ def create_spectral_element_grid(latlon,
   # note: test code sometimes sets jax=False to test jax vs stock numpy
   # this extra conditional is not extraneous.
   if jax:
-    wrapper = device_wrapper
+    wrapper = device_wrapper                                     
   else:
     def wrapper(x, dtype=None):
       return x
+  def subset_wrapper(field, dtype=None):
+    return wrapper(subset_var(field, proc_idx, decomp,
+                              element_reordering=element_reordering, jax=jax), dtype=dtype)
+          
 
   met_inv = np.einsum("fijgs, fijhs->fijgh",
                       gll_to_sphere_jacobian_inv,
@@ -161,24 +170,15 @@ def create_spectral_element_grid(latlon,
                                    wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
                                    wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
 
-  ret = {"physical_coords": wrapper(subset_var(latlon, proc_idx, decomp,
-                                               element_reordering=element_reordering)),
-         "jacobian": wrapper(subset_var(gll_to_sphere_jacobian, proc_idx, decomp,
-                                        element_reordering=element_reordering)),
-         "jacobian_inv": wrapper(subset_var(gll_to_sphere_jacobian_inv, proc_idx, decomp,
-                                            element_reordering=element_reordering)),
-         "recip_met_det": wrapper(subset_var(rmetdet, proc_idx, decomp,
-                                             element_reordering=element_reordering)),
-         "met_det": wrapper(subset_var(metdet, proc_idx, decomp,
-                                       element_reordering=element_reordering)),
-         "mass_mat": wrapper(subset_var(mass_mat, proc_idx, decomp,
-                                        element_reordering=element_reordering)),
-         "mass_matrix_inv": wrapper(subset_var(inv_mass_mat, proc_idx, decomp,
-                                               element_reordering=element_reordering)),
-         "met_inv": wrapper(subset_var(met_inv, proc_idx, decomp,
-                                       element_reordering=element_reordering)),
-         "mass_matrix": wrapper(subset_var(mass_matrix, proc_idx, decomp,
-                                           element_reordering=element_reordering)),
+  ret = {"physical_coords": subset_wrapper(latlon),
+         "jacobian": subset_wrapper(gll_to_sphere_jacobian),
+         "jacobian_inv": subset_wrapper(gll_to_sphere_jacobian_inv),
+         "recip_met_det": subset_wrapper(rmetdet),
+         "met_det": subset_wrapper(metdet),
+         "mass_mat": subset_wrapper(mass_mat),
+         "mass_matrix_inv": subset_wrapper(inv_mass_mat),
+         "met_inv": subset_wrapper(met_inv),
+         "mass_matrix": subset_wrapper(mass_matrix),
          "deriv": wrapper(deriv["deriv"]),
          "gll_weights": wrapper(deriv["gll_weights"]),
          "dss_triple": (wrapper(dss_triple[0]),

@@ -229,7 +229,7 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
                                jax=jax)
 
 
-def create_quasi_uniform_grid(nx):
+def create_quasi_uniform_grid(nx, jax=use_wrapper):
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=jax)
