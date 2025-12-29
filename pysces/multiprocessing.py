@@ -1,4 +1,4 @@
-from .config import np, jnp, has_mpi, put_along_axis_pk, use_wrapper, wrapper_type
+from .config import np, jnp, has_mpi, use_wrapper, wrapper_type, take_along_axis
 from .assembly import summation_local_for
 
 
@@ -99,7 +99,7 @@ def extract_fields_jax(fijk_fields, vert_redundancy_send):
     buffers[remote_proc_idx] = []
     for field_idx in range(len(fijk_fields)):
       (data, rows, cols) = vert_redundancy_send[remote_proc_idx]
-      relevant_data = jnp.take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])), rows[:, np.newaxis], axis=0) * data[:, np.newaxis]
+      relevant_data = take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])), rows[:, np.newaxis], 0) * data[:, np.newaxis]
       buffers[remote_proc_idx].append(relevant_data.T)
   return buffers
 
@@ -113,7 +113,8 @@ def sum_into(fijk_field, buffer, rows, dims):
     import jax
     fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1])).at[rows, :].add(buffer.T).reshape((*dims["shape"], fijk_field.shape[-1]))
   elif wrapper_type == "torch":
-    fijk_field.reshape((-1, fijk_field.shape[-1])).scatter_add_(0, rows, buffer).reshape(dims["shape"])
+    nfield = fijk_field.shape[-1]
+    fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1])).scatter_add_(0, rows[:, np.newaxis] * jnp.ones((1, nfield), dtype=jnp.int64), buffer.T).reshape((*dims["shape"], nfield))
   return fijk_field
 
 

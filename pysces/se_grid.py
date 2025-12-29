@@ -1,4 +1,4 @@
-from .config import np, npt, device_wrapper, use_wrapper, wrapper_type, jnp
+from .config import np, npt, device_wrapper, use_wrapper, wrapper_type, device_unwrapper, jnp
 from .spectral import deriv
 from scipy.sparse import coo_array
 from frozendict import frozendict
@@ -115,10 +115,17 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, jax=use_wrapper):
   NELEM_GLOBAL = var.shape[0]
   if element_reordering is None:
     element_reordering = np.arange(0, NELEM_GLOBAL)
+  dtype = var.dtype
   if jax:
-    return jnp.take(var, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
+    var_np = device_unwrapper(var)
   else:
-    return np.take(var, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
+    var_np = var
+  var_subset = np.take(var_np, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
+  if jax:
+    var_out = device_wrapper(var_subset, dtype=dtype)
+  else:
+    var_out = var_subset
+  return var_out
 
 
 def create_spectral_element_grid(latlon,
@@ -133,7 +140,16 @@ def create_spectral_element_grid(latlon,
                                  decomp,
                                  element_reordering=None,
                                  jax=use_wrapper):
-  NELEM = subset_var(metdet, proc_idx, decomp, jax=jax).shape[0]
+  if jax:
+    wrapper = device_wrapper                                     
+  else:
+    def wrapper(x, dtype=None):
+      return x
+  def subset_wrapper(field, dtype=None):
+    return subset_var(wrapper(field, dtype=dtype), proc_idx, decomp,
+                              element_reordering=element_reordering, jax=jax)
+  
+  NELEM = subset_wrapper(metdet).shape[0]
   # This function currently assumes that the full grid can be loaded into memory.
   # This should be fine up to, e.g., quarter-degree grids.
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(vert_redundancy_gll,
@@ -144,15 +160,7 @@ def create_spectral_element_grid(latlon,
 
   # note: test code sometimes sets jax=False to test jax vs stock numpy
   # this extra conditional is not extraneous.
-  if jax:
-    wrapper = device_wrapper                                     
-  else:
-    def wrapper(x, dtype=None):
-      return x
-  def subset_wrapper(field, dtype=None):
-    return wrapper(subset_var(field, proc_idx, decomp,
-                              element_reordering=element_reordering, jax=jax), dtype=dtype)
-          
+   
 
   met_inv = np.einsum("fijgs, fijhs->fijgh",
                       gll_to_sphere_jacobian_inv,
@@ -193,11 +201,11 @@ def create_spectral_element_grid(latlon,
     ret["vert_redundancy_send"] = vert_red_send
     ret["vert_redundancy_receive"] = vert_red_recv
     ret["dss_matrix"] = dss_matrix
-  if use_wrapper and wrapper_type == "torch":
-    from .config import torch
-    ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
-                                                dss_triple[0],
-                                                size=(NELEM * npt * npt, NELEM * npt * npt))
+  #if use_wrapper and wrapper_type == "torch":
+  #  from .config import torch
+  #  ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
+  #                                              dss_triple[0],
+  #                                              size=(NELEM * npt * npt, NELEM * npt * npt))
 
   grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0])
   return ret, grid_dims

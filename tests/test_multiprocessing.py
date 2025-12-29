@@ -164,7 +164,6 @@ def test_extract_fields_triples():
       for random, num_iters in zip([False, True], [1, 10]):
         for _ in range(num_iters):
           nproc = 2
-          idx_test = np.arange(grid_total["met_det"].size).reshape(grid_total["met_det"].shape)
           decomp = get_decomp(dim_total["num_elem"], nproc)
           grids = []
           grids_nojax = []
@@ -205,12 +204,12 @@ def test_extract_fields_triples():
             grids_nojax.append(grid_nojax)
             dims.append(dim)
             if random:
-              fs.append([np.random.normal(size=(*grid["physical_coords"][:, :, :, 0].shape, nlev)),
-                        np.random.normal(size=(*grid["physical_coords"][:, :, :, 0].shape, nlev+1))])
+              fs.append([np.random.normal(size=(*grid_nojax["physical_coords"][:, :, :, 0].shape, nlev)),
+                        np.random.normal(size=(*grid_nojax["physical_coords"][:, :, :, 0].shape, nlev+1))])
             else:
-              fs.append([np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
+              fs.append([np.arange(1, grid_nojax["physical_coords"][:, :, :, 0].size+1).reshape(grid_nojax["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
                         np.ones((1, 1, 1, nlev)),
-                        np.arange(1, grid["physical_coords"][:, :, :, 0].size+1).reshape(grid["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
+                        np.arange(1, grid_nojax["physical_coords"][:, :, :, 0].size+1).reshape(grid_nojax["physical_coords"][:, :, :, 0].shape)[:, :, :, np.newaxis] *
                         np.ones((1, 1, 1, nlev+1))])
             total_elems += dim["num_elem"]
           fs_device = [[device_wrapper(f) for f in fs_local] for fs_local in fs]
