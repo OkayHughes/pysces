@@ -41,13 +41,15 @@ def dss_scalar_for_stub(fs_global, grids):
   return fs_out
 
 
-def dss_scalar_for_mpi(f, grid):
+def dss_scalar_for_mpi(fs, grid):
   # This is primarily for testing!
   # do not use in model code!
-  buffer = dss_scalar_for_pack(f, grid)
+  buffer = dss_scalar_for_pack([f * grid["mass_matrix"] for f in fs], grid)
   buffer = exchange_buffers_mpi(buffer)
-  # f = dss_scalar_for_unscaled(dss_scalar_for_unpack(f, buffer, grid), grid)
-  return f
+  fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
+  fs = [f * grid["mass_matrix_inv"]
+                        for f in dss_scalar_for_unpack(fs_out, buffer, grid)]
+  return fs
 
 
 def extract_fields_for(fijk_fields, vert_redundancy_send):
