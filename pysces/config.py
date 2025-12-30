@@ -32,8 +32,6 @@ if use_double:
 else:
   eps = 1e-6
 
-  
-
 if wrapper_type == "jax" and use_wrapper:
   import jax.numpy as jnp
   import jax
@@ -68,7 +66,7 @@ if wrapper_type == "jax" and use_wrapper:
 
   def cast_type(arr, dtype):
     return arr.astype(dtype)
-  
+
 elif wrapper_type == "torch" and use_wrapper:
   import torch as jnp
   import torch
@@ -144,13 +142,13 @@ else:
 
   def cast_type(arr, dtype):
     return arr.astype(dtype)
-  
+
 if has_mpi:
   from mpi4py import MPI
   mpi_comm = MPI.COMM_WORLD
   mpi_rank = mpi_comm.Get_rank()
   mpi_size = mpi_comm.Get_size()
-  
+
 else:
   mpi_comm = None
   mpi_rank = 0

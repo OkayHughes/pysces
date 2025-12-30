@@ -1,4 +1,4 @@
-from ..config import np, device_wrapper, use_wrapper, wrapper_type, device_unwrapper, jnp
+from ..config import np, device_wrapper, use_wrapper, device_unwrapper, jnp
 from scipy.sparse import coo_array
 from frozendict import frozendict
 from ..distributed_memory.processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
@@ -141,14 +141,15 @@ def create_spectral_element_grid(latlon,
                                  element_reordering=None,
                                  jax=use_wrapper):
   if jax:
-    wrapper = device_wrapper                                     
+    wrapper = device_wrapper
   else:
     def wrapper(x, dtype=None):
       return x
+
   def subset_wrapper(field, dtype=None):
     return subset_var(wrapper(field, dtype=dtype), proc_idx, decomp,
-                              element_reordering=element_reordering, jax=jax)
-  
+                      element_reordering=element_reordering, jax=jax)
+
   NELEM = subset_wrapper(metdet).shape[0]
   npt = metdet.shape[1]
   # This function currently assumes that the full grid can be loaded into memory.
@@ -171,8 +172,8 @@ def create_spectral_element_grid(latlon,
                  spectrals["gll_weights"][np.newaxis, np.newaxis, :])
   for proc_idx_recv in triples_recv.keys():
     triples_recv[proc_idx_recv] = (wrapper(triples_recv[proc_idx_recv][0]),
-                              wrapper(triples_recv[proc_idx_recv][1], dtype=jnp.int64),
-                              wrapper(triples_recv[proc_idx_recv][2], dtype=jnp.int64))
+                                   wrapper(triples_recv[proc_idx_recv][1], dtype=jnp.int64),
+                                   wrapper(triples_recv[proc_idx_recv][2], dtype=jnp.int64))
 
   for proc_idx_send in triples_send.keys():
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
@@ -201,11 +202,11 @@ def create_spectral_element_grid(latlon,
     ret["vert_redundancy_send"] = vert_red_send
     ret["vert_redundancy_receive"] = vert_red_recv
     ret["dss_matrix"] = dss_matrix
-  #if use_wrapper and wrapper_type == "torch":
-  #  from .config import torch
-  #  ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
-  #                                              dss_triple[0],
-  #                                              size=(NELEM * npt * npt, NELEM * npt * npt))
+  # if use_wrapper and wrapper_type == "torch":
+  #   from .config import torch
+  #   ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
+  #                                                dss_triple[0],
+  #                                                size=(NELEM * npt * npt, NELEM * npt * npt))
 
   grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0])
   return ret, grid_dims

@@ -87,13 +87,14 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
           jac_tmp[1, 0] = dlat_dy[face_idx, i_idx, j_idx]
           jac_tmp[1, 1] = dlon_dy[face_idx, i_idx, j_idx]
           err_str = (f"Face: {face_idx},\n"
-                      "vvvvvvvvvvvvvvvvvvv\n"
-                      "Numerical jac: \n"
-                      f"{jac_tmp}, \n"
-                      f"Analytic jac: \n"
-                      f"{cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n"
-                      "^^^^^^^^^^^^^^^^^\n ")
-          #print(err_str)
+                     "vvvvvvvvvvvvvvvvvvv\n"
+                     "Numerical jac: \n"
+                     f"{jac_tmp}, \n"
+                     f"Analytic jac: \n"
+                     f"{cube_to_sphere_jacobian[face_idx, i_idx, j_idx, :, :]}\n"
+                     "^^^^^^^^^^^^^^^^^\n ")
+          if False:
+            print(err_str)
 
   # front face
   def front_lat(x, y):
@@ -172,8 +173,8 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
 
   if DEBUG:
     test_face(bottom_lat, bottom_lon, bottom_face_mask)
-  
-  gll_latlon[:, :, :, 1] = np.mod(gll_latlon[:, :, :, 1], 2*np.pi - 1e-9)
+
+  gll_latlon[:, :, :, 1] = np.mod(gll_latlon[:, :, :, 1], 2 * np.pi - 1e-9)
   too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
   too_close_to_bottom = np.abs(gll_latlon[:, :, :, 0] + np.pi / 2) < 1e-8
   mask = np.logical_or(too_close_to_top,
@@ -195,13 +196,12 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
   #                          np.atan2(xyz_rotated[:, :, :, 1],
   #                                   xyz_rotated[:, :, :, 0])), axis=-1)
 
-
   return gll_latlon, cube_to_sphere_jacobian
 
 
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                           cube_to_sphere_jacobian, vert_redundancy_gll, npt, jax=use_wrapper):
-  
+
   NELEM = gll_latlon.shape[0]
   proc_idx = 0
   decomp = get_decomp(NELEM, 1)
@@ -224,10 +224,10 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                                                     entry,
                                                     gll_to_sphere_jacobian[:, :, :, i_idx, j_idx])
     gll_to_sphere_jacobian_inv[:, :, :,
-                           i_idx, j_idx] = np.where(np.logical_or(too_close_to_top,
-                                                                  too_close_to_bottom),
-                                                    entry,
-                                                    gll_to_sphere_jacobian_inv[:, :, :, i_idx, j_idx])
+                               i_idx, j_idx] = np.where(np.logical_or(too_close_to_top,
+                                                                      too_close_to_bottom),
+                                                        entry,
+                                                        gll_to_sphere_jacobian_inv[:, :, :, i_idx, j_idx])
   spectrals = init_spectral(npt)
 
   mass_mat = metdet.copy() * (spectrals["gll_weights"][np.newaxis, :, np.newaxis] *

@@ -25,6 +25,7 @@ def get_ref_states(phi_surf, v_grid, config):
           "vtheta": theta_ref,
           "phi_i": get_balanced_phi(phi_surf, p_mid, theta_ref * dpi_ref, config)}
 
+
 @partial(jit, static_argnames=["apply_nu", "hydrostatic"])
 def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
   if not hydrostatic:
