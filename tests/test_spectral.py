@@ -16,4 +16,3 @@ def test_generate_derivative():
                           (2 * deriv["gll_points"] - 3 * deriv["gll_points"]**2)))
     assert (np.allclose(np.dot(deriv["deriv"], deriv["gll_points"]**2 - 4.0 * deriv["gll_points"]),
                         (2 * deriv["gll_points"] - 4.0)))
-

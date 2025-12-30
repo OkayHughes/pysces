@@ -6,6 +6,7 @@ from pysces.operations_2d.operators import sphere_divergence_wk, sphere_gradient
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from ..context import test_npts
 
+
 def test_vector_identites_sphere():
   for npt in test_npts:
     for nx in [30, 31]:
@@ -21,8 +22,8 @@ def test_vector_identites_sphere():
 
       grad = sphere_gradient(fn, grid)
       discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
-                                inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
-                                inner_prod(fn, sphere_divergence(v, grid), grid))
+                                 inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                                 inner_prod(fn, sphere_divergence(v, grid), grid))
       assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
@@ -41,8 +42,8 @@ def test_vector_identities_plane():
 
     grad = sphere_gradient(fn, grid)
     discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
-                              inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
-                              inner_prod(fn, sphere_divergence(v, grid), grid))
+                               inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                               inner_prod(fn, sphere_divergence(v, grid), grid))
     assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
@@ -67,8 +68,8 @@ def test_vector_identites_rand_sphere():
         div = sphere_divergence(v, grid)
         div = dss_scalar(sphere_divergence(v, grid), grid, dims)
         discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
-                                  inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
-                                  inner_prod(fn, div, grid))
+                                   inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                                   inner_prod(fn, div, grid))
         assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
@@ -93,8 +94,8 @@ def test_vector_identites_rand_plane():
       div = sphere_divergence(v, grid)
       div = dss_scalar(sphere_divergence(v, grid), grid, dims)
       discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
-                                inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
-                                inner_prod(fn, div, grid))
+                                 inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
+                                 inner_prod(fn, div, grid))
       assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
@@ -135,16 +136,13 @@ def test_analytic_soln():
 
       sph_grad_lat = -jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.sin(grid["physical_coords"][:, :, :, 0])
       sph_grad_lon = -jnp.sin(grid["physical_coords"][:, :, :, 1])
-      #for now, disregard poor behavior of pole points.
       print("Approximation: disregarding pole points in gradient test")
-      mask = np.logical_not(jnp.logical_or(grid["physical_coords"][:, :, :, 0] > (jnp.pi/2.0 - 1e-3),
-                                           grid["physical_coords"][:, :, :, 0] < -(jnp.pi/2.0 - 1e-3)))
+      mask = np.logical_not(jnp.logical_or(grid["physical_coords"][:, :, :, 0] > (jnp.pi / 2.0 - 1e-3),
+                                           grid["physical_coords"][:, :, :, 0] < -(jnp.pi / 2.0 - 1e-3)))
       assert ((inner_prod(grad_diff[:, :, :, 0], grad_diff[:, :, :, 0], grid) +
               inner_prod(grad_diff[:, :, :, 1], grad_diff[:, :, :, 1], grid)) < tol)
       assert (jnp.max(jnp.abs(mask * (sph_grad_lat - grad_f_numerical[:, :, :, 1]))) < tol)
       assert (jnp.max(jnp.abs(mask * (sph_grad_lon - grad_f_numerical[:, :, :, 0]))) < tol)
-
-
 
 
 def test_vector_laplacian():
@@ -152,19 +150,19 @@ def test_vector_laplacian():
     for nx in [60, 61]:
       grid, dims = create_quasi_uniform_grid(nx, npt)
       v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
-                    jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
+                     jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
       laplace_v_wk = sphere_vec_laplacian_wk(v, grid)
       laplace_v_wk = jnp.stack((dss_scalar(laplace_v_wk[:, :, :, 0], grid, dims, scaled=False),
                                 dss_scalar(laplace_v_wk[:, :, :, 1], grid, dims, scaled=False)), axis=-1)
 
       lap_diff = laplace_v_wk + 2 * v
       print("Approximation: disregarding pole points in vector laplacian test")
-      mask = np.logical_not(jnp.logical_or(grid["physical_coords"][:, :, :, 0] > (jnp.pi/2.0 - 1e-3),
-                                           grid["physical_coords"][:, :, :, 0] < -(jnp.pi/2.0 - 1e-3)))
+      mask = np.logical_not(jnp.logical_or(grid["physical_coords"][:, :, :, 0] > (jnp.pi / 2.0 - 1e-3),
+                                           grid["physical_coords"][:, :, :, 0] < -(jnp.pi / 2.0 - 1e-3)))
       assert ((inner_prod(mask * lap_diff[:, :, :, 0], mask * lap_diff[:, :, :, 0], grid) +
-              inner_prod(mask * lap_diff[:, :, :, 1], mask * lap_diff[:, :, :, 1], grid)) < 1e-2)
+               inner_prod(mask * lap_diff[:, :, :, 1], mask * lap_diff[:, :, :, 1], grid)) < 1e-2)
       v = jnp.stack((np.cos(grid["physical_coords"][:, :, :, 0])**2,
-                    np.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
+                     np.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
       laplace_v_wk = sphere_vec_laplacian_wk(v, grid)
       laplace_v_wk = jnp.stack((dss_scalar(laplace_v_wk[:, :, :, 0], grid, dims, scaled=False),
                                 dss_scalar(laplace_v_wk[:, :, :, 1], grid, dims, scaled=False)), axis=-1)

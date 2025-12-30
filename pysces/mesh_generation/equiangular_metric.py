@@ -1,6 +1,6 @@
 from ..config import np, DEBUG, use_wrapper
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
-from .cube_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
+from .mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from ..operations_2d.se_grid import create_spectral_element_grid
 from .cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from ..distributed_memory.processor_decomposition import get_decomp

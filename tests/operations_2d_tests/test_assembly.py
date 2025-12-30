@@ -4,13 +4,24 @@ from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.operations_2d.assembly import dss_scalar_for, dss_scalar_jax, dss_scalar_sparse, dss_scalar
 from ..context import test_npts
 
+
 def test_dss():
   for npt in test_npts:
     for nx in [3, 4]:
       face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
       vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-      grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, jax=use_wrapper)
-      grid_nojax, _ = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, jax=False)
+      grid, dims = gen_metric_from_topo(face_connectivity,
+                                        face_mask,
+                                        face_position_2d,
+                                        vert_redundancy,
+                                        npt,
+                                        jax=use_wrapper)
+      grid_nojax, _ = gen_metric_from_topo(face_connectivity,
+                                           face_mask,
+                                           face_position_2d,
+                                           vert_redundancy,
+                                           npt,
+                                           jax=False)
       vert_redundancy_gll = grid_nojax["vert_redundancy"]
       fn = np.zeros_like(grid["physical_coords"][:, :, :, 0])
       for face_idx in range(grid["physical_coords"].shape[0]):

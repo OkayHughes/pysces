@@ -2,6 +2,7 @@ from pysces.mesh_generation.periodic_plane import init_periodic_plane, generate_
 from pysces.config import np
 from ..context import test_npts
 
+
 def test_init_periodic_plane():
   for npt in test_npts:
     for nx in range(1, 6):
@@ -14,7 +15,7 @@ def test_init_periodic_plane():
         for (target_i, target_j) in vert_red[target_face_idx].keys():
           for (source_face_idx, source_i, source_j) in vert_red[target_face_idx][(target_i, target_j)]:
             assert np.allclose(physical_coords_test[target_face_idx, target_i, target_j],
-                              physical_coords_test[source_face_idx, source_i, source_j])
+                               physical_coords_test[source_face_idx, source_i, source_j])
             ct += 1
       nsides = 4
       ncorners = 4
@@ -28,6 +29,5 @@ def test_metric():
       physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt)
       grid, dims = generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt)
       assert (np.allclose(np.sum(grid["met_det"] *
-                                (grid["gll_weights"][np.newaxis, :, np.newaxis] *
+                                 (grid["gll_weights"][np.newaxis, :, np.newaxis] *
                                   grid["gll_weights"][np.newaxis, np.newaxis, :])), 4.0))
-

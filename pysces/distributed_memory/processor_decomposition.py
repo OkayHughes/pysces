@@ -1,5 +1,5 @@
 from ..config import np
-from ..mesh_generation.cube_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FACE,
+from ..mesh_generation.mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FACE,
                                                 BACK_FACE, LEFT_FACE, RIGHT_FACE)
 
 

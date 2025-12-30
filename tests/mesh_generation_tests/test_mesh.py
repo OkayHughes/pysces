@@ -21,9 +21,9 @@ def test_gen_bilinear_grid_cs():
             for j_idx in range(npt):
               num_neighbors = 0
               if ((x_idx == 0 and y_idx == 0 and i_idx == 0 and j_idx == 0) or
-                (x_idx == 0 and y_idx == nx - 1 and i_idx == 0 and j_idx == npt - 1) or
-                (x_idx == nx - 1 and y_idx == nx - 1 and i_idx == npt - 1 and j_idx == npt - 1) or
-                (x_idx == nx - 1 and y_idx == 0 and i_idx == npt - 1 and j_idx == 0)):
+                  (x_idx == 0 and y_idx == nx - 1 and i_idx == 0 and j_idx == npt - 1) or
+                  (x_idx == nx - 1 and y_idx == nx - 1 and i_idx == npt - 1 and j_idx == npt - 1) or
+                  (x_idx == nx - 1 and y_idx == 0 and i_idx == npt - 1 and j_idx == 0)):
                 num_neighbors = 2
               elif ((i_idx == 0 and j_idx == 0) or
                     (i_idx == 0 and j_idx == npt - 1) or

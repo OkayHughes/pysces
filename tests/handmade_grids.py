@@ -123,6 +123,7 @@ vert_recvs_ref = [{1: [(0, 3, 3),
                        (0, 0, 0),
                        (0, 3, 0)]}]
 
+
 def init_test_grid():
   npt = 4
   gll_pts = _gll_points[npt]["points"]

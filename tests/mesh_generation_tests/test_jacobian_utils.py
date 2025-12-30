@@ -4,6 +4,7 @@ from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.spectral import init_spectral
 from ..context import test_npts
 
+
 def test_bilinear():
   NFACES = 1000
   np.random.seed(0)
@@ -61,18 +62,18 @@ def test_bilinear_cs():
           beta = spectrals["gll_points"][j]
           eps = 1e-4
           diff_plus = bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha + eps, beta)
+                               face_position_2d[:, 1, :],
+                               face_position_2d[:, 2, :],
+                               face_position_2d[:, 3, :], alpha + eps, beta)
           diff_minus = bilinear(face_position_2d[:, 0, :],
                                 face_position_2d[:, 1, :],
                                 face_position_2d[:, 2, :],
                                 face_position_2d[:, 3, :], alpha - eps, beta)
           dres_dalpha = (diff_plus - diff_minus) / (2 * eps)
           diff_plus = bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta + eps)
+                               face_position_2d[:, 1, :],
+                               face_position_2d[:, 2, :],
+                               face_position_2d[:, 3, :], alpha, beta + eps)
           diff_minus = bilinear(face_position_2d[:, 0, :],
                                 face_position_2d[:, 1, :],
                                 face_position_2d[:, 2, :],
