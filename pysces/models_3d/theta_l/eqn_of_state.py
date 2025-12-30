@@ -5,6 +5,28 @@ from functools import partial
 
 @jit
 def get_r_hat_sq_avg(r_hat_i):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   r_hat_sq = (r_hat_i[:, :, :, :-1] * r_hat_i[:, :, :, 1:] +
               r_hat_i[:, :, :, :-1] * r_hat_i[:, :, :, :-1] +
               r_hat_i[:, :, :, 1:] * r_hat_i[:, :, :, 1:]) / 3.0
@@ -13,6 +35,28 @@ def get_r_hat_sq_avg(r_hat_i):
 
 @jit
 def p_exner_nonhydrostatic(vtheta_dpi, dphi, r_hat_sq_avg, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   p0 = config["p0"]
   pnh_over_exner = -config["Rgas"] * vtheta_dpi / dphi
   pnh_over_exner /= r_hat_sq_avg
@@ -24,6 +68,28 @@ def p_exner_nonhydrostatic(vtheta_dpi, dphi, r_hat_sq_avg, config):
 
 @partial(jit, static_argnames=["hydrostatic", "deep"])
 def get_mu(state, phi_i, v_grid, config, deep=False, hydrostatic=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # note: assumes that phi_i is in hydrostatic balance.
   vtheta_dpi = state["vtheta_dpi"]
   dphi = get_delta(phi_i)
@@ -54,6 +120,28 @@ def get_mu(state, phi_i, v_grid, config, deep=False, hydrostatic=True):
 
 @jit
 def get_p_mid(state, v_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   p = jnp.cumsum(state["dpi"], axis=-1) + v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"]
   p -= 0.5 * state["dpi"]
   return p
@@ -61,6 +149,28 @@ def get_p_mid(state, v_grid, config):
 
 @jit
 def get_balanced_phi(phi_surf, p_mid, vtheta_dpi, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # p = get_p_mid(state, v_grid, config)
   dphi = config["Rgas"] * (vtheta_dpi *
                            (p_mid / config["p0"])**(config["Rgas"] / config["cp"] - 1.0) / config["p0"])

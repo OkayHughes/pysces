@@ -7,6 +7,28 @@ from functools import partial
 
 @jit
 def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return wrap_model_struct(state1["u"] * fold_coeff1 + state2["u"] * fold_coeff2,
                            state1["vtheta_dpi"] * fold_coeff1 + state2["vtheta_dpi"] * fold_coeff2,
                            state1["dpi"] * fold_coeff1 + state2["dpi"] * fold_coeff2,
@@ -27,6 +49,28 @@ def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
 
 @jit
 def advance_state(states, coeffs):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   state_out = rfold_state(states[0],
                           states[1],
                           coeffs[0],
@@ -41,6 +85,28 @@ def advance_state(states, coeffs):
 
 @partial(jit, static_argnames=["dims", "hydrostatic", "deep"])
 def advance_euler(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   u_tend = explicit_tendency(state_in, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
   u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
   u1 = advance_state([state_in, u_tend_c0], [1.0, dt])
@@ -50,6 +116,28 @@ def advance_euler(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, 
 
 @partial(jit, static_argnames=["dims", "n_subcycle", "hydrostatic"])
 def advance_euler_hypervis(state_in, dt, h_grid, v_grid, config, dims, ref_state, n_subcycle=1, hydrostatic=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   state_out = state_in
   for _ in range(n_subcycle):
     hypervis_rhs = hypervis_terms(state_in, ref_state,
@@ -62,6 +150,28 @@ def advance_euler_hypervis(state_in, dt, h_grid, v_grid, config, dims, ref_state
 
 @partial(jit, static_argnames=["dims", "n_subcycle_sponge", "n_sponge", "hydrostatic"])
 def advance_euler_sponge(state_in, dt, h_grid, v_grid, config, dims, n_subcycle_sponge=2, n_sponge=5, hydrostatic=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   state_out = state_in
   for _ in range(n_subcycle_sponge):
     state_out = sponge_layer(state_out,
@@ -77,6 +187,28 @@ def advance_euler_sponge(state_in, dt, h_grid, v_grid, config, dims, n_subcycle_
 
 @partial(jit, static_argnames=["dims", "hydrostatic", "deep"])
 def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   u_tend = explicit_tendency(state_in, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
   u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
 

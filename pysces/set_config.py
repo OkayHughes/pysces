@@ -9,6 +9,28 @@ def write_config(debug=True,
                  wrapper_type="none",
                  use_cpu=True,
                  use_double=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   config_struct = {"debug": debug,
                    "use_mpi": use_mpi,
                    "use_wrapper": use_wrapper,

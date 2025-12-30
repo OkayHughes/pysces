@@ -53,6 +53,28 @@ MAX_VERT_DEGREE = 4
 
 
 def edge_decoder(edge):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if edge == TOP_EDGE:
     return "TOP_EDGE"
   elif edge == LEFT_EDGE:
@@ -64,6 +86,28 @@ def edge_decoder(edge):
 
 
 def face_decoder(face):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if face == TOP_FACE:
     return "TOP_FACE"
   elif face == BOTTOM_FACE:
@@ -79,6 +123,28 @@ def face_decoder(face):
 
 
 def edge_to_vert(edge_id, is_forwards=FORWARDS):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if edge_id == TOP_EDGE:
     v_idx_in_0 = 0
     v_idx_in_1 = 1
@@ -98,27 +164,93 @@ def edge_to_vert(edge_id, is_forwards=FORWARDS):
 
 
 def edge_match(nx, free_idx, id_edge_in, id_edge_out, is_forwards):
-    free_idx_flip = free_idx if is_forwards == FORWARDS else nx - free_idx - 1
-    if id_edge_out == BOTTOM_EDGE:
-      y_idx_out = nx - 1
-      x_idx_out = free_idx_flip
-    elif id_edge_out == TOP_EDGE:
-      y_idx_out = 0
-      x_idx_out = free_idx_flip
-    elif id_edge_out == LEFT_EDGE:
-      x_idx_out = 0
-      y_idx_out = free_idx_flip
-    elif id_edge_out == RIGHT_EDGE:
-      x_idx_out = nx - 1
-      y_idx_out = free_idx_flip
-    return x_idx_out, y_idx_out
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  free_idx_flip = free_idx if is_forwards == FORWARDS else nx - free_idx - 1
+  if id_edge_out == BOTTOM_EDGE:
+    y_idx_out = nx - 1
+    x_idx_out = free_idx_flip
+  elif id_edge_out == TOP_EDGE:
+    y_idx_out = 0
+    x_idx_out = free_idx_flip
+  elif id_edge_out == LEFT_EDGE:
+    x_idx_out = 0
+    y_idx_out = free_idx_flip
+  elif id_edge_out == RIGHT_EDGE:
+    x_idx_out = nx - 1
+    y_idx_out = free_idx_flip
+  return x_idx_out, y_idx_out
 
 
 def elem_id_fn(nx, face_idx, x_idx, y_idx):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return face_idx * nx**2 + x_idx * nx + y_idx
 
 
 def inv_elem_id_fn(nx, idx):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   face_id = int(idx / nx**2)
   x_id = int((idx - face_id * nx**2) / nx)
   y_id = int(idx - face_id * nx**2 - x_id * nx)
@@ -126,7 +258,29 @@ def inv_elem_id_fn(nx, idx):
 
 
 def gen_cube_topo(nx):
-  # E1
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  #       E1
   #    [v1 → v2]
   # E2 [↓    ↓] E3
   #    [v3 → v4]
@@ -197,6 +351,28 @@ def gen_cube_topo(nx):
 
 
 def gen_vert_redundancy(nx, face_connectivity, face_position):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   vert_redundancy = dict()
 
   def wrap(elem_idx, vert_idx):

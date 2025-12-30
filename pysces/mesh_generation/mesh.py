@@ -5,7 +5,28 @@ from ..spectral import init_spectral
 
 
 def mesh_to_cart_bilinear(face_position, npt):
+  """
+  [Description]
 
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   spectrals = init_spectral(npt)
   cart_dim = face_position.shape[2]
   NFACES = face_position.shape[0]
@@ -33,6 +54,28 @@ def mesh_to_cart_bilinear(face_position, npt):
 
 
 def gen_gll_redundancy(face_connectivity, vert_redundancy, npt):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # temporary note: we can assume here that this is mpi-local.
   # note:
   # count DOFs

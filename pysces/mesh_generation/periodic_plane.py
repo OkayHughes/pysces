@@ -5,6 +5,28 @@ from ..operations_2d.se_grid import create_spectral_element_grid
 
 
 def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   spectrals = init_spectral(npt)
   gll_pts = spectrals["gll_points"]
   elem_boundaries_x_1d = np.linspace(-length_x / 2.0, length_x / 2.0, nx + 1)
@@ -96,6 +118,28 @@ def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
 
 def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, npt,
                           jax=use_wrapper):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   spectrals = init_spectral(npt)
   NELEM = physical_coords.shape[0]
   proc_idx = 0
@@ -128,5 +172,27 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
 
 
 def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, jax=use_wrapper):
-    physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
-    return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, jax=jax)
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
+  return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, jax=jax)

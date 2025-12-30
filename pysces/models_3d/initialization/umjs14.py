@@ -37,6 +37,28 @@ def get_umjs_config(T0E=310,
                                          40.0 * jnp.pi / 180.0],
                     mountain_lon_widths=[7.0 * jnp.pi / 180.0,
                                          7.0 * jnp.pi / 180.0]):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   moistqs = 1e-12
   dx_epsilon = 1e-5
   if model_config:
@@ -131,6 +153,28 @@ def get_r_hat(z, config, deep=False):
 
 
 def get_z_surface(lat, lon, config, mountain=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if mountain:
     zs = jnp.zeros_like(lat)
     for (mountain_height,
@@ -152,6 +196,28 @@ def get_z_surface(lat, lon, config, mountain=False):
 
 
 def evaluate_pressure_temperature(z, lat, config, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   lapse = config["lapse"]
   K = config["K"]
   T0 = get_T0(config)
@@ -183,6 +249,28 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 
 
 def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   z_surface = get_z_surface(lat, lon, config, mountain=mountain)
   p_surface = evaluate_pressure_temperature(z_surface[:, :, :, np.newaxis],
                                             lat, config, deep=deep)[0][:, :, :, 0]
@@ -190,6 +278,28 @@ def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
 
 
 def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type="none"):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   K = config["K"]
   inttau2 = get_inttau2(z, config)
   r_hat = get_r_hat(z, config, deep=deep)
@@ -237,6 +347,28 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type="none
 
 
 def great_circle_dist(lat, lon, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return (1.0 / config["pertexpr"] *
           jnp.arccos(jnp.sin(config["pertlat"]) *
                      jnp.sin(lat) +
@@ -246,6 +378,28 @@ def great_circle_dist(lat, lon, config):
 
 
 def taper_fn(z, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   pertz = config["pertz"]
   taper_below_pertz = (1.0 - 3.0 * z**2 / pertz**2 + 2.0 * z**3 / pertz**3)
   return jnp.where(z < pertz,
@@ -254,6 +408,28 @@ def taper_fn(z, config):
 
 
 def evaluate_exponential(lat, lon, z, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   greatcircle_dist = great_circle_dist(lat, lon, config)[:, :, :, np.newaxis]
   taper = taper_fn(z, config)
 
@@ -266,6 +442,28 @@ def evaluate_exponential(lat, lon, z, config):
 
 
 def evaluate_streamfunction(lat, lon, z, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   greatcircle_dist = great_circle_dist(lat, lon, config)
   taper = taper_fn(z, config)
   pert_inside_circle = jnp.cos(0.5 * jnp.pi * greatcircle_dist)

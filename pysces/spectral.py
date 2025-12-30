@@ -2,6 +2,28 @@ from .config import np
 
 
 def init_deriv(gll_points):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # uses the lagrange interpolating polynomials
   npt = gll_points.size
   leg_eval = np.zeros(shape=(npt, npt))
@@ -40,6 +62,28 @@ _gll_points = {3: {"points": np.array([1.0, 0.0, -1.0]),
 
 
 def init_spectral(npt):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return {"gll_points": _gll_points[npt]["points"],
           "gll_weights": _gll_points[npt]["weights"],
           "deriv": init_deriv(_gll_points[npt]["points"])}

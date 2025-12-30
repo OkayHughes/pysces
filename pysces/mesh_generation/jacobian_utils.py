@@ -1,6 +1,28 @@
 
 
 def bilinear(v0, v1, v2, v3, alpha, beta):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   #   v0---α---v1
   #   |    :    |
   #   |    β    |
@@ -14,6 +36,28 @@ def bilinear(v0, v1, v2, v3, alpha, beta):
 
 
 def bilinear_jacobian(v0, v1, v2, v3, alpha, beta):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+    the 1st param name `first`
+  second :
+    the 2nd param
+  third : {'value', 'other'}, optional
+    the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+    a value in a string
+
+  Raises
+  ------
+  KeyError
+    when a key error
+  """
   aprime = (alpha + 1) / 2
   bprime = (beta + 1) / 2
   dphys_dalpha = 1 / 2.0 * (bprime * (v0 - v1) + (1 - bprime) * (v2 - v3))

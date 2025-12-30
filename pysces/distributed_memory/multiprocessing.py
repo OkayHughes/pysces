@@ -8,21 +8,113 @@ if has_mpi:
 
 
 def dss_scalar_for_pack(fs_local, grid):
+  """
+  Extract 3d fields before distributed memory communication using a for loop.
+
+  Parameters
+  ----------
+  fs_local : list[Array[tuple[elem_idx, gll_idx, gll_idx, level_idx], Float]]
+      List of scalar fields to extract for communication
+  grid : dict[str, Any]
+      Processor-local Spectral Element Grid struct.
+      Contains "vert_redundancy_send" key, which
+      has type dict[proc_idx, tuple[Array[tuple[local_point_idx], Float],
+                                    Array[tuple[local_point_idx], Int],
+                                    Array[tuple[local_point_idx], Int]]]
+
+  Returns
+  -------
+  buffers: dict[proc_idx, list[Array[tuple[local_point_idx, level_idx], Float]]
+      Mapping from remote processor idx to a three-tuple where
+      the first item is the scaling applied to 
+
+  See Also
+  --------
+  See pysces.operations_2d.se_grid.create_spectral_element_grid
+  for example of what this struct looks like
+
+  """
   buffers = extract_fields_for([f.reshape((*f.shape, 1)) for f in fs_local], grid["vert_redundancy_send"])
   return buffers
 
 
 def dss_scalar_triple_pack(fs_local, grid):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   buffers = extract_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local], grid["vert_redundancy_send"])
   return buffers
 
 
 def dss_scalar_for_unpack(fs_local, buffers, grid, *args):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return [f[:, :, :, 0] for f in accumulate_fields_for([f.reshape((*f.shape, 1)) for f in fs_local],
                                                        buffers, grid["vert_redundancy_receive"])]
 
 
 def dss_scalar_for_stub(fs_global, grids):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # This is primarily for testing!
   # do not use in model code!
 
@@ -42,6 +134,28 @@ def dss_scalar_for_stub(fs_global, grids):
 
 
 def dss_scalar_for_mpi(f, grid):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # This is primarily for testing!
   # do not use in model code!
   buffer = dss_scalar_for_pack(f, grid)
@@ -51,6 +165,28 @@ def dss_scalar_for_mpi(f, grid):
 
 
 def extract_fields_for(fijk_fields, vert_redundancy_send):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   buffers = {}
   for remote_proc_idx in vert_redundancy_send.keys():
     buffers[remote_proc_idx] = []
@@ -63,6 +199,28 @@ def extract_fields_for(fijk_fields, vert_redundancy_send):
 
 
 def accumulate_fields_for(fijk_fields, buffers, vert_redundancy_receive):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # designed for device code to be tested against, but this is much more transparent
   for remote_proc_idx in buffers.keys():
     for field_idx in range(len(fijk_fields)):
@@ -74,6 +232,28 @@ def accumulate_fields_for(fijk_fields, buffers, vert_redundancy_receive):
 
 
 def exchange_buffers_stub(buffer_list):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # assumes access to list of buffers for all grid chunks
   pairs = set()
   for source_proc_idx in range(len(buffer_list)):
@@ -89,6 +269,28 @@ def exchange_buffers_stub(buffer_list):
 
 
 def exchange_buffers_mpi(buffer):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   reqs = []
   if not has_mpi:
     raise NotImplementedError("MPI communication called with has_mpi = False")
@@ -104,6 +306,28 @@ def exchange_buffers_mpi(buffer):
 
 
 def extract_fields_triple(fijk_fields, vert_redundancy_send):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   buffers = {}
   for remote_proc_idx in vert_redundancy_send.keys():
     buffers[remote_proc_idx] = []
@@ -117,6 +341,28 @@ def extract_fields_triple(fijk_fields, vert_redundancy_send):
 
 
 def sum_into(fijk_field, buffer, rows, dims):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if not use_wrapper:
     for k_idx in range(fijk_field.shape[-1]):
       res = fijk_field[:, :, :, k_idx].flatten()
@@ -134,6 +380,28 @@ def sum_into(fijk_field, buffer, rows, dims):
 
 
 def accumulate_fields_triple(fijk_fields, buffers, vert_redundancy_receive, dims):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   for remote_proc_idx in buffers.keys():
     for field_idx in range(len(fijk_fields)):
       (_, rows, _) = vert_redundancy_receive[remote_proc_idx]

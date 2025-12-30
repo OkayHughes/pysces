@@ -5,6 +5,28 @@ from ..mass_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_
 
 
 def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   z_guesses = p_given_z(z_top * jnp.ones_like(pressures))
   not_converged = jnp.logical_not(jnp.abs((p_given_z(z_guesses) - pressures)) / pressures < eps)
   frac = 0.5
@@ -27,6 +49,28 @@ def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
 def init_model_pressure(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func,
                         h_grid, v_grid, config, dims,
                         hydrostatic=True, w_func=lambda lat, lon, z: 0.0, eps=1e-8):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   lat = h_grid["physical_coords"][:, :, :, 0]
   lon = h_grid["physical_coords"][:, :, :, 1]
   z_surf, pi_surf = z_pi_surf_func(lat, lon)

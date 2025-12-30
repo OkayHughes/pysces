@@ -10,6 +10,28 @@ from functools import partial
 
 @partial(jit, static_argnames=["hydrostatic", "deep"])
 def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if hydrostatic:
     p_mid = get_p_mid(state, v_grid, config)
     phi_i = get_balanced_phi(state["phi_surf"],
@@ -64,6 +86,28 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
 
 @jit
 def vorticity_term(u, fcor, r_hat_m, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   vort = sphere_vorticity_3d(u, h_grid, config)
   vort /= r_hat_m
   vort_term = jnp.stack((u[:, :, :, :, 1] * (fcor[:, :, :, np.newaxis] + vort),
@@ -73,6 +117,28 @@ def vorticity_term(u, fcor, r_hat_m, h_grid, config):
 
 @jit
 def grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   grad_kinetic_energy = sphere_gradient_3d((u[:, :, :, :, 0]**2 +
                                             u[:, :, :, :, 1]**2) / 2.0, h_grid, config)
   return -grad_kinetic_energy / r_hat_m
@@ -80,6 +146,28 @@ def grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config):
 
 @jit
 def grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   w_sq_m = interface_to_model(w_i * w_i) / 2.0
   w2_grad_sph = sphere_gradient_3d(w_sq_m, h_grid, config) / r_hat_m
   return -w2_grad_sph
@@ -87,6 +175,28 @@ def grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config):
 
 @jit
 def w_vorticity_correction_term(w_i, grad_w_i, r_hat_m):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   w_grad_w_m = interface_to_model_vec(w_i[:, :, :, :, np.newaxis] * grad_w_i)
   w_grad_w_m /= r_hat_m[:, :, :, :, np.newaxis]
   return w_grad_w_m
@@ -94,16 +204,82 @@ def w_vorticity_correction_term(w_i, grad_w_i, r_hat_m):
 
 @jit
 def u_metric_term(u, w_m, r_m):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return -w_m[:, :, :, :, np.newaxis] * u / r_m[:, :, :, np.newaxis]
 
 
 @jit
 def u_nct_term(w_m, fcorcos):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return -jnp.stack((w_m, jnp.zeros_like(w_m)), axis=-1) * fcorcos[:, :, :, np.newaxis, np.newaxis]
 
 
 @jit
 def pgrad_pressure_term(vtheta, grad_exner, exner, r_hat_m, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   grad_p_term_1 = config["cp"] * vtheta[:, :, :, :, np.newaxis] * grad_exner
   grad_vtheta_exner = sphere_gradient_3d(vtheta * exner, h_grid, config) / r_hat_m
   grad_vtheta = sphere_gradient_3d(vtheta, h_grid, config) / r_hat_m
@@ -113,6 +289,28 @@ def pgrad_pressure_term(vtheta, grad_exner, exner, r_hat_m, h_grid, config):
 
 @jit
 def pgrad_phi_term(mu, grad_phi_i, r_hat_m):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   pgf_gradphi_m = interface_to_model_vec(mu[:, :, :, :, np.newaxis] * grad_phi_i)
   pgf_gradphi_m /= r_hat_m[:, :, :, :, np.newaxis]
   return -pgf_gradphi_m
@@ -120,6 +318,28 @@ def pgrad_phi_term(mu, grad_phi_i, r_hat_m):
 
 @jit
 def w_advection_term(v_over_r_hat_i, grad_w_i):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   v_grad_w_i = (v_over_r_hat_i[:, :, :, :, 0] * grad_w_i[:, :, :, :, 0] +
                 v_over_r_hat_i[:, :, :, :, 1] * grad_w_i[:, :, :, :, 1])
   return -v_grad_w_i
@@ -127,22 +347,110 @@ def w_advection_term(v_over_r_hat_i, grad_w_i):
 
 @jit
 def w_metric_term(u, r_m, dpi, dpi_i):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   v_sq_over_r_i = vel_model_to_interface(u**2 / r_m, dpi, dpi_i)
   return (v_sq_over_r_i[:, :, :, :, 0] + v_sq_over_r_i[:, :, :, :, 1])
 
 
 @jit
 def w_nct_term(u_i, fcorcos):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return u_i[:, :, :, :, 0] * fcorcos[:, :, :, np.newaxis]
 
 
 @jit
 def w_buoyancy_term(g, mu):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return -g * (1 - mu)
 
 
 @jit
 def phi_advection_term(v_over_r_hat_i, grad_phi_i):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   v_grad_phi_i = (v_over_r_hat_i[:, :, :, :, 0] * grad_phi_i[:, :, :, :, 0] +
                   v_over_r_hat_i[:, :, :, :, 1] * grad_phi_i[:, :, :, :, 1])
   return -v_grad_phi_i
@@ -150,11 +458,55 @@ def phi_advection_term(v_over_r_hat_i, grad_phi_i):
 
 @jit
 def phi_acceleration_v_term(g, w_i):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return g * w_i
 
 
 @jit
 def vtheta_divergence_term(u, vtheta_dpi, vtheta, div_dp, dpi, r_hat_m, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   v_vtheta = u * vtheta_dpi[:, :, :, :, np.newaxis]
   v_vtheta /= r_hat_m
   div_v_vtheta = sphere_divergence_3d(v_vtheta, h_grid, config) / 2.0
@@ -168,11 +520,55 @@ def vtheta_divergence_term(u, vtheta_dpi, vtheta, div_dp, dpi, r_hat_m, h_grid, 
 
 @jit
 def dpi_divergence_term(div_dp):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return -div_dp
 
 
 @partial(jit, static_argnames=["hydrostatic", "deep"])
 def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   dpi = state["dpi"]
   u = state["u"]
   w_i = state["w_i"]
@@ -227,6 +623,28 @@ def explicit_tendency(state, h_grid, v_grid, config, hydrostatic=True, deep=Fals
 
 @partial(jit, static_argnames=["dims", "deep"])
 def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   (phi_i, phi, dpi_i, pnh, exner,
    r_hat_i, mu, r_hat_m, r_m, g,
    fcor, fcorcos, w_m,
@@ -343,6 +761,28 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
 
 @partial(jit, static_argnames=["hydrostatic", "deep"])
 def correct_state(state_in, dt, config, hydrostatic=True, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if hydrostatic:
     return state_in
   u_lowest_new, w_lowest_new, mu_update = lower_boundary_correction(state_in,
@@ -368,6 +808,28 @@ def correct_state(state_in, dt, config, hydrostatic=True, deep=False):
 
 @partial(jit, static_argnames=["hydrostatic", "deep"])
 def lower_boundary_correction(state_in, dt, config, hydrostatic=True, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # we need to pass in original state. Something is wrong here.
   if hydrostatic:
     u_corrected = state_in["u"][:, :, :, -1, :]

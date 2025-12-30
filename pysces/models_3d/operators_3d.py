@@ -5,29 +5,139 @@ from ..operations_2d.operators import sphere_gradient, sphere_laplacian_wk, sphe
 
 @jit
 def sphere_divergence_3d(vector, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   sph_op = partial(sphere_divergence, grid=h_grid, a=config["radius_earth"])
   return vmap_1d_apply(sph_op, vector, -2, -1)
 
 
 @jit
 def sphere_vorticity_3d(vector, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   sph_op = partial(sphere_vorticity, grid=h_grid, a=config["radius_earth"])
   return vmap_1d_apply(sph_op, vector, -2, -1)
 
 
 @jit
 def sphere_laplacian_wk_3d(scalar, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   sph_op = partial(sphere_laplacian_wk, grid=h_grid, a=config["radius_earth"])
   return vmap_1d_apply(sph_op, scalar, -1, -1)
 
 
 @jit
 def sphere_vec_laplacian_wk_3d(vector, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   sph_op = partial(sphere_vec_laplacian_wk, grid=h_grid, a=config["radius_earth"])
   return vmap_1d_apply(sph_op, vector, -2, -2)
 
 
 @jit
 def sphere_gradient_3d(scalar, h_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   sph_op = partial(sphere_gradient, grid=h_grid, a=config["radius_earth"])
   return vmap_1d_apply(sph_op, scalar, -1, -2)

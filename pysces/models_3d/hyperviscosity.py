@@ -4,7 +4,28 @@ from ..operations_2d.operators import sphere_vec_laplacian_wk, sphere_laplacian_
 
 @jit
 def scalar_harmonic_3d(scalar, h_grid, config):
+  """
+  [Description]
 
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   def lap_wk_onearg(scalar):
       return sphere_laplacian_wk(scalar, h_grid, a=config["radius_earth"])
 
@@ -14,7 +35,28 @@ def scalar_harmonic_3d(scalar, h_grid, config):
 
 @jit
 def vector_harmonic_3d(vector, h_grid, config, nu_div_factor):
+  """
+  [Description]
 
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   def vec_lap_wk_onearg(vector):
       return sphere_vec_laplacian_wk(vector, h_grid, a=config["radius_earth"],
                                      nu_div_fact=nu_div_factor)

@@ -8,6 +8,28 @@ from ..spectral import init_spectral
 
 
 def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   NFACES = cube_points_2d.shape[0]
 
   top_face_mask = (face_mask == TOP_FACE)[:, np.newaxis, np.newaxis]
@@ -44,17 +66,83 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
     assert (n_mask == NFACES)
 
   def set_jac_eq(jac, lat, lon, mask, flip_x=1.0, flip_y=1.0):
+    """
+    [Description]
+
+    Parameters
+    ----------
+    [first] : array_like
+        the 1st param name `first`
+    second :
+        the 2nd param
+    third : {'value', 'other'}, optional
+        the 3rd param, by default 'value'
+
+    Returns
+    -------
+    string
+        a value in a string
+
+    Raises
+    ------
+    KeyError
+        when a key error
+    """
     jac[:, :, :, 0, 1] += flip_x * np.cos(lon[:, :, :])**2 * mask
     jac[:, :, :, 0, 0] += flip_x * -1 / 4 * np.sin(2 * lon[:, :, :]) * np.sin(2 * lat[:, :, :]) * mask
     jac[:, :, :, 1, 0] += flip_y * np.cos(lon[:, :, :]) * np.cos(lat[:, :, :])**2 * mask
 
   def set_jac_pole(jac, lat, lon, mask, k, flip_x=1.0, flip_y=1.0):
+    """
+    [Description]
+
+    Parameters
+    ----------
+    [first] : array_like
+        the 1st param name `first`
+    second :
+        the 2nd param
+    third : {'value', 'other'}, optional
+        the 3rd param, by default 'value'
+
+    Returns
+    -------
+    string
+        a value in a string
+
+    Raises
+    ------
+    KeyError
+        when a key error
+    """
     jac[:, :, :, 0, 1] += flip_x * k * np.cos(lon) * np.tan(lat) * mask
     jac[:, :, :, 0, 0] += flip_x * -k * np.sin(lon) * np.sin(lat)**2 * mask
     jac[:, :, :, 1, 1] += flip_y * np.sin(lon) * np.tan(lat) * mask
     jac[:, :, :, 1, 0] += flip_y * np.cos(lon) * np.sin(lat)**2 * mask
 
   def dlatlon_dcube(latlon_fn, latlon_idx, cube_idx, mask):
+    """
+    [Description]
+
+    Parameters
+    ----------
+    [first] : array_like
+        the 1st param name `first`
+    second :
+        the 2nd param
+    third : {'value', 'other'}, optional
+        the 3rd param, by default 'value'
+
+    Returns
+    -------
+    string
+        a value in a string
+
+    Raises
+    ------
+    KeyError
+        when a key error
+    """
     gll_latlon_pert[:] = 0
     cube_points_pert[:] = cube_points_2d[:]
     cube_points_pert[:, :, :, cube_idx] *= 0.99999
@@ -64,6 +152,28 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
     return result
 
   def test_face(lat_fn, lon_fn, mask):
+    """
+    [Description]
+
+    Parameters
+    ----------
+    [first] : array_like
+        the 1st param name `first`
+    second :
+        the 2nd param
+    third : {'value', 'other'}, optional
+        the 3rd param, by default 'value'
+
+    Returns
+    -------
+    string
+        a value in a string
+
+    Raises
+    ------
+    KeyError
+        when a key error
+    """
     dlat_dx = dlatlon_dcube(lat_fn, 0, 0, mask)
     dlat_dy = dlatlon_dcube(lat_fn, 0, 1, mask)
     dlon_dx = dlatlon_dcube(lon_fn, 1, 0, mask)
@@ -201,7 +311,28 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
 
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                           cube_to_sphere_jacobian, vert_redundancy_gll, npt, jax=use_wrapper):
+  """
+  [Description]
 
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   NELEM = gll_latlon.shape[0]
   proc_idx = 0
   decomp = get_decomp(NELEM, 1)
@@ -252,6 +383,28 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
 
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt,
                          jax=use_wrapper):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
   cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
   gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy, npt)
@@ -260,6 +413,28 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
 
 
 def create_quasi_uniform_grid(nx, npt, jax=use_wrapper):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, jax=jax)

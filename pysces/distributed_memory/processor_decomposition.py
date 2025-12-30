@@ -4,6 +4,28 @@ from ..mesh_generation.mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FAC
 
 
 def hilbert_curve(n_subdiv):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   A, B, C, D = 0, 1, 2, 3
   arr_prev = C * np.ones((1, 1), dtype=np.int64)
   idxs_prev = np.zeros((1, 1), dtype=np.int64)
@@ -42,6 +64,28 @@ def hilbert_curve(n_subdiv):
 
 
 def get_face_idx_pos(lat, lon):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # assumes lon \in [0, 2*np.pi]
   lat[lat > np.pi / 2.0 - 1e-4] = np.pi / 2.0 - 1e-4
   lat[lat < -np.pi / 2.0 + 1e-4] = -np.pi / 2.0 + 1e-4
@@ -75,6 +119,28 @@ def get_face_idx_pos(lat, lon):
 
 
 def processor_id_to_range(proc_idx, num_faces, num_procs):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # probably not good for extremely high numbers of
   # MPI ranks.
 
@@ -88,6 +154,28 @@ def processor_id_to_range(proc_idx, num_faces, num_procs):
 
 
 def get_decomp(num_faces, num_procs):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   segments = []
   for proc_idx in range(num_procs):
     segments.append(processor_id_to_range(proc_idx, num_faces, num_procs))
@@ -95,6 +183,28 @@ def get_decomp(num_faces, num_procs):
 
 
 def create_mapping(n_subdiv, latlons):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   face_idx, x, y = get_face_idx_pos(latlons[:, 0], latlons[:, 1])
   idxs = hilbert_curve(n_subdiv)
   grid_pos_1d = np.linspace(-1.0, 1.0, 2**n_subdiv)
@@ -107,14 +217,80 @@ def create_mapping(n_subdiv, latlons):
 
 
 def local_to_global(elem_idxs_local, proc_idx, decomp):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return elem_idxs_local + decomp[proc_idx][0]
 
 
 def global_to_local(elem_idxs_global, proc_idx, decomp):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return elem_idxs_global - decomp[proc_idx][0]
 
 
 def elem_idx_global_to_proc_idx(elem_idxs_global, decomp):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   out = np.zeros_like(elem_idxs_global, dtype=np.int64)
   for proc_idx, (begin, end) in enumerate(decomp):
     mask = np.logical_and(elem_idxs_global < end, elem_idxs_global >= begin)

@@ -16,6 +16,28 @@ def init_config(Rgas=287.0,
                 nu_div_factor=2.5,
                 T_ref=288.0,
                 T_ref_lapse=0.0065):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   radius_earth_base = 6371e3
   if radius_earth < 0:
     radius_earth = radius_earth_base

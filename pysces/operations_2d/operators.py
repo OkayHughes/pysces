@@ -4,6 +4,28 @@ from functools import partial
 
 @jit
 def sphere_gradient(f, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   df_da = jnp.einsum("fij,ki->fkj", f, grid["deriv"])
   df_db = jnp.einsum("fij,kj->fik", f, grid["deriv"])
   df_dab = jnp.stack((df_da, df_db), axis=-1)
@@ -12,6 +34,28 @@ def sphere_gradient(f, grid, a=1.0):
 
 @jit
 def sphere_divergence(u, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   u_contra = 1.0 / a * grid["met_det"][:, :, :, np.newaxis] * sph_to_contra(u, grid)
   du_da = jnp.einsum("fij,ki->fkj", u_contra[:, :, :, 0], grid["deriv"])
   du_db = jnp.einsum("fij,kj->fik", u_contra[:, :, :, 1], grid["deriv"])
@@ -21,6 +65,28 @@ def sphere_divergence(u, grid, a=1.0):
 
 @jit
 def sphere_vorticity(u, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   u_cov = sph_to_cov(u, grid)
   dv_da = jnp.einsum("fij,ki->fkj", u_cov[:, :, :, 1], grid["deriv"])
   du_db = jnp.einsum("fij,kj->fik", u_cov[:, :, :, 0], grid["deriv"])
@@ -30,18 +96,84 @@ def sphere_vorticity(u, grid, a=1.0):
 
 @jit
 def sphere_laplacian(f, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   grad = sphere_gradient(f, grid, a=a)
   return sphere_divergence(grad, grid, a=a)
 
 
 @jit
 def sphere_laplacian_wk(f, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   grad = sphere_gradient(f, grid, a=a)
   return sphere_divergence_wk(grad, grid, a=a)
 
 
 @jit
 def sphere_gradient_wk_cov(s, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   gll_weights = grid["gll_weights"]
   deriv = grid["deriv"]
   met_inv = grid["met_inv"]
@@ -73,6 +205,28 @@ def sphere_gradient_wk_cov(s, grid, a=1.0):
 
 @jit
 def sphere_curl_wk_cov(s, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   gll_weights = grid["gll_weights"]
   deriv = grid["deriv"]
   ds_contra = jnp.stack((jnp.einsum("m,j,fmj,jn->fmn", gll_weights, gll_weights, s, deriv),
@@ -82,6 +236,28 @@ def sphere_curl_wk_cov(s, grid, a=1.0):
 
 @partial(jit, static_argnames=["damp"])
 def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   div = sphere_divergence(u, grid, a=a) * nu_div_fact
   vor = sphere_vorticity(u, grid, a=a)
   laplacian = sphere_gradient_wk_cov(div, grid, a=a) - sphere_curl_wk_cov(vor, grid, a=a)
@@ -100,6 +276,28 @@ def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
 
 @jit
 def sphere_divergence_wk(u, grid, a=1.0):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   contra = sph_to_contra(u, grid)
   gll_weights = grid["gll_weights"]
   met_det = grid["met_det"]
@@ -111,22 +309,110 @@ def sphere_divergence_wk(u, grid, a=1.0):
 
 @jit
 def contra_to_sph(u, grid):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return flip(jnp.einsum("fijg,fijsg->fijs", u, grid["jacobian"]), -1)
 
 
 @jit
 def sph_to_contra(u, grid):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return jnp.einsum("fijs,fijgs->fijg", flip(u, -1), grid["jacobian_inv"])
 
 
 @jit
 def sph_to_cov(u, grid):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return jnp.einsum("fijs,fijsg->fijg", flip(u, -1
                                              ), grid["jacobian"])
 
 
 @jit
 def inner_prod(f, g, grid):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return jnp.sum(f * g * (grid["met_det"] *
                           grid["gll_weights"][np.newaxis, :, np.newaxis] *
                           grid["gll_weights"][np.newaxis, np.newaxis, :]))
