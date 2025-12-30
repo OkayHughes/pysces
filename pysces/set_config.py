@@ -1,22 +1,6 @@
 from json import dumps
 from argparse import ArgumentParser
-from config import get_config_filepath
-
-
-def write_config(debug=True,
-                 use_mpi=False,
-                 use_wrapper=False,
-                 wrapper_type="none",
-                 use_cpu=True,
-                 use_double=True):
-  config_struct = {"debug": debug,
-                   "use_mpi": use_mpi,
-                   "use_wrapper": use_wrapper,
-                   "wrapper_type": wrapper_type,
-                   "use_cpu": use_cpu,
-                   "use_double": use_double}
-  with open(get_config_filepath(), "w") as config_file:
-    config_file.write(dumps(config_struct, indent=2))
+from config import write_config
 
 
 if __name__ == "__main__":
