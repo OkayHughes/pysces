@@ -52,33 +52,28 @@ axis_info = {TOP_FACE: (0, 1.0, 1, -1.0),
 MAX_VERT_DEGREE = 4
 
 
-def edge_decoder(edge):
-  if edge == TOP_EDGE:
-    return "TOP_EDGE"
-  elif edge == LEFT_EDGE:
-    return "LEFT_EDGE"
-  elif edge == RIGHT_EDGE:
-    return "RIGHT_EDGE"
-  elif edge == BOTTOM_EDGE:
-    return "BOTTOM_EDGE"
-
-
-def face_decoder(face):
-  if face == TOP_FACE:
-    return "TOP_FACE"
-  elif face == BOTTOM_FACE:
-    return "BOTTOM_FACE"
-  elif face == FRONT_FACE:
-    return "FRONT_FACE"
-  elif face == BACK_FACE:
-    return "BACK_FACE"
-  elif face == LEFT_FACE:
-    return "LEFT_FACE"
-  elif face == RIGHT_FACE:
-    return "RIGHT_FACE"
-
-
 def edge_to_vert(edge_id, is_forwards=FORWARDS):
+  """
+  Map an edge id of oriented vertex ids of a given element edge.
+
+  Parameters
+  ----------
+  edge_id : int
+      Index of edge within an element
+  is_forwards: int, default=FORWARDS
+      Is the edge reversed from its
+      default orientation.
+
+  Returns
+  -------
+  tuple[int, int]
+      (vert_idx_0, vert_idx_1)
+  
+  Notes
+  --------
+  See mesh_definitions for grid conventions on
+  vertex_idx, edge enumeration, and default direction.
+  """
   if edge_id == TOP_EDGE:
     v_idx_in_0 = 0
     v_idx_in_1 = 1
@@ -97,28 +92,101 @@ def edge_to_vert(edge_id, is_forwards=FORWARDS):
     return v_idx_in_0, v_idx_in_1
 
 
-def edge_match(nx, free_idx, id_edge_in, id_edge_out, is_forwards):
-    free_idx_flip = free_idx if is_forwards == FORWARDS else nx - free_idx - 1
-    if id_edge_out == BOTTOM_EDGE:
-      y_idx_out = nx - 1
-      x_idx_out = free_idx_flip
-    elif id_edge_out == TOP_EDGE:
-      y_idx_out = 0
-      x_idx_out = free_idx_flip
-    elif id_edge_out == LEFT_EDGE:
-      x_idx_out = 0
-      y_idx_out = free_idx_flip
-    elif id_edge_out == RIGHT_EDGE:
-      x_idx_out = nx - 1
-      y_idx_out = free_idx_flip
-    return x_idx_out, y_idx_out
+def edge_match(nx, free_idx, id_edge_out, is_forwards):
+  """
+  Return the horizontal and vertical element indexes
+  of the pair of an element across a cubed-sphere edge.
+
+  Parameters
+  ----------
+  nx : int
+      The number of elements on an edge of
+      a cubed sphere face
+  free_idx: int
+      Whichever of the horizontal or vertical indices
+      is varying across the current cubed-sphere edge.
+  id_edge_out: int
+      The the cubed-sphere edge of the paired face 
+      along which edges are joined
+  is_forwards:
+      Are the two paired cubed-sphere edges
+      oriented the same way?
+
+  Returns
+  -------
+  tuple[int, int]
+      (horizontal, vertical) element index of the
+      paired element within the paired cubed-sphere face.
+  """
+  free_idx_flip = free_idx if is_forwards == FORWARDS else nx - free_idx - 1
+  if id_edge_out == BOTTOM_EDGE:
+    y_idx_out = nx - 1
+    x_idx_out = free_idx_flip
+  elif id_edge_out == TOP_EDGE:
+    y_idx_out = 0
+    x_idx_out = free_idx_flip
+  elif id_edge_out == LEFT_EDGE:
+    x_idx_out = 0
+    y_idx_out = free_idx_flip
+  elif id_edge_out == RIGHT_EDGE:
+    x_idx_out = nx - 1
+    y_idx_out = free_idx_flip
+  return x_idx_out, y_idx_out
 
 
 def elem_id_fn(nx, face_idx, x_idx, y_idx):
+  """
+  Maps an element within a
+  regular grid on a cubed-sphere face 
+  to a scalar index.
+
+  Parameters
+  ----------
+  nx : int
+      The number of elements on an edge of a cubed-sphere face.
+  face_idx : int
+      The index of the cubed-sphere face the element is located on.
+  x_idx:
+      the horizontal index of the element within the face's regular grid.
+  y_idx:
+      the vertical index of the element within the face's regular grid
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  int
+      The global index of the element.
+  
+  Notes
+  -----
+  This should be the inverse of inv_elem_id_fn
+  """
   return face_idx * nx**2 + x_idx * nx + y_idx
 
 
 def inv_elem_id_fn(nx, idx):
+  """
+  Map a global element index to the index of the
+  cubed-sphere face it is located on, and its
+  horizontal and vertical position in a regular grid.
+
+  Parameters
+  ----------
+  nx : int
+      The number of elements on a cubed sphere edge.
+  idx :
+      A scalar element index
+
+  Returns
+  -------
+  tuple[int, int, int]
+      (face_idx, horizontal_idx, vertical_idx)
+      of the element.
+
+  Notes
+  -----
+  This should be the inverse of elem_id_fn
+  """
   face_id = int(idx / nx**2)
   x_id = int((idx - face_id * nx**2) / nx)
   y_id = int(idx - face_id * nx**2 - x_id * nx)
@@ -126,11 +194,32 @@ def inv_elem_id_fn(nx, idx):
 
 
 def gen_cube_topo(nx):
-  # E1
-  #    [v1 → v2]
-  # E2 [↓    ↓] E3
-  #    [v3 → v4]
-  #       E4
+  """
+  Generates the cartesian coordinates and topological
+  connectivity of a quasi-regular grid
+  on the cubed sphere.
+
+  Parameters
+  ----------
+  nx : int
+      the 1st param name `first`
+
+  Returns
+  -------
+  face_connectivity: Array[tuple[elem_idx, edge_idx, 3], Int]
+    An array containing the topological information about the grid.
+    It is unpacked as
+    (remote_elem_idx, remote_edge_idx, same_direction) = face_connectivity[local_elem_idx,
+                                                                           edge_idx, :]
+  face_mask: Array[tuple[elem_idx], Int]
+    An integer mask describing which face of the cubed sphere each element lies on.
+  face_position: Array[tuple[elem_idx, vert_idx, xyz], Float]
+    Positions of the element vertices on the reference cube 
+    in 3d Cartesian space
+  face_position_2d: Array[tuple[elem_idx, vert_idx, xy], Float]
+    Positions of the element vertices within the local (x, y)
+    coordinates on the cubed-sphere face that contains it.
+  """
 
   NFACE = 6 * nx**2
   face_connectivity = np.zeros(shape=(NFACE, 4, 3), dtype=np.int64)
@@ -162,25 +251,25 @@ def gen_cube_topo(nx):
           edge_idx = LEFT_EDGE
           free_idx = y_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
           left_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
         if x_idx == nx - 1:
           edge_idx = RIGHT_EDGE
           free_idx = y_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
           right_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
         if y_idx == nx - 1:
           edge_idx = BOTTOM_EDGE
           free_idx = x_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
           bottom_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
         if y_idx == 0:
           edge_idx = TOP_EDGE
           free_idx = x_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
           top_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
 
         elem_idx = elem_id_fn(nx, face_idx, x_idx, y_idx)
@@ -197,6 +286,33 @@ def gen_cube_topo(nx):
 
 
 def gen_vert_redundancy(nx, face_connectivity, face_position):
+  """
+  Enumerate redundant DOFs on the elemental
+  representation of a quasi-regular cubed sphere grid.
+
+  Parameters
+  ----------
+  nx : int
+    The number of elements on a cubed-sphere edge.
+  face_connectivity : Array[tuple[elem_idx, edge_idx, 3], Int]
+    An array containing the topological information about the grid.
+    It is unpacked as
+    (remote_elem_idx, remote_edge_idx, same_direction) = face_connectivity[local_elem_idx,
+                                                                           edge_idx, :]
+
+  Returns
+  -------
+  vert_redundancy: dict[local_elem_idx, dict[vert_idx, set[tuple[remote_elem_idx, vert_idx]]]]
+      dict[local_elem_idx][vert_idx] is a set of tuples
+      (remote_elem_idx, vert_idx_pair) which represent vertices that
+      share the same physical coordinates as (local_elem_idx, vert_idx).
+      Therefore, they represent redundant degrees of freedom.
+
+  Notes
+  -----
+  This struct deliberately does not contain diagonal associations, i.e.
+  (local_elem_idx, vert_idx) <-/-> (local_elem_idx, vert_idx)
+  """
   vert_redundancy = dict()
 
   def wrap(elem_idx, vert_idx):
