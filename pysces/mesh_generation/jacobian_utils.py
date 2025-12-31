@@ -2,26 +2,32 @@
 
 def bilinear(v0, v1, v2, v3, alpha, beta):
   """
-  [Description]
+  Compute bilinear mapping for unstructured arrays of
+  topological quadrilaterals in arbitrary cartesian dimension.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  v0: Array[*Shape, Float]
+    Upper left vertex, final index is cartesian dimension
+  v1: Array[*Shape, Float]
+    Upper right vertex, final index is cartesian dimension
+  v2: Array[*Shape, Float]
+    Bottom left vertex, final index is cartesian dimension
+  v3: Array[*Shape, Float]
+    Bottom right vertex, final index is cartesian dimension
+  alpha: Float
+    First coordinate within reference element
+  beta: Float
+    Second coordinate position within reference element
 
   Returns
   -------
-  string
-      a value in a string
+  Array[*Shape, Float]
+      Interpolated positions.
 
-  Raises
-  ------
-  KeyError
-      when a key error
+  Notes
+  -----
+  The reference element is assumed to be [-1, 1]^2.
   """
   #   v0---α---v1
   #   |    :    |
@@ -37,26 +43,36 @@ def bilinear(v0, v1, v2, v3, alpha, beta):
 
 def bilinear_jacobian(v0, v1, v2, v3, alpha, beta):
   """
-  [Description]
+  Compute jacobian of the bilinear mapping for unstructured arrays of
+  topological quadrilaterals in arbitrary cartesian dimension.
 
   Parameters
   ----------
-  [first] : array_like
-    the 1st param name `first`
-  second :
-    the 2nd param
-  third : {'value', 'other'}, optional
-    the 3rd param, by default 'value'
+  v0: Array[*Shape, Float]
+    Upper left vertex, final index is cartesian dimension
+  v1: Array[*Shape, Float]
+    Upper right vertex, final index is cartesian dimension
+  v2: Array[*Shape, Float]
+    Bottom left vertex, final index is cartesian dimension
+  v3: Array[*Shape, Float]
+    Bottom right vertex, final index is cartesian dimension
+  alpha: Float
+    First coordinate within reference element
+  beta: Float
+    Second coordinate within reference element
 
   Returns
   -------
-  string
-    a value in a string
+  dphys_dalpha: Array[*Shape, Float]
+    Derivative of each cartesian dimension
+    w.r.t. the first coordinate on the reference element
+  dphys_dalpha: Array[*Shape, Float]
+    Derivative of each cartesian dimension
+    w.r.t. the second coordinate on the reference element
 
-  Raises
-  ------
-  KeyError
-    when a key error
+  Notes
+  -----
+  The reference element is assumed to be [-1, 1]^2.
   """
   aprime = (alpha + 1) / 2
   bprime = (beta + 1) / 2

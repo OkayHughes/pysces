@@ -3,26 +3,34 @@ from .config import np
 
 def init_deriv(gll_points):
   """
-  [Description]
+  Initialize the matrix that
+  computes spectral derivatives within
+  a reference element.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  gll_points: Array[tuple[gll_idx], Float]
+      The Gauss-Lobatto-Legendre nodes used to construct
+      nodal interpolating functions.
 
   Returns
   -------
-  string
-      a value in a string
+  deriv: Array[tuple[deriv_eval_idx, nodal_value_idx], Float]
+      Derivative for calculating 
 
-  Raises
-  ------
-  KeyError
-      when a key error
+  Notes
+  -----
+  Derivatives are calculated for the first and second dimensions
+  in the reference element as
+  df_da = np.einsum("ij,ki->kj", f, deriv)
+  df_db = np.einsum("ij,kj->ik", f, deriv)
+  respectively.
+
+  Recall: this code uses a nodal representation
+  of spectral data,
+  so the values of a function expanded in
+  the interpolation functions at the GLL points
+  are precisely its coefficients.
   """
   # uses the lagrange interpolating polynomials
   npt = gll_points.size
@@ -63,26 +71,32 @@ _gll_points = {3: {"points": np.array([1.0, 0.0, -1.0]),
 
 def init_spectral(npt):
   """
-  [Description]
+  Return the necessary quantities
+  to do spectral quadrature
+  and differentiation for a given basis order.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  npt:
+      The number of Gauss-Lobatto-Legendre points
+      to use in the reference interval
 
   Returns
   -------
-  string
-      a value in a string
+  spectrals: dict[str, Array]
+    Contains 
+    * "gll_points": Array[tuple[gll_idx], Float]
+      1d GLL points
+    * "gll_weights": Array[tuple[gll_idx], Float]
+      1d weights for GLL quadrature
+    * "deriv": Array[tuple[gll_idx, gll_idx], Float]
+      Matrix for calculating spectral derivatives
+      in the nodal basis.
 
   Raises
   ------
   KeyError
-      when a key error
+      if an invalid number of GLL points is requested.
   """
   return {"gll_points": _gll_points[npt]["points"],
           "gll_weights": _gll_points[npt]["weights"],
