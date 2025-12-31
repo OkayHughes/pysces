@@ -4,7 +4,7 @@ from pysces.distributed_memory.processor_decomposition import get_decomp, local_
 from pysces.operations_2d.se_grid import (triage_vert_redundancy, subset_var, init_dss_global,
                                           init_dss_matrix_local, create_spectral_element_grid)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
-from pysces.config import np
+from pysces.config import np, use_wrapper, wrapper_type, device_unwrapper
 from ..context import test_npts
 
 
@@ -157,7 +157,7 @@ def test_dss_init():
   ct = len(vert_red_total)
   for proc_idx in range(nproc):
     vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(se_grid["vert_redundancy"], proc_idx, decomp)
-    metdet = subset_var(se_grid["met_det"], proc_idx, decomp)
+    metdet = subset_var(se_grid["met_det"], proc_idx, decomp, jax=False)
     _, dss_triple = init_dss_matrix_local(metdet.shape[0], npt, vert_red_local)
     ct -= len(flip_triple(dss_triple))
     triples_send, triples_receive = init_dss_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
@@ -221,7 +221,7 @@ def test_triples_order():
             remote_triples_send = grids[remote_proc_idx]["triples_send"]
             remote_triples_recv = grids[remote_proc_idx]["triples_receive"]
             remote_coords = grids[remote_proc_idx]["physical_coords"]
-            for k_idx in range(local_triples_send[remote_proc_idx][0].size):
+            for k_idx in range(list(local_triples_send[remote_proc_idx][0].shape)[0]):
               f_idx, i_idx, j_idx = local_vert_red_send[remote_proc_idx][k_idx]
               # test that vert_red_send struct and triples_send point to coincident local points
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
