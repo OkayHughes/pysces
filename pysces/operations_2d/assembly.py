@@ -40,9 +40,10 @@ def dss_scalar_for(f, grid, *args, scaled=True):
 
 def dss_scalar_sparse(f, grid, *args, scaled=True):
   if scaled:
-    ret = (grid["dss_matrix"] @ (f * grid["mass_matrix"]).flatten()).reshape(f.shape)
+    vals_scaled = f * grid["mass_matrix"]
+    ret = vals_scaled + (grid["dss_matrix"] @ (vals_scaled).flatten()).reshape(f.shape)
   else:
-    ret = (grid["dss_matrix"] @ (f).flatten()).reshape(f.shape)
+    ret = f + (grid["dss_matrix"] @ (f).flatten()).reshape(f.shape)
   return ret * grid["mass_matrix_inv"]
 
 
