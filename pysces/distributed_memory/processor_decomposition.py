@@ -4,6 +4,28 @@ from ..mesh_generation.mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FAC
 
 
 def hilbert_curve(n_subdiv):
+  """
+  Generate a 2D array containing indices
+  representing a 2D hilbert curve in euclidean space.
+
+  Parameters
+  ----------
+  n_subdiv: int
+      Number of times the initial 1x1 Hilbert curve should be subdivided
+
+  Returns
+  -------
+  Array[tuple[2**n_subdiv, 2**n_subdiv, Int]
+      Index of each grid cell in the hilbert curve.
+
+  Notes
+  -----
+  Without loss of generality,
+  the initial generator is assumed to be 
+  ^
+  |  |
+  |__|
+  """
   A, B, C, D = 0, 1, 2, 3
   arr_prev = C * np.ones((1, 1), dtype=np.int64)
   idxs_prev = np.zeros((1, 1), dtype=np.int64)
@@ -42,6 +64,28 @@ def hilbert_curve(n_subdiv):
 
 
 def get_face_idx_pos(lat, lon):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # assumes lon \in [0, 2*np.pi]
   lat[lat > np.pi / 2.0 - 1e-4] = np.pi / 2.0 - 1e-4
   lat[lat < -np.pi / 2.0 + 1e-4] = -np.pi / 2.0 + 1e-4
@@ -74,27 +118,123 @@ def get_face_idx_pos(lat, lon):
   return face_idx, x_provisional, y_provisional
 
 
-def processor_id_to_range(proc_idx, num_faces, num_procs):
-  # probably not good for extremely high numbers of
-  # MPI ranks.
+def processor_id_to_range(proc_idx, num_elems, num_procs):
+  """
+  Calculate the number of elements to assign to a processor
+  from the global grid size.
 
-  stride = int(np.floor(num_faces / num_procs))
+  Parameters
+  ----------
+  proc_idx: int
+      The processor id (e.g. config.mpi_rank) for which to calculate
+      the element assignment
+  num_faces: int
+      The total number of elements in the global grid.
+  num_procs: int
+      The number of processes (e.g. config.mpi_size) among which
+      the grid will be divided.
+
+  Returns
+  -------
+  tuple[int, int]
+      Tuple containing (begin_elem_idx, end_elem_idx),
+      where the final index is exclusive.
+
+  Notes
+  -----
+  This must be able to calculate the number of grid points
+  assigned to remote processors as well.
+
+  Invoking code should be careful about using the specifics
+  of the return value of this function, as there may eventually 
+  be a better way to do this.
+
+  Raises
+  ------
+  ValueError
+    Raises a value error if this processor decomposition strategy
+    is used with more processors than elements.
+  """
+  if num_procs > num_elems:
+    raise ValueError(("Naive processor decomposition strategy cannot be used for "
+                      f"num_processors {num_procs} > num_elems {num_elems}"))
+  stride = int(np.floor(num_elems / num_procs))
   beginning_idx = proc_idx * stride
   if proc_idx == num_procs - 1:
-    end_idx = num_faces
+    end_idx = num_elems
   else:
     end_idx = (proc_idx + 1) * stride
   return beginning_idx, end_idx
 
 
-def get_decomp(num_faces, num_procs):
+def get_decomp(num_elems, num_procs):
+  """
+  Get decomposition of total number of faces by processor
+  for all processors.
+
+  Parameters
+  ----------
+  num_elems: int
+      The number of elements in the global grid
+  num_procs: int 
+      The total number of processors
+      among which the grid will be divided,
+      e.g. `config.mpi_size`.
+  
+  Notes
+  -----
+  Invoking code should be careful about using the specifics
+  of the return value of get_decomp, as there may eventually 
+  be a better way to do this.
+
+  Returns
+  -------
+  tuple[tuple[int, int], ...]
+      A tuple of length num_procs where
+      entry proc_idx is a tuple (begin_elem_idx, end_elem_idx)
+  """
   segments = []
   for proc_idx in range(num_procs):
-    segments.append(processor_id_to_range(proc_idx, num_faces, num_procs))
-  return segments
+    segments.append(processor_id_to_range(proc_idx, num_elems, num_procs))
+  return tuple(segments)
 
 
 def create_mapping(n_subdiv, latlons):
+  """
+  Use a cubed-sphere hilbert curve
+  to create a reordering of the global grid
+  that puts sequential elements close to each other
+
+  Sequential elements may not be geometrically close
+  at the endpoints of the hilbert curve on each
+  face of the cubed sphere.
+
+  Parameters
+  ----------
+  n_subdiv: int
+      The number of subdivisions to use in the hilbert curve
+  latlons: Array[tuple[elem_idx, 2], Float]
+      Representative position of each element
+      in lat-lon coordinates (e.g. centroid).
+      Uses convention latlons[:, 0] is lat,
+      latlons[:, 1] is lon.
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Notes
+  -----
+  Although this decomposition method is based
+  on the cubed sphere,
+  it can also be used for unstructured grids on the sphere.
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   face_idx, x, y = get_face_idx_pos(latlons[:, 0], latlons[:, 1])
   idxs = hilbert_curve(n_subdiv)
   grid_pos_1d = np.linspace(-1.0, 1.0, 2**n_subdiv)
@@ -107,14 +247,77 @@ def create_mapping(n_subdiv, latlons):
 
 
 def local_to_global(elem_idxs_local, proc_idx, decomp):
+  """
+  Return global element indexes for a specific processor
+  index, e.g., config.mpi_rank.
+
+  Parameters
+  ----------
+  elem_idxs_local: Array[*Shape, Float]
+      Element indexes used to index 
+      processor local data.
+  proc_idx: int
+      The processor index to which the local indexes
+      apply.
+  decomp: tuple[tuple(int, int), ...]
+      Processor decomposition
+
+  Returns
+  -------
+  elem_idxs_global: Array[*Shape, Float]
+      Global element indexes
+  """
   return elem_idxs_local + decomp[proc_idx][0]
 
 
 def global_to_local(elem_idxs_global, proc_idx, decomp):
+  """
+  Return local element indexes for a specific processor
+  index, e.g., config.mpi_rank.
+
+  Parameters
+  ----------
+  elem_idxs_global: Array[*Shape, Float]
+      Element indexes used to index 
+      global grid data.
+  proc_idx: int
+      The processor index to which the local indexes should
+      apply.
+  decomp: tuple[tuple(int, int), ...]
+      Processor decomposition
+
+  Returns
+  -------
+  elem_idxs_local: Array[*Shape, Float]
+      Local element indexes
+  """
   return elem_idxs_global - decomp[proc_idx][0]
 
 
 def elem_idx_global_to_proc_idx(elem_idxs_global, decomp):
+  """
+  Map global element indexes to the id of the
+  processor they are assigned to.
+
+  Parameters
+  ----------
+  elem_idxs_global: Array[tuple[elem_idx], Int]
+      Global element indexes.
+  decomp: tuple[tuple(int, int), ...]
+      Processor decomposition
+
+  Returns
+  -------
+  Union[Int, Array[tuple[elem_idx], Int]]
+      a value in a string
+
+  Notes
+  -----
+  If an array with a single item is passed in,
+  this function returns an unwrapped integer.
+  This is for testing reasons and should
+  probably be cleaned up.
+  """
   out = np.zeros_like(elem_idxs_global, dtype=np.int64)
   for proc_idx, (begin, end) in enumerate(decomp):
     mask = np.logical_and(elem_idxs_global < end, elem_idxs_global >= begin)
