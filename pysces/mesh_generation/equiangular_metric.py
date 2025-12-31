@@ -310,7 +310,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
 
 
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
-                          cube_to_sphere_jacobian, vert_redundancy_gll, npt, jax=use_wrapper):
+                          cube_to_sphere_jacobian, vert_redundancy_gll, npt, wrapped=use_wrapper):
   """
   [Description]
 
@@ -378,11 +378,11 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                                       gll_to_sphere_jacobian_inv,
                                       rmetdet, metdet, mass_mat,
                                       inv_mass_mat, vert_redundancy_gll,
-                                      proc_idx, decomp, jax=jax)
+                                      proc_idx, decomp, wrapped=wrapped)
 
 
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt,
-                         jax=use_wrapper):
+                         wrapped=use_wrapper):
   """
   [Description]
 
@@ -409,10 +409,10 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
   cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
   gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy, npt)
   return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, npt,
-                               jax=jax)
+                               wrapped=wrapped)
 
 
-def create_quasi_uniform_grid(nx, npt, jax=use_wrapper):
+def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper):
   """
   [Description]
 
@@ -437,4 +437,4 @@ def create_quasi_uniform_grid(nx, npt, jax=use_wrapper):
   """
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, jax=jax)
+  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, wrapped=wrapped)

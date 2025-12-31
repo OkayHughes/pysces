@@ -133,4 +133,4 @@ def init_test_grid():
   cart_pts = np.array([x1, x2], dtype=np.float64)
   gll_to_cube_jacobian = (np.eye(2)[np.newaxis, np.newaxis, np.newaxis, :, :] *
                           np.ones_like(cart_pts[:, :, :, 0])[:, :, :, np.newaxis, np.newaxis])
-  return generate_metric_terms(cart_pts, gll_to_cube_jacobian, vert_redundancy_gll, npt, jax=False)
+  return generate_metric_terms(cart_pts, gll_to_cube_jacobian, vert_redundancy_gll, npt, wrapped=False)

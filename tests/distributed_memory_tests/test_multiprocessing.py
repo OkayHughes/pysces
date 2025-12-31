@@ -18,7 +18,7 @@ def test_unordered_assembly_for_stub():
     for nx in range(1, 3):
       for nproc in range(1, 8):
         print(f"dividing nx {nx} grid among {nproc} processors")
-        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, jax=False)
+        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
         decomp = get_decomp(dim_total["num_elem"], nproc)
         grids = []
         dims = []
@@ -49,7 +49,7 @@ def test_unordered_assembly_for_stub():
                                                    grid_total["mass_mat"],
                                                    grid_total["mass_matrix_inv"],
                                                    grid_total["vert_redundancy"],
-                                                   proc_idx, decomp, jax=False)
+                                                   proc_idx, decomp, wrapped=False)
           grids.append(grid)
           dims.append(dim)
           total_elems += dim["num_elem"]
@@ -96,7 +96,7 @@ def test_unordered_assembly_triple_stub():
     for nx in range(1, 3):
       for nproc in range(1, 8):
         print(f"dividing nx {nx} grid among {nproc} processors")
-        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, jax=False)
+        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
         decomp = get_decomp(dim_total["num_elem"], nproc)
         grids = []
         dims = []
@@ -127,7 +127,7 @@ def test_unordered_assembly_triple_stub():
                                                    grid_total["mass_mat"],
                                                    grid_total["mass_matrix_inv"],
                                                    grid_total["vert_redundancy"],
-                                                   proc_idx, decomp, jax=use_wrapper)
+                                                   proc_idx, decomp, wrapped=use_wrapper)
           grids.append(grid)
           dims.append(dim)
           total_elems += dim["num_elem"]
@@ -207,7 +207,7 @@ def test_stub_exchange():
                                              se_grid["vert_redundancy"],
                                              proc_idx,
                                              decomp,
-                                             jax=False)
+                                             wrapped=False)
     grids.append(grid)
     dims.append(dim)
 
@@ -256,12 +256,12 @@ def test_extract_fields_triples():
   for npt in test_npts:
     np.random.seed(0)
     for nx in range(1, 3):
-      global_grids_nojax = [create_uniform_grid(nx, nx + 1, npt, jax=False),
-                            create_quasi_uniform_grid(nx, npt, jax=False)]
-      global_grids = [create_uniform_grid(nx, nx + 1, npt, jax=use_wrapper),
-                      create_quasi_uniform_grid(nx, npt, jax=use_wrapper)]
+      global_grids_nowrapper = [create_uniform_grid(nx, nx + 1, npt, wrapped=False),
+                                create_quasi_uniform_grid(nx, npt, wrapped=False)]
+      global_grids = [create_uniform_grid(nx, nx + 1, npt, wrapped=use_wrapper),
+                      create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper)]
       for ((grid_total, dim_total),
-           (grid_total_nojax, _)) in zip(global_grids, global_grids_nojax):
+           (grid_total_nowrapper, _)) in zip(global_grids, global_grids_nowrapper):
         for random, num_iters in zip([False, True], [1, 10]):
           for _ in range(num_iters):
             nproc = 2
@@ -274,7 +274,7 @@ def test_extract_fields_triples():
             nlev = 2
             pairs = {}
             proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-            vert_redundancy = grid_total_nojax["vert_redundancy"]
+            vert_redundancy = grid_total_nowrapper["vert_redundancy"]
             for target_face_idx in vert_redundancy.keys():
               for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
                 pair_key = (proc_ids[target_face_idx],
@@ -289,24 +289,24 @@ def test_extract_fields_triples():
                                 source_j))
                 pairs[pair_key] = pair_set.copy()
             for proc_idx in range(nproc):
-              grid, dim = create_spectral_element_grid(grid_total_nojax["physical_coords"],
-                                                       grid_total_nojax["jacobian"],
-                                                       grid_total_nojax["jacobian_inv"],
-                                                       grid_total_nojax["recip_met_det"],
-                                                       grid_total_nojax["met_det"],
-                                                       grid_total_nojax["mass_mat"],
-                                                       grid_total_nojax["mass_matrix_inv"],
-                                                       grid_total_nojax["vert_redundancy"],
-                                                       proc_idx, decomp, jax=use_wrapper)
-              grid_nodevice, _ = create_spectral_element_grid(grid_total_nojax["physical_coords"],
-                                                              grid_total_nojax["jacobian"],
-                                                              grid_total_nojax["jacobian_inv"],
-                                                              grid_total_nojax["recip_met_det"],
-                                                              grid_total_nojax["met_det"],
-                                                              grid_total_nojax["mass_mat"],
-                                                              grid_total_nojax["mass_matrix_inv"],
-                                                              grid_total_nojax["vert_redundancy"],
-                                                              proc_idx, decomp, jax=False)
+              grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
+                                                       grid_total_nowrapper["jacobian"],
+                                                       grid_total_nowrapper["jacobian_inv"],
+                                                       grid_total_nowrapper["recip_met_det"],
+                                                       grid_total_nowrapper["met_det"],
+                                                       grid_total_nowrapper["mass_mat"],
+                                                       grid_total_nowrapper["mass_matrix_inv"],
+                                                       grid_total_nowrapper["vert_redundancy"],
+                                                       proc_idx, decomp, wrapped=use_wrapper)
+              grid_nodevice, _ = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
+                                                              grid_total_nowrapper["jacobian"],
+                                                              grid_total_nowrapper["jacobian_inv"],
+                                                              grid_total_nowrapper["recip_met_det"],
+                                                              grid_total_nowrapper["met_det"],
+                                                              grid_total_nowrapper["mass_mat"],
+                                                              grid_total_nowrapper["mass_matrix_inv"],
+                                                              grid_total_nowrapper["vert_redundancy"],
+                                                              proc_idx, decomp, wrapped=False)
               grids.append(grid)
               grids_nodevice.append(grid_nodevice)
               dims.append(dim)
@@ -335,18 +335,18 @@ def test_extract_fields_triples():
                   assert np.allclose(buffer_for[proc_idx][k_idx], device_unwrapper(buffer_device[proc_idx][k_idx]))
             buffers_for = exchange_buffers_stub(buffers_for)
             buffers_device = exchange_buffers_stub(buffers_device)
-            for (f, f_device, grid, grid_nojax, dim, buffer_for, buffer_device) in zip(fs,
-                                                                                       fs_device,
-                                                                                       grids,
-                                                                                       grids_nodevice,
-                                                                                       dims,
-                                                                                       buffers_for,
-                                                                                       buffers_device):
+            for (f, f_device, grid, grid_nowrapper, dim, buffer_for, buffer_device) in zip(fs,
+                                                                                           fs_device,
+                                                                                           grids,
+                                                                                           grids_nodevice,
+                                                                                           dims,
+                                                                                           buffers_for,
+                                                                                           buffers_device):
               for remote_idx in buffer_for.keys():
                 for field_idx in range(len(buffer_for[remote_idx])):
                   assert np.allclose(buffer_for[remote_idx][field_idx], buffer_device[remote_idx][field_idx])
                   assert np.allclose(f[field_idx], f_device[field_idx])
-              fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nojax["vert_redundancy_receive"])
+              fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nowrapper["vert_redundancy_receive"])
               fijk_fields_triple = accumulate_fields_triple(f_device, buffer_device, grid["triples_receive"], dim)
               assert len(fijk_fields_for) == len(fijk_fields_triple)
               for field_idx in range(len(fijk_fields_for)):
@@ -362,7 +362,7 @@ def test_mpi_exchange_for():
       nproc = mpi_size
       local_proc_idx = mpi_rank
       print(f"dividing nx {nx} grid among {nproc} processors")
-      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, jax=False)
+      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
       decomp = get_decomp(dim_total["num_elem"], nproc)
       grids = []
       dims = []
@@ -393,7 +393,7 @@ def test_mpi_exchange_for():
                                                   grid_total["mass_mat"],
                                                   grid_total["mass_matrix_inv"],
                                                   grid_total["vert_redundancy"],
-                                                  proc_idx, decomp, jax=False)
+                                                  proc_idx, decomp, wrapped=False)
         grids.append(grid)
         dims.append(dim)
         total_elems += dim["num_elem"]
@@ -462,8 +462,8 @@ def test_mpi_exchange_triple():
       nproc = mpi_size
       local_proc_idx = mpi_rank
       print(f"dividing nx {nx} grid among {nproc} processors")
-      grid_total_nojax, dim_total_nojax = create_quasi_uniform_grid(nx, npt, jax=False)
-      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, jax=use_wrapper)
+      grid_total_nowrapper, dim_total_nowrapper = create_quasi_uniform_grid(nx, npt, wrapped=False)
+      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper)
       decomp = get_decomp(dim_total["num_elem"], nproc)
       grids = []
       dims = []
@@ -471,7 +471,7 @@ def test_mpi_exchange_triple():
       total_elems = 0
       pairs = {}
       proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-      vert_redundancy = grid_total_nojax["vert_redundancy"]
+      vert_redundancy = grid_total_nowrapper["vert_redundancy"]
       for target_face_idx in vert_redundancy.keys():
         for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
           pair_key = (proc_ids[target_face_idx],
@@ -486,15 +486,15 @@ def test_mpi_exchange_triple():
                           source_j))
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
-        grid, dim = create_spectral_element_grid(grid_total_nojax["physical_coords"],
-                                                  grid_total_nojax["jacobian"],
-                                                  grid_total_nojax["jacobian_inv"],
-                                                  grid_total_nojax["recip_met_det"],
-                                                  grid_total_nojax["met_det"],
-                                                  grid_total_nojax["mass_mat"],
-                                                  grid_total_nojax["mass_matrix_inv"],
-                                                  grid_total_nojax["vert_redundancy"],
-                                                  proc_idx, decomp, jax=use_wrapper)
+        grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
+                                                  grid_total_nowrapper["jacobian"],
+                                                  grid_total_nowrapper["jacobian_inv"],
+                                                  grid_total_nowrapper["recip_met_det"],
+                                                  grid_total_nowrapper["met_det"],
+                                                  grid_total_nowrapper["mass_mat"],
+                                                  grid_total_nowrapper["mass_matrix_inv"],
+                                                  grid_total_nowrapper["vert_redundancy"],
+                                                  proc_idx, decomp, wrapped=use_wrapper)
         grids.append(grid)
         dims.append(dim)
         total_elems += dim["num_elem"]

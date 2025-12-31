@@ -117,7 +117,7 @@ def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
 
 
 def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, npt,
-                          jax=use_wrapper):
+                          wrapped=use_wrapper):
   """
   [Description]
 
@@ -168,10 +168,10 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                       gll_to_planar_jacobian_inv,
                                       rmetdet, metdet, mass_mat,
                                       inv_mass_mat, vert_redundancy_gll,
-                                      proc_idx, decomp, jax=jax)
+                                      proc_idx, decomp, wrapped=wrapped)
 
 
-def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, jax=use_wrapper):
+def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wrapper):
   """
   [Description]
 
@@ -195,4 +195,4 @@ def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, jax=use_wrapper
       when a key error
   """
   physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
-  return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, jax=jax)
+  return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, wrapped=wrapped)
