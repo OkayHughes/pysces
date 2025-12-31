@@ -106,9 +106,10 @@ def dss_scalar_sparse(f, grid, *args, scaled=True):
       when a key error
   """
   if scaled:
-    ret = (grid["dss_matrix"] @ (f * grid["mass_matrix"]).flatten()).reshape(f.shape)
+    vals_scaled = f * grid["mass_matrix"]
+    ret = vals_scaled + (grid["dss_matrix"] @ (vals_scaled).flatten()).reshape(f.shape)
   else:
-    ret = (grid["dss_matrix"] @ (f).flatten()).reshape(f.shape)
+    ret = f + (grid["dss_matrix"] @ (f).flatten()).reshape(f.shape)
   return ret * grid["mass_matrix_inv"]
 
 
@@ -141,43 +142,8 @@ def segment_sum(data, segment_ids, N):
   return s
 
 
-def dss_scalar_torch(f, grid, dims, scaled=True):
-  """
-  [Description]
-
-  Parameters
-  ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
-
-  Returns
-  -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
-  """
-  (data, rows, cols) = grid["dss_triple"]
-  if scaled:
-    relevant_data = (f * grid["mass_matrix"]).flatten()[cols] * data
-  else:
-    relevant_data = f.flatten()[cols]
-  if use_wrapper and wrapper_type == "torch":
-    ret = jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"])
-  else:
-    ret = segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
-  return ret * grid["mass_matrix_inv"]
-
-
 @partial(jit, static_argnames=["dims", "scaled"])
-def dss_scalar_jax(f, grid, dims, scaled=True):
+def dss_scalar_wrapper(f, grid, dims, scaled=True):
   """
   [Description]
 
@@ -203,22 +169,27 @@ def dss_scalar_jax(f, grid, dims, scaled=True):
   (data, rows, cols) = grid["dss_triple"]
 
   if scaled:
-    relevant_data = (f * grid["mass_matrix"]).flatten().take(cols) * data
+    scaled_f = f * grid["mass_matrix"]
+    relevant_data = (scaled_f).flatten().take(cols) * data
   else:
-    relevant_data = f.flatten().take(cols)
+    scaled_f = f
+    relevant_data = scaled_f.flatten().take(cols)
 
   if use_wrapper and wrapper_type == "jax":
-    ret = jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+    scaled_f = scaled_f.flatten().at[rows].add(relevant_data)
+    scaled_f = scaled_f.reshape(dims["shape"])
   elif use_wrapper and wrapper_type == "torch":
-    ret = jnp.zeros_like(f.flatten()).scatter_add_(0, rows, relevant_data).reshape(dims["shape"])
+    scaled_f = scaled_f.flatten()
+    scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
+    scaled_f = scaled_f.reshape(dims["shape"])
   else:
-    ret = segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
-  return ret * grid["mass_matrix_inv"]
+    scaled_f += segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  return scaled_f * grid["mass_matrix_inv"]
 
 
 if use_wrapper and wrapper_type == "jax":
-  dss_scalar = dss_scalar_jax
+  dss_scalar = dss_scalar_wrapper
 elif use_wrapper and wrapper_type == "torch":
-  dss_scalar = dss_scalar_torch
+  dss_scalar = dss_scalar_wrapper
 else:
   dss_scalar = dss_scalar_sparse

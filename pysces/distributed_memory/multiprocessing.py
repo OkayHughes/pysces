@@ -61,7 +61,7 @@ def dss_scalar_triple_pack(fs_local, grid):
   KeyError
       when a key error
   """
-  buffers = extract_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local], grid["vert_redundancy_send"])
+  buffers = extract_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local], grid["triples_send"])
   return buffers
 
 
@@ -90,6 +90,11 @@ def dss_scalar_for_unpack(fs_local, buffers, grid, *args):
   """
   return [f[:, :, :, 0] for f in accumulate_fields_for([f.reshape((*f.shape, 1)) for f in fs_local],
                                                        buffers, grid["vert_redundancy_receive"])]
+
+
+def dss_scalar_triple_unpack(fs_local, buffers, grid, dim, *args):
+  return [f[:, :, :, 0] for f in accumulate_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local],
+                                                       buffers, grid["triples_receive"], dim)]
 
 
 def dss_scalar_for_stub(fs_global, grids):
@@ -133,7 +138,7 @@ def dss_scalar_for_stub(fs_global, grids):
   return fs_out
 
 
-def dss_scalar_for_mpi(f, grid):
+def dss_scalar_for_mpi(fs, grid):
   """
   [Description]
 
@@ -158,10 +163,44 @@ def dss_scalar_for_mpi(f, grid):
   """
   # This is primarily for testing!
   # do not use in model code!
-  buffer = dss_scalar_for_pack(f, grid)
+  buffer = dss_scalar_for_pack([f * grid["mass_matrix"] for f in fs], grid)
   buffer = exchange_buffers_mpi(buffer)
-  # f = dss_scalar_for_unscaled(dss_scalar_for_unpack(f, buffer, grid), grid)
-  return f
+  fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
+  fs = [f * grid["mass_matrix_inv"]
+                        for f in dss_scalar_for_unpack(fs_out, buffer, grid)]
+  return fs
+
+
+def dss_scalar_triple_mpi(fs, grid, dim):
+  # This is primarily for testing!
+  # do not use in model code!
+  buffer = dss_scalar_triple_pack([f * grid["mass_matrix"] for f in fs], grid)
+  buffer = exchange_buffers_mpi(buffer)
+  # TODO: replace with sum_into
+  fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
+  fs = [f * grid["mass_matrix_inv"]
+                        for f in dss_scalar_triple_unpack(fs_out, buffer, grid, dim)]
+  return fs
+
+
+def dss_scalar_triple_stub(fs_global, grids, dims):
+  # This is primarily for testing!
+  # do not use in model code!
+
+  buffers = []
+  for fs_local, grid, dim in zip(fs_global, grids, dims):
+    buffers.append(dss_scalar_triple_pack([f * grid["mass_matrix"] for f in fs_local], grid))
+
+  # TODO: replace with sum_into
+  fs_out = [[summation_local_for(f * grid["mass_matrix"], grid) for f in fs_local]
+            for (fs_local, grid) in zip(fs_global, grids)]
+  buffers = exchange_buffers_stub(buffers)
+
+  for proc_idx in range(len(fs_out)):
+    fs_out[proc_idx] = [f * grids[proc_idx]["mass_matrix_inv"]
+                        for f in dss_scalar_triple_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx], dims[proc_idx])]
+
+  return fs_out
 
 
 def extract_fields_for(fijk_fields, vert_redundancy_send):

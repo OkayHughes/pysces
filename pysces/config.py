@@ -1,15 +1,34 @@
 import os
+from json import dumps
 import numpy as np
 from json import loads
 
-
 def get_config_filepath():
-  return os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+  #return os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+  return os.path.join(os.getcwd(), "config.json")
 
+def write_config(debug=True,
+                 use_mpi=False,
+                 use_wrapper=False,
+                 wrapper_type="none",
+                 use_cpu=True,
+                 use_double=True):
+  config_struct = {"debug": debug,
+                   "use_mpi": use_mpi,
+                   "use_wrapper": use_wrapper,
+                   "wrapper_type": wrapper_type,
+                   "use_cpu": use_cpu,
+                   "use_double": use_double}
+  with open(get_config_filepath(), "w") as config_file:
+    config_file.write(dumps(config_struct, indent=2))
 
 def parse_config_file():
   config_filename = get_config_filepath()
-  assert os.path.isfile(config_filename), "Config file is not written"
+  try:
+    assert os.path.isfile(config_filename)
+  except AssertionError:
+    print("Config file is not written, writing serial config file as fallback")
+    write_config()
   with open(config_filename, "r") as f:
     config_vars = loads(f.read())
   return config_vars

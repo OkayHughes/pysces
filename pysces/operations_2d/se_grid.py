@@ -19,12 +19,12 @@ def init_dss_matrix_local(NELEM, npt, vert_redundancy_local):
   rows = []
   cols = []
 
-  for face_idx in range(NELEM):
-    for i_idx in range(npt):
-      for j_idx in range(npt):
-        data.append(1.0)
-        rows.append(index_hack[face_idx, i_idx, j_idx])
-        cols.append(index_hack[face_idx, i_idx, j_idx])
+  #for face_idx in range(NELEM):
+  #  for i_idx in range(npt):
+  #    for j_idx in range(npt):
+  #      data.append(1.0)
+  #      rows.append(index_hack[face_idx, i_idx, j_idx])
+  #      cols.append(index_hack[face_idx, i_idx, j_idx])
   for local_face_idx in vert_redundancy_local.keys():
     for local_i, local_j in vert_redundancy_local[local_face_idx].keys():
       for remote_face_id, remote_i, remote_j in vert_redundancy_local[local_face_idx][(local_i, local_j)]:
