@@ -3,7 +3,8 @@ from pysces.distributed_memory.multiprocessing import (dss_scalar_for_stub,
                                                        dss_scalar_for_pack, dss_scalar_for_unpack,
                                                        exchange_buffers_stub, extract_fields_triple, extract_fields_for,
                                                        accumulate_fields_for, accumulate_fields_triple,
-                                                       dss_scalar_for_mpi)
+                                                       dss_scalar_for_mpi, dss_scalar_triple_stub,
+                                                       dss_scalar_triple_mpi)
 from pysces.operations_2d.se_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
@@ -12,7 +13,7 @@ from ..handmade_grids import init_test_grid, vert_redundancy_gll
 from ..context import test_npts
 
 
-def test_unordered_assembly_stub():
+def test_unordered_assembly_for_stub():
   for npt in test_npts:
     for nx in range(1, 3):
       for nproc in range(1, 8):
@@ -85,6 +86,84 @@ def test_unordered_assembly_stub():
             fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
             fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
         fs_out = dss_scalar_for_stub(fs, grids)
+        for (f, f_new) in zip(fs_ref, fs_out):
+          for (f_pair, f_new_pair) in zip(f, f_new):
+            assert (np.allclose(f_pair, f_new_pair))
+
+
+def test_unordered_assembly_triple_stub():
+  for npt in test_npts:
+    for nx in range(1, 3):
+      for nproc in range(1, 8):
+        print(f"dividing nx {nx} grid among {nproc} processors")
+        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, jax=False)
+        decomp = get_decomp(dim_total["num_elem"], nproc)
+        grids = []
+        dims = []
+        fs = []
+        total_elems = 0
+        pairs = {}
+        proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
+        vert_redundancy = grid_total["vert_redundancy"]
+        for target_face_idx in vert_redundancy.keys():
+          for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
+            pair_key = (proc_ids[target_face_idx],
+                        global_to_local(target_face_idx, proc_ids[target_face_idx], decomp),
+                        target_i,
+                        target_j)
+            pair_set = set()
+            for (source_face_idx, source_i, source_j) in vert_redundancy[target_face_idx][(target_i, target_j)]:
+              pair_set.add((proc_ids[source_face_idx],
+                            global_to_local(source_face_idx, proc_ids[source_face_idx], decomp),
+                            source_i,
+                            source_j))
+            pairs[pair_key] = pair_set.copy()
+        for proc_idx in range(nproc):
+          grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
+                                                   grid_total["jacobian"],
+                                                   grid_total["jacobian_inv"],
+                                                   grid_total["recip_met_det"],
+                                                   grid_total["met_det"],
+                                                   grid_total["mass_mat"],
+                                                   grid_total["mass_matrix_inv"],
+                                                   grid_total["vert_redundancy"],
+                                                   proc_idx, decomp, jax=use_wrapper)
+          grids.append(grid)
+          dims.append(dim)
+          total_elems += dim["num_elem"]
+        assert (dim_total["num_elem"] == total_elems)
+
+        def zeros_f():
+          fs = []
+          for grid in grids:
+            fs.append([np.zeros_like(grid["physical_coords"][:, :, :, 0])])
+          return fs
+
+        # test one scalar at a time
+        for pair_key in pairs.keys():
+          fs = zeros_f()
+          target_proc_idx, target_local_face_idx, target_i, target_j = pair_key
+          fs[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
+          for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
+            fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
+          fs_ref = [[np.copy(f[0])] for f in fs]
+          fs_out = dss_scalar_triple_stub(fs, grids, dims)
+          for (f, f_new) in zip(fs_ref, fs_out):
+            assert (np.allclose(f[0], f_new[0]))
+
+        # test all scalars at once
+        fs_ref = [[] for _ in range(nproc)]
+        fs = [[] for _ in range(nproc)]
+        for pair_key in pairs.keys():
+          fs_tmp = zeros_f()
+          target_proc_idx, target_local_face_idx, target_i, target_j = pair_key
+          fs_tmp[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
+          for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
+            fs_tmp[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
+          for proc_idx in range(nproc):
+            fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
+            fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
+        fs_out = dss_scalar_triple_stub(fs, grids, dims)
         for (f, f_new) in zip(fs_ref, fs_out):
           for (f_pair, f_new_pair) in zip(f, f_new):
             assert (np.allclose(f_pair, f_new_pair))
@@ -275,7 +354,7 @@ def test_extract_fields_triples():
                 assert np.allclose(fijk_fields_for[field_idx], fijk_fields_triple[field_idx])
 
 
-def test_mpi_exchange():
+def test_mpi_exchange_for():
   if not do_mpi_communication:
     return
   for npt in test_npts:
@@ -373,7 +452,104 @@ def test_mpi_exchange():
       f_out = dss_scalar_for_mpi(fs_rand[local_proc_idx], grid_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
         assert (np.allclose(f_stub, f_mpi))  
-      
-      # fs = np.random.randrange
-      # fs_out = dss_scalar_for_stub(fs, grids)
 
+
+def test_mpi_exchange_triple():
+  if not do_mpi_communication:
+    return
+  for npt in test_npts:
+    for nx in range(1, 3):
+      nproc = mpi_size
+      local_proc_idx = mpi_rank
+      print(f"dividing nx {nx} grid among {nproc} processors")
+      grid_total_nojax, dim_total_nojax = create_quasi_uniform_grid(nx, npt, jax=False)
+      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, jax=use_wrapper)
+      decomp = get_decomp(dim_total["num_elem"], nproc)
+      grids = []
+      dims = []
+      fs = []
+      total_elems = 0
+      pairs = {}
+      proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
+      vert_redundancy = grid_total_nojax["vert_redundancy"]
+      for target_face_idx in vert_redundancy.keys():
+        for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
+          pair_key = (proc_ids[target_face_idx],
+                      global_to_local(target_face_idx, proc_ids[target_face_idx], decomp),
+                      target_i,
+                      target_j)
+          pair_set = set()
+          for (source_face_idx, source_i, source_j) in vert_redundancy[target_face_idx][(target_i, target_j)]:
+            pair_set.add((proc_ids[source_face_idx],
+                          global_to_local(source_face_idx, proc_ids[source_face_idx], decomp),
+                          source_i,
+                          source_j))
+          pairs[pair_key] = pair_set.copy()
+      for proc_idx in range(nproc):
+        grid, dim = create_spectral_element_grid(grid_total_nojax["physical_coords"],
+                                                  grid_total_nojax["jacobian"],
+                                                  grid_total_nojax["jacobian_inv"],
+                                                  grid_total_nojax["recip_met_det"],
+                                                  grid_total_nojax["met_det"],
+                                                  grid_total_nojax["mass_mat"],
+                                                  grid_total_nojax["mass_matrix_inv"],
+                                                  grid_total_nojax["vert_redundancy"],
+                                                  proc_idx, decomp, jax=use_wrapper)
+        grids.append(grid)
+        dims.append(dim)
+        total_elems += dim["num_elem"]
+      assert (dim_total["num_elem"] == total_elems)
+      grid_local = grids[local_proc_idx]
+      dim_local = dims[local_proc_idx]
+
+      def zeros_f():
+        fs = []
+        for grid in grids:
+          fs.append([np.zeros_like(grid["physical_coords"][:, :, :, 0])])
+        return fs
+      def rand_f(seed=0):
+        fs = []
+        for grid_idx, grid in enumerate(grids):
+          np.random.seed(grid_idx+seed)
+          fs.append([np.random.uniform(grid["physical_coords"][:, :, :, 0])])
+        return fs
+
+      # test one scalar at a time
+      for pair_key in pairs.keys():
+        fs = zeros_f()
+        target_proc_idx, target_local_face_idx, target_i, target_j = pair_key
+        fs[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
+        for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
+          fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
+        fs_ref = [[np.copy(f[0])] for f in fs]
+        fs_out = dss_scalar_triple_stub(fs, grids, dims)
+        f_out = dss_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
+        assert (np.allclose(fs_ref[local_proc_idx][0], fs_out[local_proc_idx][0]))
+        assert (np.allclose(fs_ref[local_proc_idx][0], f_out))  
+
+      # test all scalars at once
+      fs_ref = [[] for _ in range(nproc)]
+      fs = [[] for _ in range(nproc)]
+      for pair_key in pairs.keys():
+        fs_tmp = zeros_f()
+        target_proc_idx, target_local_face_idx, target_i, target_j = pair_key
+        fs_tmp[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
+        for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
+          fs_tmp[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
+        for proc_idx in range(nproc):
+          fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
+          fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
+      fs_out = dss_scalar_triple_stub(fs, grids, dims)
+      f_out = dss_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
+      for (f_pair, f_new_pair) in zip(fs_out[local_proc_idx], f_out):
+        assert (np.allclose(f_pair, f_new_pair))
+      num_fields = 20
+      fs_rand = [[] for _ in range(nproc)]
+      for seed in range(num_fields):
+        f_rand = rand_f()
+        for proc_idx in range(nproc):
+          fs_rand[proc_idx].append(np.copy(f_rand[proc_idx][0]))
+      fs_stub_out = dss_scalar_triple_stub(fs_rand, grids, dims)
+      f_out = dss_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
+      for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
+        assert (np.allclose(f_stub, f_mpi)) 
