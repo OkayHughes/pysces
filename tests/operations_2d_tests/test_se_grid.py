@@ -165,13 +165,13 @@ def test_dss_init():
       assert (remote_proc_idx in triples_receive.keys())
       # column refers to order of summation, which may not match.
       flip_trip_send = [x for x in flip_triple(triples_send[remote_proc_idx])]
-      flip_double_send = [x[:-1] for x in flip_trip_send]
+      flip_double_send = [(x[0], x[2]) for x in flip_trip_send]
       ct -= len(flip_trip_send)
       flip_trip_recv = [x for x in flip_triple(triples_receive[remote_proc_idx])]
-      flip_double_recv = [x[:-1] for x in flip_trip_send]
-      for (value, row, _) in flip_trip_send:
-        assert (value, row) in flip_double_recv
-      for (value, row, _) in flip_trip_recv:
+      flip_double_recv = [(x[0], x[1]) for x in flip_trip_recv]
+      for (value, row, col) in flip_trip_send:
+        assert (value, col) in flip_double_recv
+      for (value, row, col) in flip_trip_recv:
         assert (value, row) in flip_double_send
   assert ct == 0
 
@@ -225,9 +225,9 @@ def test_triples_order():
               f_idx, i_idx, j_idx = local_vert_red_send[remote_proc_idx][k_idx]
               # test that vert_red_send struct and triples_send point to coincident local points
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
-                                 local_coords[:, :, :, 0].flatten()[local_triples_send[remote_proc_idx][1][k_idx]]))
+                                 local_coords[:, :, :, 0].flatten()[local_triples_send[remote_proc_idx][2][k_idx]]))
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
-                                 local_coords[:, :, :, 1].flatten()[local_triples_send[remote_proc_idx][1][k_idx]]))
+                                 local_coords[:, :, :, 1].flatten()[local_triples_send[remote_proc_idx][2][k_idx]]))
               # test that local vert_red_send struct and remote triples_recv point to coincident points
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
                                  remote_coords[:, :, :, 0].flatten()[remote_triples_recv[local_proc_idx][1][k_idx]]))
@@ -241,6 +241,6 @@ def test_triples_order():
                                  local_coords[:, :, :, 1].flatten()[local_triples_recv[remote_proc_idx][1][k_idx]]))
               # test that local vert_red_recv struct and remote triples_send point to coincident points
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
-                                 remote_coords[:, :, :, 0].flatten()[remote_triples_send[local_proc_idx][1][k_idx]]))
+                                 remote_coords[:, :, :, 0].flatten()[remote_triples_send[local_proc_idx][2][k_idx]]))
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
-                                 remote_coords[:, :, :, 1].flatten()[remote_triples_send[local_proc_idx][1][k_idx]]))
+                                 remote_coords[:, :, :, 1].flatten()[remote_triples_send[local_proc_idx][2][k_idx]]))
