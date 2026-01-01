@@ -4,8 +4,8 @@ import numpy as np
 from json import loads
 
 def get_config_filepath():
-  #return os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-  return os.path.join(os.getcwd(), "config.json")
+  #return os.path.join(os.path.dirname(os.path.abspath(__file__)), "pysces_config.json")
+  return os.path.join(os.getcwd(), "pysces_config.json")
 
 def write_config(debug=True,
                  use_mpi=False,
@@ -27,8 +27,10 @@ def parse_config_file():
   try:
     assert os.path.isfile(config_filename)
   except AssertionError:
-    print("Config file is not written, writing serial config file as fallback")
     write_config()
+    raise IOError(("Config file is not written, writing serial numpy config file\n"
+                   "Run program again if this is acceptable, or run pysces.set_config\n"
+                   "with the appropriate computing environment configuration"))
   with open(config_filename, "r") as f:
     config_vars = loads(f.read())
   return config_vars
