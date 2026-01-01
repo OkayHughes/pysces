@@ -3,4 +3,4 @@ __pycache__/
 .flake8
 .vscode/
 tests/_figures
-*/pysces_config.json
+*pysces_config.json
