@@ -7,28 +7,42 @@ from ..distributed_memory.processor_decomposition import get_decomp
 from ..spectral import init_spectral
 
 
-def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt):
+def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
   """
-  [Description]
+  Use the equiangular cubed sphere map 
+  to evaluate latitude, longitude and jacobian ∂(x, y)/∂(λ, φ) 
+  for a quasi-regular cubed-sphere grid. 
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  face_mask: Array[tuple[elem_idx], Int]
+    Integer mask denoting which cubed sphere face each element belongs to.
+  cube_points_2d: Array[tuple[elem_idx, gll_idx, gll_idx, xy], Float]
+    Local (x, y) coordinates of grid points
+    in the cubed sphere face containing the element
+  npt: int
+    Number of 1d GLL points within each element.
 
   Returns
   -------
-  string
-      a value in a string
+  gll_latlon: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]
+      Gridpoint locations in spherical coordinates.
+  cube_to_sphere_jacobian: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]
+      Jacobian of mapping from xy coordinates on cubed sphere face to the sphere.
+      Namely,
+      cube_to_sphere_jacobian[elem_idx, gll_idx, gll_idx, :, :] = [[∂ϕ/∂x, ∂ϕ/∂y],
+                                                                   [∂λ/∂x, ∂λ/∂y]]
 
-  Raises
-  ------
-  KeyError
-      when a key error
+
+  Notes
+  -----
+  See mesh_definitions.py for a diagram of how the local coordinates
+  are oriented on each face.
+
+  See Ullrich, Lauritzen, and Jablonowski (https://doi.org/10.1175/2008MWR2817.1)
+  for a thorough review of cubed sphere geometry.
+
+  Note: cube_to_sphere_jacobian is not C0 across cubed-sphere boundaries!
   """
   NFACES = cube_points_2d.shape[0]
 
@@ -65,83 +79,64 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
       n_mask += np.sum(mask1)
     assert (n_mask == NFACES)
 
-  def set_jac_eq(jac, lat, lon, mask, flip_x=1.0, flip_y=1.0):
+  def set_jac_eq(jac, lat, lon, mask):
     """
-    [Description]
+    Calculate the equiangular cubed sphere jacobian on equatorial panels.
 
     Parameters
     ----------
-    [first] : array_like
-        the 1st param name `first`
-    second :
-        the 2nd param
-    third : {'value', 'other'}, optional
-        the 3rd param, by default 'value'
-
-    Returns
-    -------
-    string
-        a value in a string
-
-    Raises
-    ------
-    KeyError
-        when a key error
+    jac : Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]
+      Jacobian to set at gridpoints where mask is true
+    lat : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+      Latitude, [-π/2, π/2]
+    lon : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+      Longitude, [0, 2π]
+    mask : Array[tuple[elem_idx, gll_idx, gll_idx], Bool]
+      Mask which is True at grid points where jacobialn should be set
     """
-    jac[:, :, :, 0, 1] += flip_x * np.cos(lon[:, :, :])**2 * mask
-    jac[:, :, :, 0, 0] += flip_x * -1 / 4 * np.sin(2 * lon[:, :, :]) * np.sin(2 * lat[:, :, :]) * mask
-    jac[:, :, :, 1, 0] += flip_y * np.cos(lon[:, :, :]) * np.cos(lat[:, :, :])**2 * mask
+    jac[:, :, :, 0, 1] += np.cos(lon[:, :, :])**2 * mask
+    jac[:, :, :, 0, 0] += -1 / 4 * np.sin(2 * lon[:, :, :]) * np.sin(2 * lat[:, :, :]) * mask
+    jac[:, :, :, 1, 0] += np.cos(lon[:, :, :]) * np.cos(lat[:, :, :])**2 * mask
 
-  def set_jac_pole(jac, lat, lon, mask, k, flip_x=1.0, flip_y=1.0):
+  def set_jac_pole(jac, lat, lon, mask, k):
     """
-    [Description]
+    Calculate the equiangular cubed sphere jacobian on polar panels.
 
     Parameters
     ----------
-    [first] : array_like
-        the 1st param name `first`
-    second :
-        the 2nd param
-    third : {'value', 'other'}, optional
-        the 3rd param, by default 'value'
-
-    Returns
-    -------
-    string
-        a value in a string
-
-    Raises
-    ------
-    KeyError
-        when a key error
+    jac : Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]
+      Jacobian to set at gridpoints where mask is true
+    lat : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+      Latitude, [-π/2, π/2]
+    lon : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+      Longitude, [0, 2π]
+    mask : Array[tuple[elem_idx, gll_idx, gll_idx], Bool]
+      Mask which is True at grid points where jacobialn should be set
+    k : float
+      1.0 on top panel, -1.0 on bottom panel
     """
-    jac[:, :, :, 0, 1] += flip_x * k * np.cos(lon) * np.tan(lat) * mask
-    jac[:, :, :, 0, 0] += flip_x * -k * np.sin(lon) * np.sin(lat)**2 * mask
-    jac[:, :, :, 1, 1] += flip_y * np.sin(lon) * np.tan(lat) * mask
-    jac[:, :, :, 1, 0] += flip_y * np.cos(lon) * np.sin(lat)**2 * mask
+    jac[:, :, :, 0, 1] += k * np.cos(lon) * np.tan(lat) * mask
+    jac[:, :, :, 0, 0] += -k * np.sin(lon) * np.sin(lat)**2 * mask
+    jac[:, :, :, 1, 1] += np.sin(lon) * np.tan(lat) * mask
+    jac[:, :, :, 1, 0] += np.cos(lon) * np.sin(lat)**2 * mask
 
   def dlatlon_dcube(latlon_fn, latlon_idx, cube_idx, mask):
     """
-    [Description]
+    Use finite differences to calculate approximate Jacobian
 
     Parameters
     ----------
-    [first] : array_like
-        the 1st param name `first`
-    second :
+    latlon_fn : Callable[[Array, Array], Array]
+        Takes x, y and returns lat if latlon_idx = 0,
+        lon if latlon_idx = 1
+    latlon_idx: int
+        0 if latlon_fn returns lat, 1 if latlon_fn returns lon.
         the 2nd param
-    third : {'value', 'other'}, optional
-        the 3rd param, by default 'value'
-
-    Returns
-    -------
-    string
-        a value in a string
-
-    Raises
-    ------
-    KeyError
-        when a key error
+    cube_idx: int
+        0 if differentiating w.r.t. x, 1 if differentiating w.r.t. y
+    mask: Array
+        Mask that is true at points at which approximate
+        jacobian should be calculated.
     """
     gll_latlon_pert[:] = 0
     cube_points_pert[:] = cube_points_2d[:]
@@ -153,26 +148,18 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
 
   def test_face(lat_fn, lon_fn, mask):
     """
-    [Description]
+    Test if analytic jacobian and
+    approximate jacobian are approximately equal.
 
     Parameters
     ----------
-    [first] : array_like
-        the 1st param name `first`
-    second :
-        the 2nd param
-    third : {'value', 'other'}, optional
-        the 3rd param, by default 'value'
-
-    Returns
-    -------
-    string
-        a value in a string
-
-    Raises
-    ------
-    KeyError
-        when a key error
+    lat_fn: Callable[[Array, Array], Array]
+        Takes (x, y) and returns latitude.
+    lon_fn: Callable[[Array, Array], Array]
+        Takes (x, y) and returns longitude.
+    mask: Array
+        Entries are true at gridpoints
+        where equivalence should be tested.
     """
     dlat_dx = dlatlon_dcube(lat_fn, 0, 0, mask)
     dlat_dy = dlatlon_dcube(lat_fn, 0, 1, mask)
@@ -312,26 +299,35 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy, npt
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                           cube_to_sphere_jacobian, vert_redundancy_gll, npt, wrapped=use_wrapper):
   """
-  [Description]
+  Collate individual parts into global SpectralElementGrid.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  gll_latlon: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]
+      Grid point positions in spherical coordinates.
+  gll_to_cube_jacobian : Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]
+      Jacobian of mapping from reference element onto cube faces. 
+  cube_to_sphere_jacobian: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy]
+      Jacobian of mapping from cube face to sphere
+  vert_redundancy_gll: dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]
+      Gridpoint redundancy struct. 
+  npt: int
+      Number of 1D gll points used in grid.
+  wrapped: bool, default=use_wrapper
+      Flag that determines whether returned grid
+      will use accelerator framework arrays
+      or numpy arrays.
+
+  See Also
+  --------
+  See mesh.gen_gll_redundancy for a description of vert_redundancy_gll
+  See se_grid.create_spectral_element_grid for description of
+  the grid data structure.
 
   Returns
   -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
+  SpectralElementGrid
+    Global spectral element grid.
   """
   NELEM = gll_latlon.shape[0]
   proc_idx = 0
@@ -384,56 +380,66 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt,
                          wrapped=use_wrapper):
   """
-  [Description]
+  Generate SpectralElementGrid from topological information.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  face_connectivity: Array[tuple[elem_idx, edge_idx, 3], Int]
+    An array containing the topological information about the grid.
+    It is unpacked as
+    (remote_elem_idx, remote_edge_idx, same_direction) = face_connectivity[local_elem_idx,
+                                                                           edge_idx, :]
+  face_mask: Array[tuple[elem_idx], Int]
+    An integer mask describing which face of the cubed sphere each element lies on.
+  face_position_2d: Array[tuple[elem_idx, vert_idx, xy], Float]
+    Positions of the element vertices within the local (x, y)
+    coordinates on the cubed-sphere face that contains it.
+  vert_redundancy: dict[local_elem_idx, dict[vert_idx, set[tuple[remote_elem_idx, vert_idx]]]]
+      dict[local_elem_idx][vert_idx] is a set of tuples
+      (remote_elem_idx, vert_idx_pair) which represent vertices that
+      share the same physical coordinates as (local_elem_idx, vert_idx).
+      Therefore, they represent redundant degrees of freedom.
+  wrapped: bool, default=use_wrapper
+      Flag that determines whether returned grid
+      will use accelerator framework arrays
+      or numpy arrays.
+
+  See Also
+  --------
+  See cubed_sphere.gen_cube_topo to generate face_connectivity, face_mask, face_position_2d
+  See cubed_sphere.gen_vert_redundancy to generate vert_redundancy
 
   Returns
   -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
+  SpectralElementGrid
+    Global spectral element grid.
   """
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
   cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
-  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy, npt)
+  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, npt)
   return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, npt,
                                wrapped=wrapped)
 
 
 def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper):
   """
-  [Description]
+  Generate an equiangular quasi-uniform cubed-sphere 
+  SpectralElementGrid.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
-
+  nx : int
+      Number of elements per edge of a cubed sphere face
+  npt:
+      Number of 1D gll points to use within reference elements.
+  wrapped: bool, default=use_wrapper
+      Flag that determines whether returned grid
+      will use accelerator framework arrays
+      or numpy arrays.
   Returns
   -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
+  SpectralElementGrid
+    Global spectral element grid.
   """
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
