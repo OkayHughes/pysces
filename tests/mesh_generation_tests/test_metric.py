@@ -11,7 +11,7 @@ def test_gen_metric():
       face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
       vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
       gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
-      cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
+      cube_redundancy = gen_gll_redundancy(vert_redundancy, npt)
       gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, npt)
       for elem_idx in cube_redundancy.keys():
         for (i_idx, j_idx) in cube_redundancy[elem_idx].keys():

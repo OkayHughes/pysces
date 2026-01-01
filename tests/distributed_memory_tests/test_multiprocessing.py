@@ -92,7 +92,6 @@ def test_unordered_assembly_for_stub():
 
 
 def test_unordered_assembly_triple_stub():
-  return
   for npt in test_npts:
     for nx in range(1, 3):
       for nproc in range(1, 6):

@@ -6,21 +6,33 @@ from ..operations_2d.se_grid import create_spectral_element_grid
 
 def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
   """
-  [Description]
+  Generate grid topology for an axis-aligned
+  regular grid on a doubly periodic plane.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  nx : `int`
+      Number of grid cells in the horizontal direction
+  ny : `int`
+      Number of grid cells in the vertical direction
+  npt : `int`
+      Number of Gauss-Lobatto-Legendre points per dimension in reference element.
+  length_x : `float`, default=2.0
+      Length of grid in the horizontal direction
+  length_y : `float`, default=2.0
+      Length of grid in the vertical direction
 
   Returns
   -------
-  string
-      a value in a string
+  physical_coords : `Array[tuple[elem_idx, gll_idx, gll_idx, xy], Float]`
+      Position of GLL gridpoints in the plane.
+  ref_to_planar : `Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab], Float]`
+      Jacobian of bilinear mapping from the reference element to cartesian space
+      for the GLL mesh.
+  vert_redundancy_gll : `dict[elem_idx, dict[tuple(gll_idx, gll_idx),\
+                                             set[tuple[elem_idx, gll_idx, gll_idx]]]]`
+      `dict[elem_idx][(gll_idx,gll_idx)]` is a set
+      of redundant DOFs on the global GLL grid.
 
   Raises
   ------
@@ -119,27 +131,35 @@ def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
 def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, npt,
                           wrapped=use_wrapper):
   """
-  [Description]
+    Collate individual coordinate mappings into into global SpectralElementGrid
+    on a periodic plane.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  physical_coords : `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]`
+      Grid point positions in (x, y) coordinates,
+  gll_to_planar_jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]`
+      Jacobian of mapping from reference element onto plane.
+  vert_redundancy_gll: `dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]`
+      Gridpoint redundancy struct. 
+  npt: `int`
+      Number of 1D gll points used in grid.
+  wrapped: `bool`, default=use_wrapper
+      Flag that determines whether returned grid
+      will use accelerator framework arrays
+      or numpy arrays.
+
+  Notes
+  --------
+  See `init_periodic_plane` for how to initialize `physical_coords`,
+  `gll_to_planar_jacobian`, and `vert_redundancy_grid`.
 
   Returns
   -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
+  SpectralElementGrid
+    Global spectral element grid.
   """
+
   spectrals = init_spectral(npt)
   NELEM = physical_coords.shape[0]
   proc_idx = 0
@@ -173,26 +193,29 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
 
 def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wrapper):
   """
-  [Description]
+  Generate a uniform doubly periodic
+  SpectralElementGrid on an axis-aligned cartesian plane.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
-
+  nx : `int`
+      Number of grid cells in the horizontal direction
+  ny : `int`
+      Number of grid cells in the vertical direction
+  npt : `int`
+      Number of Gauss-Lobatto-Legendre points per dimension in reference element.
+  length_x : `float`, default=2.0
+      Length of grid in the horizontal direction
+  length_y : `float`, default=2.0
+      Length of grid in the vertical direction
+  wrapped: `bool`, default=use_wrapper
+      Flag that determines whether returned grid
+      will use accelerator framework arrays
+      or numpy arrays.
   Returns
   -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
+  SpectralElementGrid
+    Global spectral element grid.
   """
   physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
   return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, wrapped=wrapped)

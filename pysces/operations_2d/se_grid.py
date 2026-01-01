@@ -39,7 +39,9 @@ def init_dss_matrix_local(NELEM, npt, vert_redundancy_local):
   dss_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
 
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
-  return dss_matrix, (data, rows, cols)
+  return dss_matrix, (np.array(data, dtype=np.float64),
+                      np.array(rows, dtype=np.int64),
+                      np.array(cols, dtype=np.int64))
 
 
 def init_dss_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
@@ -57,16 +59,21 @@ def init_dss_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
   # divided by total mass matrix on receiving end
   triples_receive = {}
   triples_send = {}
-  for vert_redundancy, triples in zip([vert_redundancy_receive, vert_redundancy_send],
-                                      [triples_receive, triples_send]):
+  for vert_redundancy, triples, transpose in zip([vert_redundancy_receive, vert_redundancy_send],
+                                                 [triples_receive, triples_send],
+                                                 [False, True]):
     for source_proc_idx in vert_redundancy.keys():
       data = []
       rows = []
       cols = []
       for col_idx, (target_local_idx, target_i, target_j) in enumerate(vert_redundancy[source_proc_idx]):
         data.append(1.0)
-        rows.append(index_hack[target_local_idx, target_i, target_j])
-        cols.append(col_idx)
+        if transpose:
+          cols.append(index_hack[target_local_idx, target_i, target_j])
+          rows.append(col_idx)
+        else:
+          rows.append(index_hack[target_local_idx, target_i, target_j])
+          cols.append(col_idx)
       triples[source_proc_idx] = (np.array(data, dtype=np.float64),
                                   np.array(rows, dtype=np.int64),
                                   np.array(cols, dtype=np.int64))

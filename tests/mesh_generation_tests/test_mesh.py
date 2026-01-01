@@ -13,7 +13,7 @@ def test_gen_bilinear_grid_cs():
     face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
     vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
     gll_pos, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
-    vert_redundancy_gll = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
+    vert_redundancy_gll = gen_gll_redundancy(vert_redundancy, npt)
     for face_idx in [TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE]:
       for x_idx in range(nx):
         for y_idx in range(nx):

@@ -15,34 +15,36 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 
   Parameters
   ----------
-  face_mask: Array[tuple[elem_idx], Int]
+  face_mask: `Array[tuple[elem_idx], Int]`
     Integer mask denoting which cubed sphere face each element belongs to.
-  cube_points_2d: Array[tuple[elem_idx, gll_idx, gll_idx, xy], Float]
+  cube_points_2d: `Array[tuple[elem_idx, gll_idx, gll_idx, xy], Float]`
     Local (x, y) coordinates of grid points
     in the cubed sphere face containing the element
-  npt: int
+  npt: `int`
     Number of 1d GLL points within each element.
 
   Returns
   -------
-  gll_latlon: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]
+  gll_latlon: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]`
       Gridpoint locations in spherical coordinates.
-  cube_to_sphere_jacobian: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]
+  cube_to_sphere_jacobian: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]`
       Jacobian of mapping from xy coordinates on cubed sphere face to the sphere.
       Namely,
+      ```
       cube_to_sphere_jacobian[elem_idx, gll_idx, gll_idx, :, :] = [[∂ϕ/∂x, ∂ϕ/∂y],
                                                                    [∂λ/∂x, ∂λ/∂y]]
+      ```
 
 
   Notes
   -----
-  See mesh_definitions.py for a diagram of how the local coordinates
+  See `mesh_definitions.py` for a diagram of how the local coordinates
   are oriented on each face.
 
   See Ullrich, Lauritzen, and Jablonowski (https://doi.org/10.1175/2008MWR2817.1)
   for a thorough review of cubed sphere geometry.
 
-  Note: cube_to_sphere_jacobian is not C0 across cubed-sphere boundaries!
+  `cube_to_sphere_jacobian` is not C0 across cubed-sphere boundaries!
   """
   NFACES = cube_points_2d.shape[0]
 
@@ -85,13 +87,13 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 
     Parameters
     ----------
-    jac : Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]
+    jac : `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]`
       Jacobian to set at gridpoints where mask is true
-    lat : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+    lat : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Latitude, [-π/2, π/2]
-    lon : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+    lon :`Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Longitude, [0, 2π]
-    mask : Array[tuple[elem_idx, gll_idx, gll_idx], Bool]
+    mask : `Array[tuple[elem_idx, gll_idx, gll_idx], Bool]`
       Mask which is True at grid points where jacobialn should be set
     """
     jac[:, :, :, 0, 1] += np.cos(lon[:, :, :])**2 * mask
@@ -104,13 +106,13 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 
     Parameters
     ----------
-    jac : Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]
+    jac : `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy], Float]`
       Jacobian to set at gridpoints where mask is true
-    lat : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+    lat : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Latitude, [-π/2, π/2]
-    lon : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+    lon : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Longitude, [0, 2π]
-    mask : Array[tuple[elem_idx, gll_idx, gll_idx], Bool]
+    mask : `Array[tuple[elem_idx, gll_idx, gll_idx], Bool]`
       Mask which is True at grid points where jacobialn should be set
     k : float
       1.0 on top panel, -1.0 on bottom panel
@@ -126,15 +128,15 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 
     Parameters
     ----------
-    latlon_fn : Callable[[Array, Array], Array]
-        Takes x, y and returns lat if latlon_idx = 0,
-        lon if latlon_idx = 1
-    latlon_idx: int
+    latlon_fn : `Callable[[Array, Array], Array]`
+        Takes x, y and returns lat if `latlon_idx = 0`,
+        lon if `latlon_idx = 1`
+    latlon_idx: `int`
         0 if latlon_fn returns lat, 1 if latlon_fn returns lon.
         the 2nd param
-    cube_idx: int
+    cube_idx: `int`
         0 if differentiating w.r.t. x, 1 if differentiating w.r.t. y
-    mask: Array
+    mask: `Array`
         Mask that is true at points at which approximate
         jacobian should be calculated.
     """
@@ -153,11 +155,11 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 
     Parameters
     ----------
-    lat_fn: Callable[[Array, Array], Array]
+    lat_fn: `Callable[[Array, Array], Array]`
         Takes (x, y) and returns latitude.
-    lon_fn: Callable[[Array, Array], Array]
+    lon_fn: `Callable[[Array, Array], Array]`
         Takes (x, y) and returns longitude.
-    mask: Array
+    mask: `Array`
         Entries are true at gridpoints
         where equivalence should be tested.
     """
@@ -299,29 +301,30 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                           cube_to_sphere_jacobian, vert_redundancy_gll, npt, wrapped=use_wrapper):
   """
-  Collate individual parts into global SpectralElementGrid.
+  Collate individual coordinate mappings into global SpectralElementGrid 
+  on an equiangular cubed sphere grid.
 
   Parameters
   ----------
-  gll_latlon: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]
+  gll_latlon: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]`
       Grid point positions in spherical coordinates.
-  gll_to_cube_jacobian : Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]
+  gll_to_cube_jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]`
       Jacobian of mapping from reference element onto cube faces. 
-  cube_to_sphere_jacobian: Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy]
+  cube_to_sphere_jacobian: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy]`
       Jacobian of mapping from cube face to sphere
-  vert_redundancy_gll: dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]
+  vert_redundancy_gll: `dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]`
       Gridpoint redundancy struct. 
-  npt: int
+  npt: `int`
       Number of 1D gll points used in grid.
-  wrapped: bool, default=use_wrapper
+  wrapped: `bool`, default=use_wrapper
       Flag that determines whether returned grid
       will use accelerator framework arrays
       or numpy arrays.
 
-  See Also
+  Notes
   --------
-  See mesh.gen_gll_redundancy for a description of vert_redundancy_gll
-  See se_grid.create_spectral_element_grid for description of
+  * See `mesh.gen_gll_redundancy` for a description of `vert_redundancy_gll`
+  * See `se_grid.create_spectral_element_grid` for description of
   the grid data structure.
 
   Returns
@@ -384,30 +387,32 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
 
   Parameters
   ----------
-  face_connectivity: Array[tuple[elem_idx, edge_idx, 3], Int]
+  face_connectivity: `Array[tuple[elem_idx, edge_idx, 3], Int]`
     An array containing the topological information about the grid.
     It is unpacked as
+    ```
     (remote_elem_idx, remote_edge_idx, same_direction) = face_connectivity[local_elem_idx,
                                                                            edge_idx, :]
-  face_mask: Array[tuple[elem_idx], Int]
+    ```
+  face_mask: `Array[tuple[elem_idx], Int]`
     An integer mask describing which face of the cubed sphere each element lies on.
-  face_position_2d: Array[tuple[elem_idx, vert_idx, xy], Float]
+  face_position_2d: `Array[tuple[elem_idx, vert_idx, xy], Float]`
     Positions of the element vertices within the local (x, y)
     coordinates on the cubed-sphere face that contains it.
-  vert_redundancy: dict[local_elem_idx, dict[vert_idx, set[tuple[remote_elem_idx, vert_idx]]]]
-      dict[local_elem_idx][vert_idx] is a set of tuples
-      (remote_elem_idx, vert_idx_pair) which represent vertices that
-      share the same physical coordinates as (local_elem_idx, vert_idx).
+  vert_redundancy: `dict[local_elem_idx, dict[vert_idx, set[tuple[remote_elem_idx, vert_idx]]]]`
+      `dict[local_elem_idx][vert_idx]` is a set of tuples
+      `(remote_elem_idx, vert_idx_pair)` which represent vertices that
+      share the same physical coordinates as `(local_elem_idx, vert_idx)`.
       Therefore, they represent redundant degrees of freedom.
-  wrapped: bool, default=use_wrapper
+  wrapped: `bool`, default=use_wrapper
       Flag that determines whether returned grid
       will use accelerator framework arrays
       or numpy arrays.
 
-  See Also
+  Notes
   --------
-  See cubed_sphere.gen_cube_topo to generate face_connectivity, face_mask, face_position_2d
-  See cubed_sphere.gen_vert_redundancy to generate vert_redundancy
+  * See `cubed_sphere.gen_cube_topo` to generate `face_connectivity`, `face_mask`, `face_position_2d`
+  * See `cubed_sphere.gen_vert_redundancy` to generate `vert_redundancy`
 
   Returns
   -------
@@ -415,7 +420,7 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
     Global spectral element grid.
   """
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
-  cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy, npt)
+  cube_redundancy = gen_gll_redundancy(vert_redundancy, npt)
   gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, npt)
   return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, npt,
                                wrapped=wrapped)
@@ -428,11 +433,11 @@ def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper):
 
   Parameters
   ----------
-  nx : int
+  nx : `int`
       Number of elements per edge of a cubed sphere face
-  npt:
+  npt : `int`
       Number of 1D gll points to use within reference elements.
-  wrapped: bool, default=use_wrapper
+  wrapped: `bool`, default=use_wrapper
       Flag that determines whether returned grid
       will use accelerator framework arrays
       or numpy arrays.
