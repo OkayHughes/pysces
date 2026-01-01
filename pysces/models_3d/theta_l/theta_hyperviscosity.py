@@ -9,6 +9,28 @@ from ..hyperviscosity import scalar_harmonic_3d, vector_harmonic_3d
 
 @jit
 def get_ref_states(phi_surf, v_grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # could eventually only be called once.
   # due to low cost, if we end up going the "vmap over nelem" route,
   # then this should probably be recomputed from element-local (and ideally SM-local) phi_surf
@@ -28,6 +50,28 @@ def get_ref_states(phi_surf, v_grid, config):
 
 @partial(jit, static_argnames=["apply_nu", "hydrostatic"])
 def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if not hydrostatic:
     hyperdiff_phi_i = scalar_harmonic_3d(state["phi_i"],
                                          h_grid, config)
@@ -65,6 +109,28 @@ def calc_state_harmonic(state, h_grid, config, apply_nu=True, hydrostatic=True):
 
 @partial(jit, static_argnames=["n_sponge"])
 def get_nu_ramp(v_grid, n_sponge):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   pressure_ratio = ((v_grid["hybrid_a_i"][0] + v_grid["hybrid_b_i"][0]) /
                     (v_grid["hybrid_a_i"][:n_sponge] + v_grid["hybrid_b_i"][:n_sponge]))
   nu_ramp = jnp.minimum(device_wrapper(8.0),
@@ -75,6 +141,28 @@ def get_nu_ramp(v_grid, n_sponge):
 
 @partial(jit, static_argnames=["dims", "n_sponge", "hydrostatic"])
 def sponge_layer(state, dt, h_grid, v_grid, config, dims, n_sponge, hydrostatic=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   nu_top = config["diffusion"]["nu_top"]
   nu_ramp = nu_top * get_nu_ramp(v_grid, n_sponge)
   if not hydrostatic:
@@ -142,6 +230,28 @@ def sponge_layer(state, dt, h_grid, v_grid, config, dims, n_sponge, hydrostatic=
 
 @partial(jit, static_argnames=["hydrostatic", "dims"])
 def hypervis_terms(state, ref_state, h_grid, dims, config, hydrostatic=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if hydrostatic:
     phi_i_pert = state["phi_i"] - ref_state["phi_i"]
   else:

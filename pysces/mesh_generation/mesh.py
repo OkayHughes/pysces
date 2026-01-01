@@ -5,7 +5,32 @@ from ..spectral import init_spectral
 
 
 def mesh_to_cart_bilinear(face_position, npt):
+  """
+  Bilinearly map cartesian elements corners to 
+  cartesian tensor-GLL mesh.
 
+  Parameters
+  ----------
+  face_position : `Array[tuple[elem_idx, vert_idx, cart_idx], Float]`
+      Array of cartesian position of element corners.
+  npt : `int`
+      number of Gauss-Lobatto-Legendre points in each
+      dimension of an element.
+
+  Notes
+  -----
+  This method works for general meshes, and is not
+  specific to a particular topology.
+  
+  Returns
+  -------
+  gll_position : `Array[tuple[elem_idx, gll_idx, gll_idx, cart_idx], Float]`
+      Position of GLL gridpoints in cartesian space, e.g. the (x, y) coordinates
+      in a cubed sphere face
+  gll_jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, cart_idx, ab], Float]`
+      Jacobian of bilinear mapping from the reference element to cartesian space
+      for the GLL mesh.
+  """
   spectrals = init_spectral(npt)
   cart_dim = face_position.shape[2]
   NFACES = face_position.shape[0]
@@ -32,7 +57,36 @@ def mesh_to_cart_bilinear(face_position, npt):
   return gll_position, gll_jacobian
 
 
-def gen_gll_redundancy(face_connectivity, vert_redundancy, npt):
+def gen_gll_redundancy(vert_redundancy, npt):
+  """
+  Enumerate all redundant DOFs in a global 
+  SpectralElementGrid.
+
+  Parameters
+  ----------
+  vert_redundancy : `dict[elem_idx, dict[corner_idx, set(tuple[elem_idx, corner_idx])]]`
+      `dict[elem_idx][corner_idx]` is a set of element corners
+      that are coincident with `face_position[elem_idx, corner_idx, :]`.
+  npt : `int`
+      number of Gauss-Lobatto-Legendre points in each
+      dimension of an element.
+
+  Notes
+  -----
+  This method works for general meshes, and is not
+  specific to a particular topology.
+
+  DOFs are not considered redundant with themselves.
+  If assembling the Spectral Element projection operator 
+  from this struct, you must construct the diagonal entries yourself.
+
+  Returns
+  -------
+  vert_redundancy_gll: `dict[elem_idx, dict[tuple(gll_idx, gll_idx),\
+                                            set[tuple[elem_idx, gll_idx, gll_idx]]]]`
+      `dict[elem_idx][(gll_idx,gll_idx)]` is a set
+      of redundant DOFs on the global GLL grid.
+  """
   # temporary note: we can assume here that this is mpi-local.
   # note:
   # count DOFs

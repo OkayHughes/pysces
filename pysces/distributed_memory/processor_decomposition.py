@@ -253,18 +253,18 @@ def local_to_global(elem_idxs_local, proc_idx, decomp):
 
   Parameters
   ----------
-  elem_idxs_local: Array[*Shape, Float]
+  elem_idxs_local: `Array[*Shape, Float]`
       Element indexes used to index 
       processor local data.
-  proc_idx: int
+  proc_idx: `int`
       The processor index to which the local indexes
       apply.
-  decomp: tuple[tuple(int, int), ...]
+  decomp: `tuple[tuple(int, int), ...]`
       Processor decomposition
 
   Returns
   -------
-  elem_idxs_global: Array[*Shape, Float]
+  elem_idxs_global: `Array[*Shape, Float]`
       Global element indexes
   """
   return elem_idxs_local + decomp[proc_idx][0]
@@ -277,13 +277,13 @@ def global_to_local(elem_idxs_global, proc_idx, decomp):
 
   Parameters
   ----------
-  elem_idxs_global: Array[*Shape, Float]
+  elem_idxs_global: `Array[*Shape, Float]`
       Element indexes used to index 
       global grid data.
-  proc_idx: int
+  proc_idx: `int`
       The processor index to which the local indexes should
       apply.
-  decomp: tuple[tuple(int, int), ...]
+  decomp: `tuple[tuple(int, int), ...]`
       Processor decomposition
 
   Returns
@@ -301,15 +301,15 @@ def elem_idx_global_to_proc_idx(elem_idxs_global, decomp):
 
   Parameters
   ----------
-  elem_idxs_global: Array[tuple[elem_idx], Int]
+  elem_idxs_global: `Array[tuple[elem_idx], Int]`
       Global element indexes.
-  decomp: tuple[tuple(int, int), ...]
+  decomp: `tuple[tuple(int, int), ...]`
       Processor decomposition
 
   Returns
   -------
-  Union[Int, Array[tuple[elem_idx], Int]]
-      a value in a string
+  `Union[Int, Array[tuple[elem_idx], Int]]`
+      Processor indexes of each element.
 
   Notes
   -----

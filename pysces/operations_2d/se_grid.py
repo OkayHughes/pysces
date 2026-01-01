@@ -39,7 +39,9 @@ def init_dss_matrix_local(NELEM, npt, vert_redundancy_local):
   dss_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
 
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
-  return dss_matrix, (data, rows, cols)
+  return dss_matrix, (np.array(data, dtype=np.float64),
+                      np.array(rows, dtype=np.int64),
+                      np.array(cols, dtype=np.int64))
 
 
 def init_dss_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
@@ -57,16 +59,21 @@ def init_dss_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
   # divided by total mass matrix on receiving end
   triples_receive = {}
   triples_send = {}
-  for vert_redundancy, triples in zip([vert_redundancy_receive, vert_redundancy_send],
-                                      [triples_receive, triples_send]):
+  for vert_redundancy, triples, transpose in zip([vert_redundancy_receive, vert_redundancy_send],
+                                                 [triples_receive, triples_send],
+                                                 [False, True]):
     for source_proc_idx in vert_redundancy.keys():
       data = []
       rows = []
       cols = []
       for col_idx, (target_local_idx, target_i, target_j) in enumerate(vert_redundancy[source_proc_idx]):
         data.append(1.0)
-        rows.append(index_hack[target_local_idx, target_i, target_j])
-        cols.append(col_idx)
+        if transpose:
+          cols.append(index_hack[target_local_idx, target_i, target_j])
+          rows.append(col_idx)
+        else:
+          rows.append(index_hack[target_local_idx, target_i, target_j])
+          cols.append(col_idx)
       triples[source_proc_idx] = (np.array(data, dtype=np.float64),
                                   np.array(rows, dtype=np.int64),
                                   np.array(cols, dtype=np.int64))
@@ -111,17 +118,17 @@ def triage_vert_redundancy(vert_redundancy_gll,
   return vert_redundancy_local, vert_redundancy_send, vert_redundancy_receive
 
 
-def subset_var(var, proc_idx, decomp, element_reordering=None, jax=use_wrapper):
+def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapper):
   NELEM_GLOBAL = var.shape[0]
   if element_reordering is None:
     element_reordering = np.arange(0, NELEM_GLOBAL)
   dtype = var.dtype
-  if jax:
+  if wrapped:
     var_np = device_unwrapper(var)
   else:
     var_np = var
   var_subset = np.take(var_np, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
-  if jax:
+  if wrapped:
     var_out = device_wrapper(var_subset, dtype=dtype)
   else:
     var_out = var_subset
@@ -139,8 +146,8 @@ def create_spectral_element_grid(latlon,
                                  proc_idx,
                                  decomp,
                                  element_reordering=None,
-                                 jax=use_wrapper):
-  if jax:
+                                 wrapped=use_wrapper):
+  if wrapped:
     wrapper = device_wrapper
   else:
     def wrapper(x, dtype=None):
@@ -148,7 +155,7 @@ def create_spectral_element_grid(latlon,
 
   def subset_wrapper(field, dtype=None):
     return subset_var(wrapper(field, dtype=dtype), proc_idx, decomp,
-                      element_reordering=element_reordering, jax=jax)
+                      element_reordering=element_reordering, wrapped=wrapped)
 
   NELEM = subset_wrapper(metdet).shape[0]
   npt = metdet.shape[1]
@@ -160,7 +167,7 @@ def create_spectral_element_grid(latlon,
   dss_matrix, dss_triple = init_dss_matrix_local(NELEM, npt, vert_red_local)
   triples_send, triples_recv = init_dss_global(NELEM, npt, vert_red_send, vert_red_recv)
 
-  # note: test code sometimes sets jax=False to test jax vs stock numpy
+  # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
   # this extra conditional is not extraneous.
   spectrals = init_spectral(npt)
 
@@ -197,7 +204,7 @@ def create_spectral_element_grid(latlon,
          "triples_receive": triples_recv
          }
   metdet = ret["met_det"]
-  if not jax:
+  if not wrapped:
     ret["vert_redundancy"] = vert_red_local
     ret["vert_redundancy_send"] = vert_red_send
     ret["vert_redundancy_receive"] = vert_red_recv

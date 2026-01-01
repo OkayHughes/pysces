@@ -5,6 +5,28 @@ from .model_state import remap_state
 
 
 def check_nan(state):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   is_nan = False
   for field in ["u", "vtheta_dpi", "dpi", "w_i", "phi_i"]:
     is_nan = is_nan or jnp.any(jnp.isnan(state[field]))
@@ -15,6 +37,28 @@ def simulate_theta(end_time, ne_min, state_in,
                    h_grid, v_grid, config,
                    dims, hydrostatic=True, deep=False,
                    diffusion=False, step_type="euler", rsplit=3, hvsplit=3, sponge_split=0, n_sponge=5):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   dt = 250.0 * (30.0 / ne_min)  # todo: automatically calculate CFL from sw dispersion relation
   state_n = state_in
   ref_states = get_ref_states(state_in["phi_surf"], v_grid, config)

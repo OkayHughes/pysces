@@ -15,14 +15,14 @@ def test_dss_3d():
                                     face_position_2d,
                                     vert_redundancy,
                                     npt,
-                                    jax=use_wrapper)
-  grid_nojax, _ = gen_metric_from_topo(face_connectivity,
-                                       face_mask,
-                                       face_position_2d,
-                                       vert_redundancy,
-                                       npt,
-                                       jax=False)
-  vert_redundancy_gll = grid_nojax["vert_redundancy"]
+                                    wrapped=use_wrapper)
+  grid_nowrapper, _ = gen_metric_from_topo(face_connectivity,
+                                           face_mask,
+                                           face_position_2d,
+                                           vert_redundancy,
+                                           npt,
+                                           wrapped=False)
+  vert_redundancy_gll = grid_nowrapper["vert_redundancy"]
   fn = np.zeros((*grid["physical_coords"].shape[:-1], nlev))
   for lev_idx in range(nlev):
     for face_idx in range(grid["physical_coords"].shape[0]):
@@ -44,10 +44,10 @@ def test_dss_equiv_3d_rand():
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d,
-                                    vert_redundancy, npt, jax=False)
-  grid_jax, dims_jax = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d,
-                                            vert_redundancy, npt, jax=use_wrapper)
+                                    vert_redundancy, npt, wrapped=False)
+  grid_wrapped, dims_wrapped = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d,
+                                                    vert_redundancy, npt, wrapped=use_wrapper)
   for _ in range(20):
     fn_rand = np.random.uniform(size=(*grid["physical_coords"][:, :, :, 1].shape, nlev))
-    assert (np.allclose(device_unwrapper(dss_scalar_3d(device_wrapper(fn_rand), grid_jax, dims_jax)),
+    assert (np.allclose(device_unwrapper(dss_scalar_3d(device_wrapper(fn_rand), grid_wrapped, dims_wrapped)),
                         dss_scalar_3d_for(fn_rand, grid, dims)))

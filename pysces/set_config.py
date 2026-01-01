@@ -1,9 +1,9 @@
 from json import dumps
 from argparse import ArgumentParser
-from config import write_config
 
 
 if __name__ == "__main__":
+  from config import write_config
   parser = ArgumentParser(prog='pysces_config',
                           description='Set computational configuration before running models.')
   parser.add_argument('-w', '--wrapper_type', default="none")

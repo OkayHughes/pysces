@@ -4,6 +4,28 @@ from functools import partial
 
 @jit
 def vel_model_to_interface(field_model, dpi, dpi_i):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   mid_levels = (dpi[:, :, :, :-1, np.newaxis] * field_model[:, :, :, :-1, :] +
                 dpi[:, :, :, 1:, np.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, np.newaxis])
   return jnp.concatenate((field_model[:, :, :, 0:1, :],
@@ -13,6 +35,28 @@ def vel_model_to_interface(field_model, dpi, dpi_i):
 
 @jit
 def model_to_interface(field_model):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   mid_levels = (field_model[:, :, :, :-1] + field_model[:, :, :, 1:]) / 2.0
   return jnp.concatenate((field_model[:, :, :, 0:1],
                           mid_levels,
@@ -21,23 +65,111 @@ def model_to_interface(field_model):
 
 @jit
 def interface_to_model(field_interface):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return (field_interface[:, :, :, 1:] +
           field_interface[:, :, :, :-1]) / 2.0
 
 
 @jit
 def interface_to_model_vec(vec_interface):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return (vec_interface[:, :, :, 1:, :] +
           vec_interface[:, :, :, :-1, :]) / 2.0
 
 
 @jit
 def get_delta(field_interface):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return field_interface[:, :, :, 1:] - field_interface[:, :, :, :-1]
 
 
 @jit
 def get_surface_sum(dfield_model, val_surf):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return jnp.concatenate((flip(jnp.cumsum(flip(dfield_model, -1), axis=-1), -1) +
                           val_surf[:, :, :, np.newaxis],
                           val_surf[:, :, :, np.newaxis]), axis=-1)
@@ -45,6 +177,28 @@ def get_surface_sum(dfield_model, val_surf):
 
 @partial(jit, static_argnames=["deep"])
 def z_from_phi(phi, config, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   gravity = config["gravity"]
   radius_earth = config["radius_earth"]
   if deep:
@@ -57,6 +211,28 @@ def z_from_phi(phi, config, deep=False):
 
 @partial(jit, static_argnames=["deep"])
 def g_from_z(z, config, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   radius_earth = config["radius_earth"]
   if deep:
     g = config["gravity"] * (radius_earth /
@@ -68,12 +244,56 @@ def g_from_z(z, config, deep=False):
 
 @partial(jit, static_argnames=["deep"])
 def g_from_phi(phi, config, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   z = z_from_phi(phi, config, deep=deep)
   return g_from_z(z, config, deep=deep)
 
 
 @partial(jit, static_argnames=["deep"])
 def r_hat_from_phi(phi, config, deep=False):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   radius_earth = config["radius_earth"]
   if deep:
     r_hat = (z_from_phi(phi, config, deep=deep) + radius_earth) / radius_earth
@@ -84,5 +304,27 @@ def r_hat_from_phi(phi, config, deep=False):
 
 @jit
 def sphere_dot(u, v):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return (u[:, :, :, :, 0] * v[:, :, :, :, 0] +
           u[:, :, :, :, 1] * v[:, :, :, :, 1])

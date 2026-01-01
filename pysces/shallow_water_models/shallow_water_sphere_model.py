@@ -6,12 +6,56 @@ from functools import partial
 
 
 def create_state_struct(u, h, hs):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return {"u": u,
           "h": h,
           "hs": hs}
 
 
 def get_config_sw(radius_earth=6371e3, earth_period=7.292e-5, gravity=9.81, alpha=0.0, ne=30):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   return {"radius_earth": device_wrapper(radius_earth),
           "earth_period": device_wrapper(earth_period),
           "gravity": device_wrapper(gravity),
@@ -21,6 +65,28 @@ def get_config_sw(radius_earth=6371e3, earth_period=7.292e-5, gravity=9.81, alph
 
 @partial(jit, static_argnames=["dims"])
 def dss_state(state, grid, dims):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   u = dss_scalar(state["u"][:, :, :, 0], grid, dims)
   v = dss_scalar(state["u"][:, :, :, 1], grid, dims)
   h = dss_scalar(state["h"][:, :, :], grid, dims)
@@ -29,6 +95,28 @@ def dss_state(state, grid, dims):
 
 @jit
 def calc_rhs(state_in, grid, config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   coriolis = (-jnp.cos(grid["physical_coords"][:, :, :, 1]) *
               jnp.cos(grid["physical_coords"][:, :, :, 0]) *
               jnp.sin(config["alpha"]) +
@@ -46,6 +134,28 @@ def calc_rhs(state_in, grid, config):
 
 @partial(jit, static_argnames=["dims"])
 def calc_hypervis(state_in, grid, config, dims):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   a = config["radius_earth"]
   u_tmp = sphere_vec_laplacian_wk(state_in["u"], grid, a=a, damp=True)
   h_tmp = sphere_laplacian_wk(state_in["h"][:, :, :], grid, a=a)
@@ -57,6 +167,28 @@ def calc_hypervis(state_in, grid, config, dims):
 
 @partial(jit, static_argnames=["dims", "substeps"])
 def advance_hypervis_euler(state_in, dt, grid, config, dims, substeps=1):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   next_step = state_in
   for k in range(substeps):
     hvis_tend = calc_hypervis(next_step, grid, config, dims)
@@ -66,6 +198,28 @@ def advance_hypervis_euler(state_in, dt, grid, config, dims, substeps=1):
 
 @jit
 def advance_state(states_in, coeffs):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   state_res = create_state_struct(states_in[0]["u"] * coeffs[0],
                                   states_in[0]["h"] * coeffs[0],
                                   states_in[0]["hs"])
@@ -80,6 +234,28 @@ def advance_state(states_in, coeffs):
 
 @partial(jit, static_argnames=["dims"])
 def advance_step_euler(state_in, dt, grid, config, dims):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   state_tend = calc_rhs(state_in, grid, config)
   state_tend_c0 = dss_state(state_tend, grid, dims)
   return advance_state([state_in, state_tend_c0], [1.0, dt])
@@ -87,6 +263,28 @@ def advance_step_euler(state_in, dt, grid, config, dims):
 
 @partial(jit, static_argnames=["dims"])
 def advance_step_ssprk3(state0, dt, grid, config, dims):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   tend = calc_rhs(state0, grid, config)
   tend_c0 = dss_state(tend, grid, dims)
   state1 = advance_state([state0, tend_c0], [1.0, dt])
@@ -104,6 +302,28 @@ def advance_step_ssprk3(state0, dt, grid, config, dims):
 
 # @partial(jit, static_argnames=["dims", "diffusion", "ne", "end_time", "step_type"])
 def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, step_type="ssprk3"):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   dt = 100.0 * (30.0 / ne)  # todo: automatically calculate CFL from sw dispersion relation
   state_n = state_in
   t = 0.0

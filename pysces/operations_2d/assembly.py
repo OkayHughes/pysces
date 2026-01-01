@@ -7,6 +7,28 @@ if use_wrapper and wrapper_type == "jax":
 
 
 def summation_local_for(f, grid, *args):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   vert_redundancy_gll = grid["vert_redundancy"]
   workspace = f.copy()
   for local_face_idx in vert_redundancy_gll.keys():
@@ -19,6 +41,28 @@ def summation_local_for(f, grid, *args):
 
 
 def dss_scalar_for(f, grid, *args, scaled=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   # assumes that values from remote processors have already been accumulated
   metdet = grid["met_det"]
   inv_mass_mat = grid["mass_matrix_inv"]
@@ -39,6 +83,28 @@ def dss_scalar_for(f, grid, *args, scaled=True):
 
 
 def dss_scalar_sparse(f, grid, *args, scaled=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   if scaled:
     vals_scaled = f * grid["mass_matrix"]
     ret = vals_scaled + (grid["dss_matrix"] @ (vals_scaled).flatten()).reshape(f.shape)
@@ -48,6 +114,28 @@ def dss_scalar_sparse(f, grid, *args, scaled=True):
 
 
 def segment_sum(data, segment_ids, N):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   data = np.asarray(data)
   s = np.zeros(N, dtype=data.dtype)
   np.add.at(s, segment_ids, data)
@@ -56,6 +144,28 @@ def segment_sum(data, segment_ids, N):
 
 @partial(jit, static_argnames=["dims", "scaled"])
 def dss_scalar_wrapper(f, grid, dims, scaled=True):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   (data, rows, cols) = grid["dss_triple"]
 
   if scaled:
