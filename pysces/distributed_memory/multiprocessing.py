@@ -566,7 +566,7 @@ def dss_scalar_for_mpi(fs, grid):
   return fs
 
 
-def dss_scalar_triple_mpi(fs, grid, dim):
+def dss_scalar_triple_mpi(fs, grid, dim, scaled=True):
   """
   Perform assembly on a list of processor-local scalars using assembly triples.
 
@@ -604,14 +604,17 @@ def dss_scalar_triple_mpi(fs, grid, dim):
   buffer = dss_scalar_triple_pack([f * grid["mass_matrix"] for f in fs], grid)
   buffer = exchange_buffers_mpi(buffer)
   # TODO: replace with sum_into
-  
-  fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
+
+  local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["dss_triple"]})[mpi_rank]
+  fs_out = []
+  #fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
   #local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["dss_triple"]})[mpi_rank]
-  fs_out = sum_into((f_scaled).reshape((*dim["shape"], 1)), buffer, grid["dss_triple"][1], dim).squeeze()
+  for f, buffer in zip(fs, local_buffer):
+      fs_out[-1].append(sum_into((f * grid["mass_matrix"]).reshape((*dim["shape"], 1)), buffer, grid["dss_triple"][1], dim))
   fs = [f.squeeze() * grid["mass_matrix_inv"] for f in dss_scalar_triple_unpack(fs_out,
-                                                                      buffer,
-                                                                      grid,
-                                                                      dim)]
+                                                                               buffer,
+                                                                               grid,
+                                                                               dim)]
   return fs
 
 
@@ -665,17 +668,15 @@ def dss_scalar_triple_stub(fs_global, grids, dims):
   #fs_out = [[summation_local_for(f * grid["mass_matrix"], grid) for f in fs_local]
   #          for (fs_local, grid) in zip(fs_global, grids)]
   fs_out = []
-  for (fs_local, grid, buffer_list) in zip(data_scaled, grids, local_buffers):
+  for (fs_local, grid, dim, buffer_list) in zip(data_scaled, grids, dims, local_buffers):
     fs_out.append([])
     for f_scaled, buffer in zip(fs_local, buffer_list):
-      fs_out[-1].append(sum_into((f_scaled).reshape((*dim["shape"], 1)), buffer, grid["dss_triple"][1], dim).squeeze())
-
-
+      fs_out[-1].append(sum_into((f_scaled).reshape((*dim["shape"], 1)), buffer, grid["dss_triple"][1], dim))
 
   buffers = exchange_buffers_stub(buffers)
 
   for proc_idx in range(len(fs_out)):
-    fs_out[proc_idx] = [f * grids[proc_idx]["mass_matrix_inv"]
+    fs_out[proc_idx] = [f.squeeze() * grids[proc_idx]["mass_matrix_inv"]
                         for f in dss_scalar_triple_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx], dims[proc_idx])]
 
   return fs_out
