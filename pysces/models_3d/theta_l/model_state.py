@@ -1,5 +1,5 @@
 from ...config import jnp, vmap_1d_apply, jit, np, flip
-from ...operations_2d.assembly import dss_scalar, dss_scalar_for
+from ...operations_2d.assembly import project_scalar, project_scalar_for
 from ...operations_2d.operators import sphere_gradient
 from ..vertical_remap import zerroukat_remap
 from ..mass_coordinate import dmass_from_coordinate, mass_from_coordinate_midlev
@@ -97,8 +97,8 @@ def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, co
       when a key error
   """
   grad_phi_surf_discont = sphere_gradient(phi_surf, h_grid, a=config["radius_earth"])
-  grad_phi_surf = jnp.stack((dss_scalar(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
-                             dss_scalar(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)), axis=-1)
+  grad_phi_surf = jnp.stack((project_scalar(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
+                             project_scalar(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)), axis=-1)
   state = {"u": u,
            "vtheta_dpi": vtheta_dpi,
            "dpi": dpi,
@@ -114,12 +114,12 @@ def init_tracer_struct(Q):
   return {"Q": Q}
 
 # TODO 12/23/25: add wrapper functions that apply
-# summation, and dss_scalar so model interface remains identical.
+# summation, and project_scalar so model interface remains identical.
 # also: refactor into separate file, since these are non-jittable
 
 
 @partial(jit, static_argnames=["dims", "scaled"])
-def dss_scalar_3d(variable, h_grid, dims, scaled=True):
+def project_scalar_3d(variable, h_grid, dims, scaled=True):
   """
   [Description]
 
@@ -142,20 +142,20 @@ def dss_scalar_3d(variable, h_grid, dims, scaled=True):
   KeyError
       when a key error
   """
-  def dss_onlyarg(vec):
-    return dss_scalar(vec, h_grid, dims, scaled=scaled)
-  return vmap_1d_apply(dss_onlyarg, variable, -1, -1)
+  def project_onlyarg(vec):
+    return project_scalar(vec, h_grid, dims, scaled=scaled)
+  return vmap_1d_apply(project_onlyarg, variable, -1, -1)
 
 
-def dss_scalar_3d_for(variable, h_grid, dims, scaled=True):
+def project_scalar_3d_for(variable, h_grid, dims, scaled=True):
   levs = []
   for lev_idx in range(variable.shape[-1]):
-    levs.append(dss_scalar_for(variable[:, :, :, lev_idx], h_grid))
+    levs.append(project_scalar_for(variable[:, :, :, lev_idx], h_grid))
   return np.stack(levs, axis=-1)
 
 
 @partial(jit, static_argnames=["dims", "scaled", "hydrostatic"])
-def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
+def project_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
   """
   [Description]
 
@@ -178,21 +178,21 @@ def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):
   KeyError
       when a key error
   """
-  u_dss = dss_scalar_3d(state_in["u"][:, :, :, :, 0], h_grid, dims, scaled=scaled)
-  v_dss = dss_scalar_3d(state_in["u"][:, :, :, :, 1], h_grid, dims, scaled=scaled)
-  vtheta_dpi_dss = dss_scalar_3d(state_in["vtheta_dpi"][:, :, :, :], h_grid, dims, scaled=scaled)
-  dpi_dss = dss_scalar_3d(state_in["dpi"][:, :, :, :], h_grid, dims, scaled=scaled)
+  u_cont = project_scalar_3d(state_in["u"][:, :, :, :, 0], h_grid, dims, scaled=scaled)
+  v_cont = project_scalar_3d(state_in["u"][:, :, :, :, 1], h_grid, dims, scaled=scaled)
+  vtheta_dpi_cont = project_scalar_3d(state_in["vtheta_dpi"][:, :, :, :], h_grid, dims, scaled=scaled)
+  dpi_cont = project_scalar_3d(state_in["dpi"][:, :, :, :], h_grid, dims, scaled=scaled)
   if hydrostatic:
-    w_i_dss = state_in["w_i"]
-    phi_i_dss = state_in["phi_i"]
+    w_i_cont = state_in["w_i"]
+    phi_i_cont = state_in["phi_i"]
   else:
-    w_i_dss = dss_scalar_3d(state_in["w_i"], h_grid, dims, scaled=scaled)
-    phi_i_dss = dss_scalar_3d(state_in["phi_i"], h_grid, dims, scaled=scaled)
-  return wrap_model_struct(jnp.stack((u_dss, v_dss), axis=-1),
-                           vtheta_dpi_dss, dpi_dss, state_in["phi_surf"],
+    w_i_cont = project_scalar_3d(state_in["w_i"], h_grid, dims, scaled=scaled)
+    phi_i_cont = project_scalar_3d(state_in["phi_i"], h_grid, dims, scaled=scaled)
+  return wrap_model_struct(jnp.stack((u_cont, v_cont), axis=-1),
+                           vtheta_dpi_cont, dpi_cont, state_in["phi_surf"],
                            state_in["grad_phi_surf"],
-                           phi_i_dss,
-                           w_i_dss)
+                           phi_i_cont,
+                           w_i_cont)
 
 
 @jit

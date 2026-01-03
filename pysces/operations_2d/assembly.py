@@ -40,7 +40,7 @@ def summation_local_for(f, grid, *args):
   return workspace
 
 
-def dss_scalar_for(f, grid, *args, scaled=True):
+def project_scalar_for(f, grid, *args, scaled=True):
   """
   [Description]
 
@@ -82,7 +82,7 @@ def dss_scalar_for(f, grid, *args, scaled=True):
   return workspace
 
 
-def dss_scalar_sparse(f, grid, *args, scaled=True):
+def project_scalar_sparse(f, grid, *args, scaled=True):
   """
   [Description]
 
@@ -107,9 +107,9 @@ def dss_scalar_sparse(f, grid, *args, scaled=True):
   """
   if scaled:
     vals_scaled = f * grid["mass_matrix"]
-    ret = vals_scaled + (grid["dss_matrix"] @ (vals_scaled).flatten()).reshape(f.shape)
+    ret = vals_scaled + (grid["assembly_matrix"] @ (vals_scaled).flatten()).reshape(f.shape)
   else:
-    ret = f + (grid["dss_matrix"] @ (f).flatten()).reshape(f.shape)
+    ret = f + (grid["assembly_matrix"] @ (f).flatten()).reshape(f.shape)
   return ret * grid["mass_matrix_inv"]
 
 
@@ -143,7 +143,7 @@ def segment_sum(data, segment_ids, N):
 
 
 @partial(jit, static_argnames=["dims", "scaled"])
-def dss_scalar_wrapper(f, grid, dims, scaled=True):
+def project_scalar_wrapper(f, grid, dims, scaled=True):
   """
   [Description]
 
@@ -188,8 +188,8 @@ def dss_scalar_wrapper(f, grid, dims, scaled=True):
 
 
 if use_wrapper and wrapper_type == "jax":
-  dss_scalar = dss_scalar_wrapper
+  project_scalar = project_scalar_wrapper
 elif use_wrapper and wrapper_type == "torch":
-  dss_scalar = dss_scalar_wrapper
+  project_scalar = project_scalar_wrapper
 else:
-  dss_scalar = dss_scalar_sparse
+  project_scalar = project_scalar_sparse

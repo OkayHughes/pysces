@@ -1,6 +1,6 @@
 from ...config import jnp, jit, np, device_wrapper
 from ..utils_3d import get_delta, interface_to_model
-from .model_state import wrap_model_struct, dss_model_state
+from .model_state import wrap_model_struct, project_model_state
 from .eqn_of_state import get_balanced_phi
 from ..mass_coordinate import mass_from_coordinate_interface
 from functools import partial
@@ -189,11 +189,11 @@ def sponge_layer(state, dt, h_grid, v_grid, config, dims, n_sponge, hydrostatic=
                                       state["grad_phi_surf"],
                                       hyperdiff_phi_i,
                                       hyperdiff_w_i)
-  hyperdiff_state = dss_model_state(hyperdiff_state,
-                                    h_grid,
-                                    dims,
-                                    scaled=False,
-                                    hydrostatic=hydrostatic)
+  hyperdiff_state = project_model_state(hyperdiff_state,
+                                        h_grid,
+                                        dims,
+                                        scaled=False,
+                                        hydrostatic=hydrostatic)
 
   u_out = jnp.concatenate((dt * hyperdiff_state["u"] + state["u"][:, :, :, :n_sponge, :],
                            state["u"][:, :, :, n_sponge:, :]), axis=-2)
@@ -269,9 +269,9 @@ def hypervis_terms(state, ref_state, h_grid, dims, config, hydrostatic=True):
                                      config,
                                      apply_nu=apply_nu,
                                      hydrostatic=hydrostatic)
-    struct_rhs = dss_model_state(struct_rhs,
-                                 h_grid,
-                                 dims,
-                                 scaled=False,
-                                 hydrostatic=hydrostatic)
+    struct_rhs = project_model_state(struct_rhs,
+                                     h_grid,
+                                     dims,
+                                     scaled=False,
+                                     hydrostatic=hydrostatic)
   return struct_rhs

@@ -164,15 +164,11 @@ else:
   def cast_type(arr, dtype):
     return arr.astype(dtype)
 
-if has_mpi:
-  from mpi4py import MPI
-  mpi_comm = MPI.COMM_WORLD
-  mpi_rank = mpi_comm.Get_rank()
-  mpi_size = mpi_comm.Get_size()
+from mpi4py import MPI
+mpi_comm = MPI.COMM_WORLD
+mpi_rank = mpi_comm.Get_rank()
+mpi_size = mpi_comm.Get_size()
 
-else:
-  mpi_comm = None
-  mpi_rank = 0
-  mpi_size = 1
+
 
 do_mpi_communication = mpi_size > 1

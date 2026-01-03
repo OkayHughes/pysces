@@ -165,7 +165,7 @@ def create_spectral_element_grid(latlon,
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(vert_redundancy_gll,
                                                                         proc_idx,
                                                                         decomp)
-  dss_matrix, dss_triple = init_assembly_matrix_local(NELEM, npt, vert_red_local)
+  assembly_matrix, assembly_triple = init_assembly_matrix_local(NELEM, npt, vert_red_local)
   triples_send, triples_recv = init_assembly_global(NELEM, npt, vert_red_send, vert_red_recv)
 
   # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
@@ -198,9 +198,9 @@ def create_spectral_element_grid(latlon,
          "mass_matrix": subset_wrapper(mass_matrix),
          "deriv": wrapper(spectrals["deriv"]),
          "gll_weights": wrapper(spectrals["gll_weights"]),
-         "assembly_triple": (wrapper(dss_triple[0]),
-                        wrapper(dss_triple[1], dtype=jnp.int64),
-                        wrapper(dss_triple[2], dtype=jnp.int64)),
+         "assembly_triple": (wrapper(assembly_triple[0]),
+                        wrapper(assembly_triple[1], dtype=jnp.int64),
+                        wrapper(assembly_triple[2], dtype=jnp.int64)),
          "triples_send": triples_send,
          "triples_receive": triples_recv
          }
@@ -209,7 +209,7 @@ def create_spectral_element_grid(latlon,
     ret["vert_redundancy"] = vert_red_local
     ret["vert_redundancy_send"] = vert_red_send
     ret["vert_redundancy_receive"] = vert_red_recv
-    ret["dss_matrix"] = dss_matrix
+    ret["assembly_matrix"] = assembly_matrix
   # if use_wrapper and wrapper_type == "torch":
   #   from .config import torch
   #   ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),

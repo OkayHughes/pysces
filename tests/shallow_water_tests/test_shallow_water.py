@@ -2,7 +2,7 @@ from pysces.config import jnp, np, DEBUG, device_unwrapper, device_wrapper
 from pysces.shallow_water_models.shallow_water_sphere_model import get_config_sw, create_state_struct, simulate_sw
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.operations_2d.operators import inner_prod, sphere_vorticity
-from pysces.operations_2d.assembly import dss_scalar
+from pysces.operations_2d.assembly import project_scalar
 from ..context import get_figdir, test_division_factor
 from os import makedirs
 from os.path import join
@@ -145,7 +145,7 @@ def test_galewsky():
     lon = device_unwrapper(grid["physical_coords"][:, :, :, 1])
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     levels = np.arange(-10 + 1e-4, 101, 10)
-    vort = dss_scalar(sphere_vorticity(final_state["u"], grid, a=config["radius_earth"]), grid, dims)
+    vort = project_scalar(sphere_vorticity(final_state["u"], grid, a=config["radius_earth"]), grid, dims)
     plt.figure()
     plt.title(f"U at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),

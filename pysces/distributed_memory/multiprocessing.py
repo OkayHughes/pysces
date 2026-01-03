@@ -2,9 +2,8 @@ from ..config import np, jnp, has_mpi, use_wrapper, wrapper_type, take_along_axi
 from ..operations_2d.assembly import summation_local_for
 from ..operations_2d.operators import inner_prod
 
-if has_mpi:
-  from mpi4py import MPI
-  from ..config import mpi_comm
+from mpi4py import MPI
+from ..config import mpi_comm
 
 
 
@@ -300,8 +299,6 @@ def exchange_buffers_mpi(buffer):
 
   """
   reqs = []
-  if not has_mpi:
-    raise NotImplementedError("MPI communication called with has_mpi = False")
   for source_proc_idx in buffer.keys():
     for k_idx in range(len(buffer[source_proc_idx])):
       reqs.append(mpi_comm.Isendrecv_replace(buffer[source_proc_idx][k_idx],
@@ -560,7 +557,7 @@ def project_scalar_for_mpi(fs, grid):
   data_scaled = [f * grid["mass_matrix"] for f in fs]
   buffer = assemble_scalar_for_pack(data_scaled, grid)
   buffer = exchange_buffers_mpi(buffer)
-  fs_out = [summation_local_for(data_scaled, grid) for f in fs]
+  fs_out = [summation_local_for(f, grid) for f in data_scaled]
   fs = [f * grid["mass_matrix_inv"]
                         for f in assemble_scalar_for_unpack(fs_out, buffer, grid)]
   return fs
@@ -699,8 +696,6 @@ def global_sum(summand):
     Global sum of quantity.
   """
   reqs = []
-  if not has_mpi:
-    raise NotImplementedError("MPI communication called with has_mpi = False")
   send = np.array(summand)
   recv = np.copy(send)
   req = mpi_comm.Iallreduce(np.array(send),

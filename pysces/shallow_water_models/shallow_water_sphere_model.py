@@ -1,5 +1,5 @@
 from ..config import jnp, jit, versatile_assert, device_wrapper, np
-from ..operations_2d.assembly import dss_scalar
+from ..operations_2d.assembly import project_scalar
 from ..operations_2d.operators import sphere_vorticity, sphere_gradient, sphere_divergence
 from ..operations_2d.operators import sphere_laplacian_wk, sphere_vec_laplacian_wk
 from functools import partial
@@ -64,7 +64,7 @@ def get_config_sw(radius_earth=6371e3, earth_period=7.292e-5, gravity=9.81, alph
 
 
 @partial(jit, static_argnames=["dims"])
-def dss_state(state, grid, dims):
+def project_state(state, grid, dims):
   """
   [Description]
 
@@ -87,9 +87,9 @@ def dss_state(state, grid, dims):
   KeyError
       when a key error
   """
-  u = dss_scalar(state["u"][:, :, :, 0], grid, dims)
-  v = dss_scalar(state["u"][:, :, :, 1], grid, dims)
-  h = dss_scalar(state["h"][:, :, :], grid, dims)
+  u = project_scalar(state["u"][:, :, :, 0], grid, dims)
+  v = project_scalar(state["u"][:, :, :, 1], grid, dims)
+  h = project_scalar(state["h"][:, :, :], grid, dims)
   return create_state_struct(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 
@@ -159,10 +159,10 @@ def calc_hypervis(state_in, grid, config, dims):
   a = config["radius_earth"]
   u_tmp = sphere_vec_laplacian_wk(state_in["u"], grid, a=a, damp=True)
   h_tmp = sphere_laplacian_wk(state_in["h"][:, :, :], grid, a=a)
-  lap1 = dss_state(create_state_struct(u_tmp, h_tmp, state_in["hs"]), grid, dims)
+  lap1 = project_state(create_state_struct(u_tmp, h_tmp, state_in["hs"]), grid, dims)
   u_tmp = -config["nu"] * sphere_vec_laplacian_wk(lap1["u"], grid, a=a, damp=True)
   h_tmp = -config["nu"] * sphere_laplacian_wk(lap1["h"], grid, a=a)
-  return dss_state(create_state_struct(u_tmp, h_tmp, state_in["hs"]), grid, dims)
+  return project_state(create_state_struct(u_tmp, h_tmp, state_in["hs"]), grid, dims)
 
 
 @partial(jit, static_argnames=["dims", "substeps"])
@@ -257,7 +257,7 @@ def advance_step_euler(state_in, dt, grid, config, dims):
       when a key error
   """
   state_tend = calc_rhs(state_in, grid, config)
-  state_tend_c0 = dss_state(state_tend, grid, dims)
+  state_tend_c0 = project_state(state_tend, grid, dims)
   return advance_state([state_in, state_tend_c0], [1.0, dt])
 
 
@@ -286,15 +286,15 @@ def advance_step_ssprk3(state0, dt, grid, config, dims):
       when a key error
   """
   tend = calc_rhs(state0, grid, config)
-  tend_c0 = dss_state(tend, grid, dims)
+  tend_c0 = project_state(tend, grid, dims)
   state1 = advance_state([state0, tend_c0], [1.0, dt])
   tend = calc_rhs(state1, grid, config)
-  tend_c0 = dss_state(tend, grid, dims)
+  tend_c0 = project_state(tend, grid, dims)
   state2 = advance_state([state0, state1, tend_c0], [3.0 / 4.0,
                                                      1.0 / 4.0,
                                                      1.0 / 4.0 * dt])
   tend = calc_rhs(state2, grid, config)
-  tend_c0 = dss_state(tend, grid, dims)
+  tend_c0 = project_state(tend, grid, dims)
   return advance_state([state0, state2, tend_c0], [1.0 / 3.0,
                                                    2.0 / 3.0,
                                                    2.0 / 3.0 * dt])

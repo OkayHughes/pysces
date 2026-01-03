@@ -1,6 +1,6 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.operations_2d.operators import sphere_gradient
-from pysces.operations_2d.assembly import dss_scalar
+from pysces.operations_2d.assembly import project_scalar
 from .mass_coordinate_grids import cam30
 from pysces.models_3d.mass_coordinate import (create_vertical_grid,
                                               mass_from_coordinate_interface)
@@ -91,10 +91,10 @@ def test_init():
     phi_surf = model_config["gravity"] * z_surf
     grad_phi_surf = sphere_gradient(phi_surf,
                                     h_grid, a=model_config["radius_earth"])
-    grad_phi_surf_dss = jnp.stack((dss_scalar(grad_phi_surf[:, :, :, 0], h_grid, dims),
-                                  dss_scalar(grad_phi_surf[:, :, :, 1], h_grid, dims)), axis=-1)
+    grad_phi_surf_cont = jnp.stack((project_scalar(grad_phi_surf[:, :, :, 0], h_grid, dims),
+                                    project_scalar(grad_phi_surf[:, :, :, 1], h_grid, dims)), axis=-1)
     p_int = mass_from_coordinate_interface(ps, v_grid)
     dpi = get_delta(p_int)
     assert (jnp.allclose(dpi, model_state["dpi"]))
     assert (jnp.allclose(phi_surf, model_state["phi_surf"]))
-    assert (jnp.allclose(grad_phi_surf_dss, model_state["grad_phi_surf"]))
+    assert (jnp.allclose(grad_phi_surf_cont, model_state["grad_phi_surf"]))

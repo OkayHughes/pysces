@@ -139,7 +139,7 @@ def test_vert_red_triage():
               assert (send_global_idx, send_i, send_j) in vert_redundancy_gll[recv_global_idx][(recv_i, recv_j)]
 
 
-def test_dss_init():
+def test_assembly_init():
   se_grid, dims = init_test_grid()
   npt = dims["npt"]
   assert np.allclose(np.sum(se_grid["met_det"] *
@@ -158,8 +158,8 @@ def test_dss_init():
   for proc_idx in range(nproc):
     vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(se_grid["vert_redundancy"], proc_idx, decomp)
     metdet = subset_var(se_grid["met_det"], proc_idx, decomp, wrapped=False)
-    _, dss_triple = init_assembly_matrix_local(metdet.shape[0], npt, vert_red_local)
-    ct -= len(flip_triple(dss_triple))
+    _, assembly_triple = init_assembly_matrix_local(metdet.shape[0], npt, vert_red_local)
+    ct -= len(flip_triple(assembly_triple))
     triples_send, triples_receive = init_assembly_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
     for remote_proc_idx in triples_send.keys():
       assert (remote_proc_idx in triples_receive.keys())

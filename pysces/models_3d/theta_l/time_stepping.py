@@ -1,5 +1,5 @@
 from ...config import jit
-from .model_state import wrap_model_struct, dss_model_state
+from .model_state import wrap_model_struct, project_model_state
 from .explicit_terms import explicit_tendency, correct_state
 from .theta_hyperviscosity import hypervis_terms, sponge_layer
 from functools import partial
@@ -108,7 +108,7 @@ def advance_euler(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True, 
       when a key error
   """
   u_tend = explicit_tendency(state_in, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
-  u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
+  u_tend_c0 = project_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
   u1 = advance_state([state_in, u_tend_c0], [1.0, dt])
   u1_cons = correct_state(u1, dt, config, hydrostatic=hydrostatic, deep=deep)
   return u1_cons
@@ -210,31 +210,31 @@ def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True,
       when a key error
   """
   u_tend = explicit_tendency(state_in, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
-  u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
+  u_tend_c0 = project_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
 
   u1 = advance_state([state_in, u_tend_c0], [1.0, dt / 5.0])
   u1 = correct_state(u1, dt / 5.0, config, hydrostatic=hydrostatic, deep=deep)
 
   u_tend = explicit_tendency(u1, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
-  u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
+  u_tend_c0 = project_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
 
   u2 = advance_state([state_in, u_tend_c0], [1.0, dt / 5.0])
   u2 = correct_state(u2, dt / 5.0, config, hydrostatic=hydrostatic, deep=deep)
 
   u_tend = explicit_tendency(u2, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
-  u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
+  u_tend_c0 = project_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
 
   u3 = advance_state([state_in, u_tend_c0], [1.0, dt / 3.0])
   u3 = correct_state(u3, dt / 3.0, config, hydrostatic=hydrostatic, deep=deep)
 
   u_tend = explicit_tendency(u3, h_grid, v_grid, config, hydrostatic=hydrostatic, deep=deep)
-  u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
+  u_tend_c0 = project_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
 
   u4 = advance_state([state_in, u_tend_c0], [1.0, 2.0 * dt / 3.0])
   u4 = correct_state(u4, 2.0 * dt / 3.0, config, hydrostatic=hydrostatic, deep=deep)
 
   u_tend = explicit_tendency(u4, h_grid, v_grid, config, hydrostatic=hydrostatic)
-  u_tend_c0 = dss_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
+  u_tend_c0 = project_model_state(u_tend, h_grid, dims, hydrostatic=hydrostatic)
 
   final_state = advance_state([state_in, u1, u_tend_c0], [-1.0 / 4.0,
                                                           5.0 / 4.0,

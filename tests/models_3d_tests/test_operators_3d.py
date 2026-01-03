@@ -6,7 +6,7 @@ from pysces.models_3d.operators_3d import (sphere_divergence_3d,
                                            sphere_gradient_3d,
                                            sphere_vorticity_3d,
                                            sphere_vec_laplacian_wk_3d)
-from pysces.models_3d.theta_l.model_state import dss_scalar_3d
+from pysces.models_3d.theta_l.model_state import project_scalar_3d
 
 
 def threedify(field, nlev, axis=-1):
@@ -67,8 +67,8 @@ def test_divergence():
 
   div_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3)
-  div = dss_scalar_3d(sphere_divergence_3d(vec_3d, grid, config), grid, dims)
-  vort = dss_scalar_3d(sphere_vorticity_3d(vec_3d, grid, config), grid, dims)
+  div = project_scalar_3d(sphere_divergence_3d(vec_3d, grid, config), grid, dims)
+  vort = project_scalar_3d(sphere_vorticity_3d(vec_3d, grid, config), grid, dims)
   for lev_idx in range(nlev):
     assert (inner_prod(div_analytic - div[:, :, :, lev_idx],
                        div_analytic - div[:, :, :, lev_idx], grid) < 1e-5)
@@ -104,8 +104,8 @@ def test_vector_laplacian():
   config = {"radius_earth": 1.0}
   vec_3d = threedify(vec, nlev, axis=-2)
   laplace_v_wk = sphere_vec_laplacian_wk_3d(vec_3d, grid, config)
-  laplace_v_wk = jnp.stack((dss_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
-                            dss_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
+  laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
+                            project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
 
   lap_diff = laplace_v_wk + 2 * vec_3d
   for lev_idx in range(nlev):
@@ -115,8 +115,8 @@ def test_vector_laplacian():
                    jnp.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
   vec_3d = threedify(vec, nlev, axis=-2)
   laplace_v_wk = sphere_vec_laplacian_wk_3d(vec_3d, grid, config)
-  laplace_v_wk = jnp.stack((dss_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
-                            dss_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
+  laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
+                            project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
   lap_diff = laplace_v_wk + 3 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis, np.newaxis]
   # hack to negate pole point
   lap_diff *= np.cos(grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis, np.newaxis]**2

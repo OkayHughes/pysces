@@ -1,6 +1,6 @@
 from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper, mpi_rank, has_mpi, mpi_size, use_wrapper
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.operations_2d.assembly import dss_scalar
+from pysces.operations_2d.assembly import project_scalar
 from pysces.operations_2d.se_grid import subset_var
 from pysces.operations_2d.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
 from pysces.operations_2d.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
@@ -11,8 +11,6 @@ from ..context import test_npts, seed
 
 
 def test_vector_identites_sphere():
-  if not has_mpi:
-    return
   for npt in test_npts:
     for nx in [30, 31]:
       grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
@@ -35,8 +33,6 @@ def test_vector_identites_sphere():
 
 
 def test_vector_identities_plane():
-  if not has_mpi:
-    return
   for npt in test_npts:
     nx, ny = (31, 33)
     grid, dims = create_uniform_grid(nx, ny, npt, length_x=jnp.pi, length_y=jnp.pi, proc_idx=mpi_rank)
@@ -59,8 +55,6 @@ def test_vector_identities_plane():
 
 
 def test_vector_identites_rand_sphere():
-  if not has_mpi:
-    return
   for npt in test_npts:
     np.random.seed(seed)
     for nx in [30, 31]:
@@ -85,8 +79,6 @@ def test_vector_identites_rand_sphere():
 
 
 def test_vector_identites_rand_plane():
-  if not has_mpi:
-    return
   for npt in test_npts:
     np.random.seed(seed)
     nx, ny = (31, 33)
@@ -112,8 +104,6 @@ def test_vector_identites_rand_plane():
 
 
 def test_equivalence_rand_sphere():
-  if not has_mpi:
-    return
   for npt in test_npts:
     np.random.seed(seed)
     for nx in [6, 9]:
@@ -124,9 +114,9 @@ def test_equivalence_rand_sphere():
         fn_total = device_wrapper(np.random.normal(scale=10, size=grid_total["physical_coords"][:, :, :, 0].shape))
         u_total = device_wrapper(np.random.normal(scale=10, size=grid_total["physical_coords"][:, :, :, 0].shape))
         v_total = device_wrapper(np.random.normal(scale=10, size=grid_total["physical_coords"][:, :, :, 0].shape))
-        vec_total = np.stack((dss_scalar(u_total, grid_total, dims_total),
-                              dss_scalar(v_total, grid_total, dims_total)), axis=-1)
-        fn_total = dss_scalar(fn_total, grid_total, dims_total)
+        vec_total = np.stack((project_scalar(u_total, grid_total, dims_total),
+                              project_scalar(v_total, grid_total, dims_total)), axis=-1)
+        fn_total = project_scalar(fn_total, grid_total, dims_total)
         fn = subset_var(fn_total, mpi_rank, decomp)
         u = subset_var(u_total, mpi_rank, decomp)
         v = subset_var(v_total, mpi_rank, decomp)

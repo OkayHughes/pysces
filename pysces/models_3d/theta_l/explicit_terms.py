@@ -4,7 +4,7 @@ from ..utils_3d import z_from_phi, g_from_z, g_from_phi, sphere_dot
 from .eqn_of_state import get_mu, get_balanced_phi, get_p_mid
 from ..operators_3d import sphere_gradient_3d, sphere_vorticity_3d, sphere_divergence_3d
 from .model_state import wrap_model_struct
-from .model_state import dss_scalar_3d
+from .model_state import project_scalar_3d
 from functools import partial
 
 
@@ -688,7 +688,7 @@ def calc_energy_quantities(state, h_grid, v_grid, config, dims, deep=False):
   vorticity = vorticity_term(u, fcor, r_hat_m, h_grid, config)
   phi_advection = phi_advection_term(v_over_r_hat_i, grad_phi_i)
   ke_ke_1_a = jnp.sum(dpi * sphere_dot(u, grad_kinetic_energy_h), axis=-1)
-  ke_ke_1_b = jnp.sum(1.0 / 2.0 * u_sq * dss_scalar_3d(dpi_divergence, h_grid, dims), axis=-1)
+  ke_ke_1_b = jnp.sum(1.0 / 2.0 * u_sq * project_scalar_3d(dpi_divergence, h_grid, dims), axis=-1)
 
   ke_ke_2_a = jnp.sum(dpi * (u1 * grad_kinetic_energy_v[:, :, :, :, 0] +
                              u2 * grad_kinetic_energy_v[:, :, :, :, 1]), axis=-1)
