@@ -2,6 +2,7 @@ from ..config import np, use_wrapper, mpi_size
 from ..spectral import init_spectral
 from ..distributed_memory.processor_decomposition import get_decomp
 from ..operations_2d.se_grid import create_spectral_element_grid
+from .mesh import vert_red_hierarchy_to_flat
 
 
 def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
@@ -185,12 +186,13 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                                           spectrals["gll_weights"][local_j]))
 
   inv_mass_mat = 1.0 / mass_mat
+  vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
   return create_spectral_element_grid(physical_coords,
                                       gll_to_planar_jacobian,
                                       gll_to_planar_jacobian_inv,
                                       rmetdet, metdet, mass_mat,
-                                      inv_mass_mat, vert_redundancy_gll,
+                                      inv_mass_mat, vert_red_flat,
                                       proc_idx, decomp, wrapped=wrapped)
 
 

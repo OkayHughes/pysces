@@ -207,3 +207,26 @@ def gen_gll_redundancy(vert_redundancy, npt):
             wrap(elem_idx, i_idx, j_idx)
             vert_redundancy_gll[elem_idx][(i_idx, j_idx)].add((elem_idx_pair, i_idx_pair, j_idx_pair))
   return vert_redundancy_gll
+
+
+def vert_red_flat_to_hierarchy(vert_redundancy_gll_flat):
+  vert_redundancy = {}
+  for ((target_idx, target_i, target_j),
+       (source_idx, source_i, source_j)) in vert_redundancy_gll_flat:
+    if target_idx not in vert_redundancy.keys():
+      vert_redundancy[target_idx] = {}
+    if (target_i, target_j) not in vert_redundancy[target_idx].keys():
+      vert_redundancy[target_idx][(target_i, target_j)] = []
+    vert_redundancy[target_idx][target_i, target_j].append((source_idx, source_i, source_j))
+  return vert_redundancy
+
+
+def vert_red_hierarchy_to_flat(vert_redundancy_gll):
+  vert_redundancy = []
+
+  for target_idx in vert_redundancy_gll.keys():
+    for target_i, target_j in vert_redundancy_gll[target_idx].keys():
+      for source_idx, source_i, source_j in vert_redundancy_gll[target_idx][(target_i, target_j)]:
+        vert_redundancy.append(((target_idx, target_i, target_j),
+                                (source_idx, source_i, source_j)))
+  return vert_redundancy

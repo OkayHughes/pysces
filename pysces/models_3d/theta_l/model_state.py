@@ -1,5 +1,6 @@
 from ...config import jnp, vmap_1d_apply, jit, np, flip
 from ...operations_2d.assembly import project_scalar, project_scalar_for
+from ...distributed_memory.multiprocessing import project_scalar_triple_mpi
 from ...operations_2d.operators import sphere_gradient
 from ..vertical_remap import zerroukat_remap
 from ..mass_coordinate import dmass_from_coordinate, mass_from_coordinate_midlev
@@ -118,33 +119,36 @@ def init_tracer_struct(Q):
 # also: refactor into separate file, since these are non-jittable
 
 
-@partial(jit, static_argnames=["dims", "scaled"])
+# @partial(jit, static_argnames=["dims", "scaled"])
+# def project_scalar_3d(variable, h_grid, dims, scaled=True):
+#   """
+#   [Description]
+
+#   Parameters
+#   ----------
+#   [first] : array_like
+#       the 1st param name `first`
+#   second :
+#       the 2nd param
+#   third : {'value', 'other'}, optional
+#       the 3rd param, by default 'value'
+
+#   Returns
+#   -------
+#   string
+#       a value in a string
+
+#   Raises
+#   ------
+#   KeyError
+#       when a key error
+#   """
+#   def project_onlyarg(vec):
+#     return project_scalar(vec, h_grid, dims, scaled=scaled)
+#   return vmap_1d_apply(project_onlyarg, variable, -1, -1)
+
 def project_scalar_3d(variable, h_grid, dims, scaled=True):
-  """
-  [Description]
-
-  Parameters
-  ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
-
-  Returns
-  -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
-  """
-  def project_onlyarg(vec):
-    return project_scalar(vec, h_grid, dims, scaled=scaled)
-  return vmap_1d_apply(project_onlyarg, variable, -1, -1)
+  return project_scalar_triple_mpi([variable], h_grid, dims, scaled=scaled, two_d=False)[0]
 
 
 def project_scalar_3d_for(variable, h_grid, dims, scaled=True):

@@ -2,7 +2,7 @@ from pysces.config import np, use_wrapper, device_wrapper, device_unwrapper
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.models_3d.theta_l.model_state import project_scalar_3d, project_scalar_3d_for
-
+from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 
 def test_project_3d():
   npt = 4
@@ -22,7 +22,7 @@ def test_project_3d():
                                            vert_redundancy,
                                            npt,
                                            wrapped=False)
-  vert_redundancy_gll = grid_nowrapper["vert_redundancy"]
+  vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vert_redundancy"])
   fn = np.zeros((*grid["physical_coords"].shape[:-1], nlev))
   for lev_idx in range(nlev):
     for face_idx in range(grid["physical_coords"].shape[0]):

@@ -87,10 +87,10 @@ def sum_into(fijk_field, buffer, rows, dims):
     fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1])).at[rows, :].add(buffer.T)
     fijk_field = fijk_field.reshape((*dims["shape"], fijk_field.shape[-1]))
   elif wrapper_type == "torch":
-    nfield = fijk_field.shape[-1]
+    ncol = fijk_field.shape[-1]
     fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1]))
-    fijk_field = fijk_field.scatter_add_(0, rows[:, np.newaxis] * jnp.ones((1, nfield), dtype=jnp.int64), buffer.T)
-    fijk_field = fijk_field.reshape((*dims["shape"], nfield))
+    fijk_field = fijk_field.scatter_add_(0, rows[:, np.newaxis] * jnp.ones((1, ncol), dtype=jnp.int64), buffer.T)
+    fijk_field = fijk_field.reshape((*dims["shape"], ncol))
   return fijk_field
 
 
@@ -381,7 +381,7 @@ def assemble_scalar_triple_pack(fs_local, grid):
   for an example of what the grid struct looks like.
 
   """
-  buffers = extract_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local], grid["triples_send"])
+  buffers = extract_fields_triple([f for f in fs_local], grid["triples_send"])
   return buffers
 
 
@@ -460,8 +460,8 @@ def assemble_scalar_triple_unpack(fs_local, buffers, grid, dim, *args):
   for an example of what this struct looks like.
 
   """
-  return [f[:, :, :, 0] for f in accumulate_fields_triple([f.reshape((*f.shape, 1)) for f in fs_local],
-                                                       buffers, grid["triples_receive"], dim)]
+  return [f for f in accumulate_fields_triple([f for f in fs_local],
+                                               buffers, grid["triples_receive"], dim)]
 
 
 def project_scalar_for_stub(fs_global, grids):
@@ -563,7 +563,7 @@ def project_scalar_for_mpi(fs, grid):
   return fs
 
 
-def project_scalar_triple_mpi(fs, grid, dim, scaled=True):
+def project_scalar_triple_mpi(fs_in, grid, dim, scaled=True, two_d=True):
   """
   Perform continuity projection on a list of processor-local scalars using projection triples.
 
@@ -598,17 +598,27 @@ def project_scalar_triple_mpi(fs, grid, dim, scaled=True):
     Raises any error that can be raised by exchange_buffers_mpi function.
 
   """
-  buffer = assemble_scalar_triple_pack([f * grid["mass_matrix"] for f in fs], grid)
+  if scaled:
+    scale = grid["mass_matrix"][:, :, :, np.newaxis]
+  else:
+    scale = jnp.ones_like(grid["mass_matrix"][:, :, :, np.newaxis])
+  
+  if two_d:
+    fs = [f.reshape(*dim["shape"], 1) for f in fs_in]
+  else:
+    fs = fs_in
+
+  buffer = assemble_scalar_triple_pack([f * scale for f in fs], grid)
   buffer = exchange_buffers_mpi(buffer)
   # TODO: replace with sum_into
-
-  local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["assembly_triple"]})[mpi_rank]
+  
+  local_buffer = extract_fields_triple([f * scale for f in fs], {mpi_rank: grid["assembly_triple"]})[mpi_rank]
   fs_out = []
   #fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
   #local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["dss_triple"]})[mpi_rank]
   for f, local_buf in zip(fs, local_buffer):
-      fs_out.append(sum_into((f * grid["mass_matrix"]).reshape((*dim["shape"], 1)), local_buf, grid["assembly_triple"][1], dim))
-  fs = [f.squeeze() * grid["mass_matrix_inv"] for f in assemble_scalar_triple_unpack(fs_out,
+      fs_out.append(sum_into(f * scale, local_buf, grid["assembly_triple"][1], dim))
+  fs = [f.squeeze() * grid["mass_matrix_inv"][:, :, :, np.newaxis] for f in assemble_scalar_triple_unpack(fs_out,
                                                                                      buffer,
                                                                                      grid,
                                                                                      dim)]
@@ -661,9 +671,6 @@ def project_scalar_triple_stub(fs_global, grids, dims):
     buffers.append(assemble_scalar_triple_pack([f * grid["mass_matrix"] for f in fs_local], grid))
     local_buffers.append(extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs_local], {mpi_rank: grid["assembly_triple"]})[mpi_rank])
 
-  # TODO: replace with sum_into
-  #fs_out = [[summation_local_for(f * grid["mass_matrix"], grid) for f in fs_local]
-  #          for (fs_local, grid) in zip(fs_global, grids)]
   fs_out = []
   for (fs_local, grid, dim, buffer_list) in zip(data_scaled, grids, dims, local_buffers):
     fs_out.append([])

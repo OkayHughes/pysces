@@ -31,9 +31,8 @@ def summation_local_for(f, grid, *args):
   """
   vert_redundancy_gll = grid["vert_redundancy"]
   workspace = f.copy()
-  for local_face_idx in vert_redundancy_gll.keys():
-    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
-      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
+  for ((local_face_idx, local_i, local_j),
+       (remote_face_id, remote_i, remote_j)) in vert_redundancy_gll:
         workspace[remote_face_id, remote_i, remote_j] += f[local_face_idx, local_i, local_j]
   # this line works even for multi-processor decompositions.
 
@@ -71,12 +70,11 @@ def project_scalar_for(f, grid, *args, scaled=True):
   workspace = f.copy()
   if scaled:
     workspace *= metdet * (gll_weights[np.newaxis, :, np.newaxis] * gll_weights[np.newaxis, np.newaxis, :])
-  for local_face_idx in vert_redundancy_gll.keys():
-    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
-      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
-        workspace[remote_face_id, remote_i, remote_j] += (metdet[local_face_idx, local_i, local_j] *
-                                                          f[local_face_idx, local_i, local_j] *
-                                                          (gll_weights[local_i] * gll_weights[local_j]))
+  for ((local_face_idx, local_i, local_j),
+       (remote_face_id, remote_i, remote_j)) in vert_redundancy_gll:
+    workspace[remote_face_id, remote_i, remote_j] += (metdet[local_face_idx, local_i, local_j] *
+                                                      f[local_face_idx, local_i, local_j] *
+                                                      (gll_weights[local_i] * gll_weights[local_j]))
   # this line works even for multi-processor decompositions.
   workspace *= inv_mass_mat
   return workspace

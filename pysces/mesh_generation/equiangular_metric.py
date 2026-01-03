@@ -1,5 +1,5 @@
 from ..config import np, DEBUG, use_wrapper, mpi_size
-from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
+from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy, vert_red_hierarchy_to_flat
 from .mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from ..operations_2d.se_grid import create_spectral_element_grid
 from .cubed_sphere import gen_cube_topo, gen_vert_redundancy
@@ -374,12 +374,13 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                                                           spectrals["gll_weights"][local_j]))
 
   inv_mass_mat = 1.0 / mass_mat
+  vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
   return create_spectral_element_grid(gll_latlon,
                                       gll_to_sphere_jacobian,
                                       gll_to_sphere_jacobian_inv,
                                       rmetdet, metdet, mass_mat,
-                                      inv_mass_mat, vert_redundancy_gll,
+                                      inv_mass_mat, vert_red_flat,
                                       proc_idx, decomp, wrapped=wrapped)
 
 

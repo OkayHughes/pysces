@@ -5,6 +5,7 @@ from pysces.distributed_memory.multiprocessing import (project_scalar_for_stub,
                                                        accumulate_fields_for, accumulate_fields_triple,
                                                        project_scalar_for_mpi,project_scalar_triple_stub,
                                                        project_scalar_triple_mpi)
+from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.se_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
@@ -20,6 +21,7 @@ def test_unordered_assembly_for_stub():
       for nproc in range(1, 6):
         print(f"dividing nx {nx} grid among {nproc} processors")
         grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
+        vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vert_redundancy"])
         decomp = get_decomp(dim_total["num_elem"], nproc)
         grids = []
         dims = []
@@ -27,7 +29,6 @@ def test_unordered_assembly_for_stub():
         total_elems = 0
         pairs = {}
         proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-        vert_redundancy = grid_total["vert_redundancy"]
         for target_face_idx in vert_redundancy.keys():
           for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
             pair_key = (proc_ids[target_face_idx],
@@ -105,7 +106,7 @@ def test_unordered_assembly_triple_stub():
         total_elems = 0
         pairs = {}
         proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-        vert_redundancy = grid_total["vert_redundancy"]
+        vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vert_redundancy"])
         for target_face_idx in vert_redundancy.keys():
           for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
             pair_key = (proc_ids[target_face_idx],
@@ -275,7 +276,7 @@ def test_extract_fields_triples():
             nlev = 2
             pairs = {}
             proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-            vert_redundancy = grid_total_nowrapper["vert_redundancy"]
+            vert_redundancy = vert_red_flat_to_hierarchy(grid_total_nowrapper["vert_redundancy"])
             for target_face_idx in vert_redundancy.keys():
               for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
                 pair_key = (proc_ids[target_face_idx],
@@ -369,7 +370,7 @@ def test_mpi_exchange_for():
       total_elems = 0
       pairs = {}
       proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-      vert_redundancy = grid_total["vert_redundancy"]
+      vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vert_redundancy"])
       for target_face_idx in vert_redundancy.keys():
         for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
           pair_key = (proc_ids[target_face_idx],
@@ -468,7 +469,7 @@ def test_mpi_exchange_triple():
       total_elems = 0
       pairs = {}
       proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-      vert_redundancy = grid_total_nowrapper["vert_redundancy"]
+      vert_redundancy = vert_red_flat_to_hierarchy(grid_total_nowrapper["vert_redundancy"])
       for target_face_idx in vert_redundancy.keys():
         for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
           pair_key = (proc_ids[target_face_idx],
