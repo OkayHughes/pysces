@@ -11,4 +11,7 @@ def get_figdir():
 
 extensive = False
 test_division_factor = 1.0 if extensive else 1000.0
-test_npts = [3, 4, 5, 6] if extensive else [3]
+test_npts = [3, 4, 5, 6] if extensive else [3, 4]
+
+
+seed = 0

@@ -1,7 +1,7 @@
 from pysces.config import jnp, np, device_wrapper
 from .vert_remap_reference import for_loop_remap
 from pysces.models_3d.vertical_remap import zerroukat_remap
-
+from ..context import seed as global_seed
 
 def get_testbed(seed=True, random=False, wrap=False):
   nF = 1
@@ -11,7 +11,7 @@ def get_testbed(seed=True, random=False, wrap=False):
   if seed:
     np.random.seed(0)
   else:
-    np.random.seed(1)
+    np.random.seed(global_seed)
   ints = np.concatenate(([0.0],
                          np.sort(np.random.uniform(size=nlev - 1)),
                          [1.0]))

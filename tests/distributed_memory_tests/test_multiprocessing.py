@@ -10,7 +10,7 @@ from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
 from pysces.config import device_unwrapper, np, do_mpi_communication, use_wrapper, device_wrapper, mpi_size, mpi_rank
 from ..handmade_grids import init_test_grid, vert_redundancy_gll
-from ..context import test_npts
+from ..context import test_npts, seed
 
 
 def test_unordered_assembly_for_stub():
@@ -254,7 +254,7 @@ def test_stub_exchange():
 
 def test_extract_fields_triples():
   for npt in test_npts:
-    np.random.seed(0)
+    np.random.seed(seed)
     for nx in range(1, 3):
       global_grids_nowrapper = [create_uniform_grid(nx, nx + 1, npt, wrapped=False),
                                 create_quasi_uniform_grid(nx, npt, wrapped=False)]
@@ -406,7 +406,7 @@ def test_mpi_exchange_for():
         for grid in grids:
           fs.append([np.zeros_like(grid["physical_coords"][:, :, :, 0])])
         return fs
-      def rand_f(seed=0):
+      def rand_f(seed=seed):
         fs = []
         for grid_idx, grid in enumerate(grids):
           np.random.seed(grid_idx+seed)
@@ -553,3 +553,5 @@ def test_mpi_exchange_triple():
       f_out = dss_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
         assert (np.allclose(f_stub, f_mpi)) 
+
+

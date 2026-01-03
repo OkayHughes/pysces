@@ -1,4 +1,4 @@
-from ..config import np, use_wrapper
+from ..config import np, use_wrapper, mpi_size
 from ..spectral import init_spectral
 from ..distributed_memory.processor_decomposition import get_decomp
 from ..operations_2d.se_grid import create_spectral_element_grid
@@ -129,7 +129,7 @@ def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
 
 
 def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, npt,
-                          wrapped=use_wrapper):
+                          wrapped=use_wrapper, proc_idx=None):
   """
     Collate individual coordinate mappings into into global SpectralElementGrid
     on a periodic plane.
@@ -162,8 +162,11 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
 
   spectrals = init_spectral(npt)
   NELEM = physical_coords.shape[0]
-  proc_idx = 0
-  decomp = get_decomp(NELEM, 1)
+  if proc_idx is None:
+    proc_idx = 0
+    decomp = get_decomp(NELEM, 1)
+  else:
+    decomp = get_decomp(NELEM, mpi_size)
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 
@@ -191,7 +194,7 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
                                       proc_idx, decomp, wrapped=wrapped)
 
 
-def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wrapper):
+def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wrapper, proc_idx=None):
   """
   Generate a uniform doubly periodic
   SpectralElementGrid on an axis-aligned cartesian plane.
@@ -218,4 +221,4 @@ def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wra
     Global spectral element grid.
   """
   physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
-  return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, wrapped=wrapped)
+  return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, wrapped=wrapped, proc_idx=proc_idx)

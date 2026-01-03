@@ -1,6 +1,6 @@
 from ..config import np, jnp, has_mpi, use_wrapper, wrapper_type, take_along_axis, mpi_rank
 from ..operations_2d.assembly import summation_local_for
-
+from ..operations_2d.operators import inner_prod
 
 if has_mpi:
   from mpi4py import MPI
@@ -609,12 +609,12 @@ def dss_scalar_triple_mpi(fs, grid, dim, scaled=True):
   fs_out = []
   #fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
   #local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["dss_triple"]})[mpi_rank]
-  for f, buffer in zip(fs, local_buffer):
-      fs_out[-1].append(sum_into((f * grid["mass_matrix"]).reshape((*dim["shape"], 1)), buffer, grid["dss_triple"][1], dim))
+  for f, local_buf in zip(fs, local_buffer):
+      fs_out.append(sum_into((f * grid["mass_matrix"]).reshape((*dim["shape"], 1)), local_buf, grid["dss_triple"][1], dim))
   fs = [f.squeeze() * grid["mass_matrix_inv"] for f in dss_scalar_triple_unpack(fs_out,
-                                                                               buffer,
-                                                                               grid,
-                                                                               dim)]
+                                                                                buffer,
+                                                                                grid,
+                                                                                dim)]
   return fs
 
 
@@ -680,3 +680,31 @@ def dss_scalar_triple_stub(fs_global, grids, dims):
                         for f in dss_scalar_triple_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx], dims[proc_idx])]
 
   return fs_out
+
+
+def global_sum(summand):
+  """
+  Compute the global sum of a processor-local quantity
+  such as a summed integrand.
+
+  Parameters
+  ----------
+  summand : float
+    Processor-local part of the quantity over which reduction is 
+    performed.
+
+  Returns
+  -------
+  integral : float
+    Global sum of quantity.
+  """
+  reqs = []
+  if not has_mpi:
+    raise NotImplementedError("MPI communication called with has_mpi = False")
+  send = np.array(summand)
+  recv = np.copy(send)
+  req = mpi_comm.Iallreduce(np.array(send),
+                            recv,
+                            MPI.SUM)
+  MPI.Request.Wait(req)
+  return recv.item()

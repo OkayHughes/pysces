@@ -4,7 +4,7 @@ from pysces.operations_2d.assembly import dss_scalar
 from pysces.operations_2d.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
 from pysces.operations_2d.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
-from ..context import test_npts
+from ..context import test_npts, seed
 
 
 def test_vector_identites_sphere():
@@ -49,7 +49,7 @@ def test_vector_identities_plane():
 
 def test_vector_identites_rand_sphere():
   for npt in test_npts:
-    np.random.seed(0)
+    np.random.seed(seed)
     for nx in [30, 31]:
       grid, dims = create_quasi_uniform_grid(nx, npt)
       for _ in range(10):
@@ -75,7 +75,7 @@ def test_vector_identites_rand_sphere():
 
 def test_vector_identites_rand_plane():
   for npt in test_npts:
-    np.random.seed(0)
+    np.random.seed(seed)
     nx, ny = (31, 33)
     grid, dims = create_uniform_grid(nx, ny, npt)
     for _ in range(10):

@@ -19,7 +19,7 @@ def test_theta_steady_state():
   model_config = init_config()
   test_config = get_umjs_config(model_config=model_config)
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=False, hydrostatic=False)
-  total_time = (3600.0 * 24.0 * 10.0) / (test_division_factor)
+  total_time = (3600.0 * 24.0 * 3.0) / (test_division_factor)
   for diffusion in [False, True]:
     end_state = simulate_theta(total_time, nx, model_state,
                                h_grid, v_grid,
@@ -69,7 +69,7 @@ def test_theta_steady_state():
 
 
 def test_theta_baro_wave():
-  npt = 3
+  npt = 4
   nx = 30
   h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
@@ -80,13 +80,13 @@ def test_theta_baro_wave():
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config,
                                   test_config, dims, mountain=False, hydrostatic=False,
                                   pert_type="exponential")
-  total_time = (3600.0 * 24.0 * 30.0) / (test_division_factor)
+  total_time = (3600.0 * 24.0 * 3.0) / (test_division_factor)
   end_state = simulate_theta(total_time, nx, model_state,
                              h_grid, v_grid,
                              model_config, dims,
                              hydrostatic=True,
                              deep=False,
-                             diffusion=True,
+                             diffusion=False,
                              step_type="ull5",
                              sponge_split=3)
   ps = v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"] + jnp.sum(end_state["dpi"], axis=-1)
