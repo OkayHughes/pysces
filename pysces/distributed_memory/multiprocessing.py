@@ -313,7 +313,7 @@ def exchange_buffers_mpi(buffer):
   return buffer
 
 
-def dss_scalar_for_pack(fs_local, grid):
+def assemble_scalar_for_pack(fs_local, grid):
   """
   Extract processor-local list of scalars before
   inter-process communication using a for loop.
@@ -351,7 +351,7 @@ def dss_scalar_for_pack(fs_local, grid):
   return buffers
 
 
-def dss_scalar_triple_pack(fs_local, grid):
+def assemble_scalar_triple_pack(fs_local, grid):
   """
   Extract processor-local list of scalars before
   inter-process communication using assembly triples.
@@ -388,7 +388,7 @@ def dss_scalar_triple_pack(fs_local, grid):
   return buffers
 
 
-def dss_scalar_for_unpack(fs_local, buffers, grid, *args):
+def assemble_scalar_for_unpack(fs_local, buffers, grid, *args):
   """
   Sum remote processor redundancies into a list of scalars
   after inter-process communication using a for loop.
@@ -428,7 +428,7 @@ def dss_scalar_for_unpack(fs_local, buffers, grid, *args):
                                                        buffers, grid["vert_redundancy_receive"])]
 
 
-def dss_scalar_triple_unpack(fs_local, buffers, grid, dim, *args):
+def assemble_scalar_triple_unpack(fs_local, buffers, grid, dim, *args):
   """
   Sum non-processor-local redundancies into list of scalars
   after inter-process communication using assembly triples.
@@ -467,9 +467,9 @@ def dss_scalar_triple_unpack(fs_local, buffers, grid, dim, *args):
                                                        buffers, grid["triples_receive"], dim)]
 
 
-def dss_scalar_for_stub(fs_global, grids):
+def project_scalar_for_stub(fs_global, grids):
   """
-  Perform assembly on a list of scalars assuming all data is processor local
+  Perform continuity projection on a list of scalars assuming all data is processor local
   using stub communicator and a for loop.
 
   *Only intended for testing and debugging.*
@@ -478,7 +478,7 @@ def dss_scalar_for_stub(fs_global, grids):
   ----------
   fs_global : `list[list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]]`
       List of length `num_proc`, where fs_global[proc_idx]
-      is a list of "processor-local" 2D scalars to perform assembly on.
+      is a list of "processor-local" 2D scalars to perform continuity projection on.
   grids : `list[dict[str, Any]]`
       List of grids containing "vert_redundancy_send",
       "vert_redundancy_receive", and "vert_redundancy_local". 
@@ -487,7 +487,7 @@ def dss_scalar_for_stub(fs_global, grids):
   -------
   `list[list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]]`
       List of length `num_proc`, where `fs_global[proc_idx]`
-      is a list of C0 "processor-local" 2D scalars on which assembly has been performed.
+      is a list of C0 "processor-local" globally continuous 2D scalar has been performed.
 
   Notes
   -----
@@ -505,7 +505,7 @@ def dss_scalar_for_stub(fs_global, grids):
 
   buffers = []
   for fs_local, grid in zip(fs_global, grids):
-    buffers.append(dss_scalar_for_pack([f * grid["mass_matrix"] for f in fs_local], grid))
+    buffers.append(assemble_scalar_for_pack([f * grid["mass_matrix"] for f in fs_local], grid))
 
   fs_out = [[summation_local_for(f * grid["mass_matrix"], grid) for f in fs_local]
             for (fs_local, grid) in zip(fs_global, grids)]
@@ -513,21 +513,21 @@ def dss_scalar_for_stub(fs_global, grids):
 
   for proc_idx in range(len(fs_out)):
     fs_out[proc_idx] = [f * grids[proc_idx]["mass_matrix_inv"]
-                        for f in dss_scalar_for_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx])]
+                        for f in assemble_scalar_for_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx])]
 
   return fs_out
 
 
-def dss_scalar_for_mpi(fs, grid):
+def project_scalar_for_mpi(fs, grid):
   """
-  Perform assembly on a list of processor-local scalars using a for loop.
+  Perform continuity projection on a list of processor-local scalars using a for loop.
 
   *Only used for testing, do not use in performance-critical code*
 
   Parameters
   ----------
   fs : `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of processor-local 2D scalars to perform assembly on.
+      List of processor-local 2D scalars to perform continuity projection on.
   grids : `list[dict[str, Any]]`
       List of grids, each of which contains
       "vert_redundancy_send" and "vert_redundancy_receive", and "vert_redundancy_local"
@@ -535,7 +535,7 @@ def dss_scalar_for_mpi(fs, grid):
   Returns
   -------
   `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of continuous processor-local scalars on which assembly was performed.
+      List of continuous processor-local scalars on which continuity projection was performed.
 
   Notes
   -----
@@ -558,32 +558,32 @@ def dss_scalar_for_mpi(fs, grid):
   # This is primarily for testing!
   # do not use in model code!
   data_scaled = [f * grid["mass_matrix"] for f in fs]
-  buffer = dss_scalar_for_pack(data_scaled, grid)
+  buffer = assemble_scalar_for_pack(data_scaled, grid)
   buffer = exchange_buffers_mpi(buffer)
   fs_out = [summation_local_for(data_scaled, grid) for f in fs]
   fs = [f * grid["mass_matrix_inv"]
-                        for f in dss_scalar_for_unpack(fs_out, buffer, grid)]
+                        for f in assemble_scalar_for_unpack(fs_out, buffer, grid)]
   return fs
 
 
-def dss_scalar_triple_mpi(fs, grid, dim, scaled=True):
+def project_scalar_triple_mpi(fs, grid, dim, scaled=True):
   """
-  Perform assembly on a list of processor-local scalars using assembly triples.
+  Perform continuity projection on a list of processor-local scalars using projection triples.
 
   Can be used for performance code.
 
   Parameters
   ----------
   fs : `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of processor-local 2D scalars to perform assembly on.
+      List of processor-local 2D scalars to perform continuity projection on.
   grids : `list[dict[str, Any]]`
       List of grids, each of which contains
-      "triples_send", "triples_receive", and "dss_triple"
+      "triples_send", "triples_receive", and "assembly_triple"
 
   Returns
   -------
   `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of continuous processor-local scalars on which assembly was performed.
+      List of continuous processor-local scalars on which continuity projection was performed.
 
   Notes
   -----
@@ -592,8 +592,8 @@ def dss_scalar_triple_mpi(fs, grid, dim, scaled=True):
   * To create your own dummy grid, see `se_grid.vert_redundancy_triage`
   for how to create "vert_redundancy_send", "vert_redundancy_receive",
   and "vert_redundancy_local", then see
-  `se_grid.init_dss_global` and `se_grid.init_dss_local` for how to generate
-  ("triples_send", "triples_receive"), and "dss_triple", respectively.
+  `se_grid.init_assembly_global` and `se_grid.init_assembly_local` for how to generate
+  ("triples_send", "triples_receive"), and "assembly_triple", respectively.
 
   Raises
   ------
@@ -601,27 +601,27 @@ def dss_scalar_triple_mpi(fs, grid, dim, scaled=True):
     Raises any error that can be raised by exchange_buffers_mpi function.
 
   """
-  buffer = dss_scalar_triple_pack([f * grid["mass_matrix"] for f in fs], grid)
+  buffer = assemble_scalar_triple_pack([f * grid["mass_matrix"] for f in fs], grid)
   buffer = exchange_buffers_mpi(buffer)
   # TODO: replace with sum_into
 
-  local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["dss_triple"]})[mpi_rank]
+  local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["assembly_triple"]})[mpi_rank]
   fs_out = []
   #fs_out = [summation_local_for(f * grid["mass_matrix"], grid) for f in fs]
   #local_buffer = extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs], {mpi_rank: grid["dss_triple"]})[mpi_rank]
   for f, local_buf in zip(fs, local_buffer):
-      fs_out.append(sum_into((f * grid["mass_matrix"]).reshape((*dim["shape"], 1)), local_buf, grid["dss_triple"][1], dim))
-  fs = [f.squeeze() * grid["mass_matrix_inv"] for f in dss_scalar_triple_unpack(fs_out,
-                                                                                buffer,
-                                                                                grid,
-                                                                                dim)]
+      fs_out.append(sum_into((f * grid["mass_matrix"]).reshape((*dim["shape"], 1)), local_buf, grid["assembly_triple"][1], dim))
+  fs = [f.squeeze() * grid["mass_matrix_inv"] for f in assemble_scalar_triple_unpack(fs_out,
+                                                                                     buffer,
+                                                                                     grid,
+                                                                                     dim)]
   return fs
 
 
-def dss_scalar_triple_stub(fs_global, grids, dims):
+def project_scalar_triple_stub(fs_global, grids, dims):
   """
-  Perform assembly on a list of scalars assuming all data is processor local
-  using stub communicator and assembly triples.
+  Perform continuity projection on a list of scalars assuming all data is processor local
+  using stub communicator and projection triples.
 
   *Only intended for testing and debugging.*
 
@@ -629,16 +629,16 @@ def dss_scalar_triple_stub(fs_global, grids, dims):
   ----------
   fs_global : `list[list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]]`
       List of length `num_proc`, where fs_global[proc_idx]
-      is a list of "processor-local" 2D scalars to perform assembly on.
+      is a list of "processor-local" 2D scalars to perform continuity projection on.
   grids : `list[dict[str, Any]]`
       List of grids containing "triples_send",
-      "triples_receive", and "dss_triple". 
+      "triples_receive", and "assembly_triple". 
 
   Returns
   -------
   `list[list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]]`
       List of length `num_proc`, where `fs_global[proc_idx]`
-      is a list of C0 "processor-local" 2D scalars on which assembly has been performed.
+      is a list of C0 "processor-local" 2D scalars on which projection has been performed.
 
   Notes
   -----
@@ -651,8 +651,8 @@ def dss_scalar_triple_stub(fs_global, grids, dims):
   * To create your own dummy grid, see `se_grid.vert_redundancy_triage`
   for how to create "vert_redundancy_send", "vert_redundancy_receive",
   and "vert_redundancy_local", then see
-  `se_grid.init_dss_global` and `se_grid.init_dss_local` for how to generate
-  ("triples_send", "triples_receive"), and "dss_triple", respectively.
+  `se_grid.init_assembly_global` and `se_grid.init_assembly_local` for how to generate
+  ("triples_send", "triples_receive"), and "assembly_triple", respectively.
 
   """
   
@@ -661,8 +661,8 @@ def dss_scalar_triple_stub(fs_global, grids, dims):
   local_buffers = []
   for fs_local, grid, dim in zip(fs_global, grids, dims):
     data_scaled.append([f * grid["mass_matrix"] for f in fs_local])
-    buffers.append(dss_scalar_triple_pack([f * grid["mass_matrix"] for f in fs_local], grid))
-    local_buffers.append(extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs_local], {mpi_rank: grid["dss_triple"]})[mpi_rank])
+    buffers.append(assemble_scalar_triple_pack([f * grid["mass_matrix"] for f in fs_local], grid))
+    local_buffers.append(extract_fields_triple([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1)) for f in fs_local], {mpi_rank: grid["assembly_triple"]})[mpi_rank])
 
   # TODO: replace with sum_into
   #fs_out = [[summation_local_for(f * grid["mass_matrix"], grid) for f in fs_local]
@@ -671,13 +671,13 @@ def dss_scalar_triple_stub(fs_global, grids, dims):
   for (fs_local, grid, dim, buffer_list) in zip(data_scaled, grids, dims, local_buffers):
     fs_out.append([])
     for f_scaled, buffer in zip(fs_local, buffer_list):
-      fs_out[-1].append(sum_into((f_scaled).reshape((*dim["shape"], 1)), buffer, grid["dss_triple"][1], dim))
+      fs_out[-1].append(sum_into((f_scaled).reshape((*dim["shape"], 1)), buffer, grid["assembly_triple"][1], dim))
 
   buffers = exchange_buffers_stub(buffers)
 
   for proc_idx in range(len(fs_out)):
     fs_out[proc_idx] = [f.squeeze() * grids[proc_idx]["mass_matrix_inv"]
-                        for f in dss_scalar_triple_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx], dims[proc_idx])]
+                        for f in assemble_scalar_triple_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx], dims[proc_idx])]
 
   return fs_out
 

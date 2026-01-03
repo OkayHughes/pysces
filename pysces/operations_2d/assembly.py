@@ -166,7 +166,7 @@ def dss_scalar_wrapper(f, grid, dims, scaled=True):
   KeyError
       when a key error
   """
-  (data, rows, cols) = grid["dss_triple"]
+  (data, rows, cols) = grid["assembly_triple"]
 
   if scaled:
     scaled_f = f * grid["mass_matrix"]

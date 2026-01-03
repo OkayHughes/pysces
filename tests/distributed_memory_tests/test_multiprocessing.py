@@ -1,10 +1,10 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.distributed_memory.multiprocessing import (dss_scalar_for_stub,
-                                                       dss_scalar_for_pack, dss_scalar_for_unpack,
+from pysces.distributed_memory.multiprocessing import (project_scalar_for_stub,
+                                                       assemble_scalar_for_pack, assemble_scalar_for_unpack,
                                                        exchange_buffers_stub, extract_fields_triple, extract_fields_for,
                                                        accumulate_fields_for, accumulate_fields_triple,
-                                                       dss_scalar_for_mpi, dss_scalar_triple_stub,
-                                                       dss_scalar_triple_mpi)
+                                                       project_scalar_for_mpi,project_scalar_triple_stub,
+                                                       project_scalar_triple_mpi)
 from pysces.operations_2d.se_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
@@ -69,7 +69,7 @@ def test_unordered_assembly_for_stub():
           for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
             fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
           fs_ref = [[np.copy(f[0])] for f in fs]
-          fs_out = dss_scalar_for_stub(fs, grids)
+          fs_out = project_scalar_for_stub(fs, grids)
           for (f, f_new) in zip(fs_ref, fs_out):
             assert (np.allclose(f[0], f_new[0]))
 
@@ -85,7 +85,7 @@ def test_unordered_assembly_for_stub():
           for proc_idx in range(nproc):
             fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
             fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
-        fs_out = dss_scalar_for_stub(fs, grids)
+        fs_out = project_scalar_for_stub(fs, grids)
         for (f, f_new) in zip(fs_ref, fs_out):
           for (f_pair, f_new_pair) in zip(f, f_new):
             assert (np.allclose(f_pair, f_new_pair))
@@ -147,7 +147,7 @@ def test_unordered_assembly_triple_stub():
           for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
             fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
           fs_ref = [[np.copy(f[0])] for f in fs]
-          fs_out = dss_scalar_triple_stub(fs, grids, dims)
+          fs_out = project_scalar_triple_stub(fs, grids, dims)
           for (f, f_new) in zip(fs_ref, fs_out):
             assert (np.allclose(f[0], f_new[0]))
 
@@ -163,7 +163,7 @@ def test_unordered_assembly_triple_stub():
           for proc_idx in range(nproc):
             fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
             fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
-        fs_out = dss_scalar_triple_stub(fs, grids, dims)
+        fs_out = project_scalar_triple_stub(fs, grids, dims)
         for (f, f_new) in zip(fs_ref, fs_out):
           for (f_pair, f_new_pair) in zip(f, f_new):
             assert (np.allclose(f_pair, f_new_pair))
@@ -224,14 +224,14 @@ def test_stub_exchange():
     for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
       fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
     fs_ref = [np.copy(f) for f in fs]
-    fs_out_dss = dss_scalar_for_stub(fs, grids)
+    fs_out_dss = project_scalar_for_stub(fs, grids)
     buffers = []
     for (f, grid) in zip(fs, grids):
-      buffers.append(dss_scalar_for_pack(f, grid))
+      buffers.append(assemble_scalar_for_pack(f, grid))
     buffers = exchange_buffers_stub(buffers)
     fs_out = []
     for (f, grid, buffer) in zip(fs, grids, buffers):
-      fs_out.append(dss_scalar_for_unpack(f, buffer, grid))
+      fs_out.append(assemble_scalar_for_unpack(f, buffer, grid))
     if (source_i, source_j) in {(0, 0),
                                 (npt - 1, npt - 1),
                                 (0, npt - 1),
@@ -421,8 +421,8 @@ def test_mpi_exchange_for():
         for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
           fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
         fs_ref = [[np.copy(f[0])] for f in fs]
-        fs_out = dss_scalar_for_stub(fs, grids)
-        f_out = dss_scalar_for_mpi(fs[local_proc_idx], grid_local)
+        fs_out = project_scalar_for_stub(fs, grids)
+        f_out = project_scalar_for_mpi(fs[local_proc_idx], grid_local)
         assert (np.allclose(fs_ref[local_proc_idx][0], fs_out[local_proc_idx][0]))
         assert (np.allclose(fs_ref[local_proc_idx][0], f_out))  
 
@@ -438,8 +438,8 @@ def test_mpi_exchange_for():
         for proc_idx in range(nproc):
           fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
           fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
-      fs_out = dss_scalar_for_stub(fs, grids)
-      f_out = dss_scalar_for_mpi(fs[local_proc_idx], grid_local)
+      fs_out = project_scalar_for_stub(fs, grids)
+      f_out = project_scalar_for_mpi(fs[local_proc_idx], grid_local)
       for (f_pair, f_new_pair) in zip(fs_out[local_proc_idx], f_out):
         assert (np.allclose(f_pair, f_new_pair))
       num_fields = 20
@@ -448,8 +448,8 @@ def test_mpi_exchange_for():
         f_rand = rand_f()
         for proc_idx in range(nproc):
           fs_rand[proc_idx].append(np.copy(f_rand[proc_idx][0]))
-      fs_stub_out = dss_scalar_for_stub(fs_rand, grids)
-      f_out = dss_scalar_for_mpi(fs_rand[local_proc_idx], grid_local)
+      fs_stub_out = project_scalar_for_stub(fs_rand, grids)
+      f_out = project_scalar_for_mpi(fs_rand[local_proc_idx], grid_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
         assert (np.allclose(f_stub, f_mpi))  
 
@@ -522,8 +522,8 @@ def test_mpi_exchange_triple():
         for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
           fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
         fs_ref = [[np.copy(f[0])] for f in fs]
-        fs_out = dss_scalar_triple_stub(fs, grids, dims)
-        f_out = dss_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
+        fs_out = project_scalar_triple_stub(fs, grids, dims)
+        f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
         assert (np.allclose(fs_ref[local_proc_idx][0], fs_out[local_proc_idx][0]))
         assert (np.allclose(fs_ref[local_proc_idx][0], f_out))  
 
@@ -539,8 +539,8 @@ def test_mpi_exchange_triple():
         for proc_idx in range(nproc):
           fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
           fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
-      fs_out = dss_scalar_triple_stub(fs, grids, dims)
-      f_out = dss_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
+      fs_out = project_scalar_triple_stub(fs, grids, dims)
+      f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
       for (f_pair, f_new_pair) in zip(fs_out[local_proc_idx], f_out):
         assert (np.allclose(f_pair, f_new_pair))
       num_fields = 20
@@ -549,8 +549,8 @@ def test_mpi_exchange_triple():
         f_rand = rand_f()
         for proc_idx in range(nproc):
           fs_rand[proc_idx].append(np.copy(f_rand[proc_idx][0]))
-      fs_stub_out = dss_scalar_triple_stub(fs_rand, grids, dims)
-      f_out = dss_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
+      fs_stub_out = project_scalar_triple_stub(fs_rand, grids, dims)
+      f_out = project_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
         assert (np.allclose(f_stub, f_mpi)) 
 

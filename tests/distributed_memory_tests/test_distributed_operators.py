@@ -5,7 +5,7 @@ from pysces.operations_2d.se_grid import subset_var
 from pysces.operations_2d.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
 from pysces.operations_2d.operators import sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
-from pysces.distributed_memory.multiprocessing import dss_scalar_triple_mpi, global_sum
+from pysces.distributed_memory.multiprocessing import project_scalar_triple_mpi, global_sum
 from pysces.distributed_memory.processor_decomposition import get_decomp
 from ..context import test_npts, seed
 
@@ -18,9 +18,9 @@ def test_vector_identites_sphere():
       grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
       fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
       grad = sphere_gradient(fn, grid)
-      grad = np.stack(dss_scalar_triple_mpi([grad[:, :, :, 0],
+      grad = np.stack(project_scalar_triple_mpi([grad[:, :, :, 0],
                                              grad[:, :, :, 1]], grid, dims), axis=-1)
-      vort = dss_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
+      vort = project_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
 
       iprod_vort = inner_prod(vort, vort, grid)
       assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
@@ -42,9 +42,9 @@ def test_vector_identities_plane():
     grid, dims = create_uniform_grid(nx, ny, npt, length_x=jnp.pi, length_y=jnp.pi, proc_idx=mpi_rank)
     fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
     grad = sphere_gradient(fn, grid)
-    grad = np.stack(dss_scalar_triple_mpi([grad[:, :, :, 0],
+    grad = np.stack(project_scalar_triple_mpi([grad[:, :, :, 0],
                                             grad[:, :, :, 1]], grid, dims), axis=-1)
-    vort = dss_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
+    vort = project_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
 
     iprod_vort = inner_prod(vort, vort, grid)
     assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
@@ -67,17 +67,17 @@ def test_vector_identites_rand_sphere():
       grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
       for _ in range(10):
         fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
-        fn = dss_scalar_triple_mpi([fn], grid, dims)[0]
+        fn = project_scalar_triple_mpi([fn], grid, dims)[0]
         grad = sphere_gradient(fn, grid)
-        grad = np.stack(dss_scalar_triple_mpi([grad[:, :, :, 0],
+        grad = np.stack(project_scalar_triple_mpi([grad[:, :, :, 0],
                                                grad[:, :, :, 1]], grid, dims), axis=-1)
-        vort = dss_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
+        vort = project_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
         iprod_vort = inner_prod(vort, vort, grid)
         assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
         v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
-        v = jnp.stack(dss_scalar_triple_mpi([v[:, :, :, 0], v[:, :, :, 1]], grid, dims), axis=-1)
+        v = jnp.stack(project_scalar_triple_mpi([v[:, :, :, 0], v[:, :, :, 1]], grid, dims), axis=-1)
         div = sphere_divergence(v, grid)
-        div = dss_scalar_triple_mpi([sphere_divergence(v, grid)], grid, dims)[0]
+        div = project_scalar_triple_mpi([sphere_divergence(v, grid)], grid, dims)[0]
         discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                                    inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                                    inner_prod(fn, div, grid))
@@ -93,18 +93,18 @@ def test_vector_identites_rand_plane():
     grid, dims = create_uniform_grid(nx, ny, npt, proc_idx=mpi_rank)
     for _ in range(10):
       fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
-      fn = dss_scalar_triple_mpi([fn], grid, dims)[0]
+      fn = project_scalar_triple_mpi([fn], grid, dims)[0]
       grad = sphere_gradient(fn, grid)
       vort = sphere_vorticity(grad, grid)
-      grad = np.stack(dss_scalar_triple_mpi([grad[:, :, :, 0],
+      grad = np.stack(project_scalar_triple_mpi([grad[:, :, :, 0],
                                               grad[:, :, :, 1]], grid, dims), axis=-1)
-      vort = dss_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
+      vort = project_scalar_triple_mpi([sphere_vorticity(grad, grid)], grid, dims)[0]
       iprod_vort = inner_prod(vort, vort, grid)
       assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
       v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
-      v = jnp.stack(dss_scalar_triple_mpi([v[:, :, :, 0], v[:, :, :, 1]], grid, dims), axis=-1)
+      v = jnp.stack(project_scalar_triple_mpi([v[:, :, :, 0], v[:, :, :, 1]], grid, dims), axis=-1)
       div = sphere_divergence(v, grid)
-      div = dss_scalar_triple_mpi([sphere_divergence(v, grid)], grid, dims)[0]
+      div = project_scalar_triple_mpi([sphere_divergence(v, grid)], grid, dims)[0]
       discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                                  inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                                  inner_prod(fn, div, grid))
@@ -130,9 +130,9 @@ def test_equivalence_rand_sphere():
         fn = subset_var(fn_total, mpi_rank, decomp)
         u = subset_var(u_total, mpi_rank, decomp)
         v = subset_var(v_total, mpi_rank, decomp)
-        fn = dss_scalar_triple_mpi([fn], grid, dims)[0]
+        fn = project_scalar_triple_mpi([fn], grid, dims)[0]
 
-        vec = np.stack(dss_scalar_triple_mpi([u, v], grid, dims), axis=-1)
+        vec = np.stack(project_scalar_triple_mpi([u, v], grid, dims), axis=-1)
         grad = sphere_gradient(fn, grid)
         vort = sphere_vorticity(vec, grid)
         div = sphere_divergence(vec, grid)

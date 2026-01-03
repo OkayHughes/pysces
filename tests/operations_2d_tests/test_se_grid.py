@@ -1,8 +1,8 @@
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo, create_quasi_uniform_grid
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from pysces.distributed_memory.processor_decomposition import get_decomp, local_to_global
-from pysces.operations_2d.se_grid import (triage_vert_redundancy, subset_var, init_dss_global,
-                                          init_dss_matrix_local, create_spectral_element_grid)
+from pysces.operations_2d.se_grid import (triage_vert_redundancy, subset_var, init_assembly_global,
+                                          init_assembly_matrix_local, create_spectral_element_grid)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np, use_wrapper, wrapper_type, device_unwrapper
 from ..context import test_npts
@@ -153,14 +153,14 @@ def test_dss_init():
                            triple[1],
                            triple[2])]
 
-  vert_red_total = flip_triple(se_grid["dss_triple"])
+  vert_red_total = flip_triple(se_grid["assembly_triple"])
   ct = len(vert_red_total)
   for proc_idx in range(nproc):
     vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(se_grid["vert_redundancy"], proc_idx, decomp)
     metdet = subset_var(se_grid["met_det"], proc_idx, decomp, wrapped=False)
-    _, dss_triple = init_dss_matrix_local(metdet.shape[0], npt, vert_red_local)
+    _, dss_triple = init_assembly_matrix_local(metdet.shape[0], npt, vert_red_local)
     ct -= len(flip_triple(dss_triple))
-    triples_send, triples_receive = init_dss_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
+    triples_send, triples_receive = init_assembly_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
     for remote_proc_idx in triples_send.keys():
       assert (remote_proc_idx in triples_receive.keys())
       # column refers to order of summation, which may not match.

@@ -5,7 +5,7 @@ from ..distributed_memory.processor_decomposition import global_to_local, elem_i
 from ..spectral import init_spectral
 
 
-def init_dss_matrix_local(NELEM, npt, vert_redundancy_local):
+def init_assembly_matrix_local(NELEM, npt, vert_redundancy_local):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
@@ -36,15 +36,15 @@ def init_dss_matrix_local(NELEM, npt, vert_redundancy_local):
   # note: must reintroduce inv_mass_mat in DSS routine.
   # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  dss_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
+  assembly_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
 
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
-  return dss_matrix, (np.array(data, dtype=np.float64),
+  return assembly_matrix, (np.array(data, dtype=np.float64),
                       np.array(rows, dtype=np.int64),
                       np.array(cols, dtype=np.int64))
 
 
-def init_dss_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
+def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
@@ -135,6 +135,7 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapp
   return var_out
 
 
+
 def create_spectral_element_grid(latlon,
                                  gll_to_sphere_jacobian,
                                  gll_to_sphere_jacobian_inv,
@@ -164,8 +165,8 @@ def create_spectral_element_grid(latlon,
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy(vert_redundancy_gll,
                                                                         proc_idx,
                                                                         decomp)
-  dss_matrix, dss_triple = init_dss_matrix_local(NELEM, npt, vert_red_local)
-  triples_send, triples_recv = init_dss_global(NELEM, npt, vert_red_send, vert_red_recv)
+  dss_matrix, dss_triple = init_assembly_matrix_local(NELEM, npt, vert_red_local)
+  triples_send, triples_recv = init_assembly_global(NELEM, npt, vert_red_send, vert_red_recv)
 
   # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
   # this extra conditional is not extraneous.
@@ -197,7 +198,7 @@ def create_spectral_element_grid(latlon,
          "mass_matrix": subset_wrapper(mass_matrix),
          "deriv": wrapper(spectrals["deriv"]),
          "gll_weights": wrapper(spectrals["gll_weights"]),
-         "dss_triple": (wrapper(dss_triple[0]),
+         "assembly_triple": (wrapper(dss_triple[0]),
                         wrapper(dss_triple[1], dtype=jnp.int64),
                         wrapper(dss_triple[2], dtype=jnp.int64)),
          "triples_send": triples_send,
