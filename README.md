@@ -15,6 +15,7 @@ modern environment manager for Python that we use for development and testing.
 If you don't have MPI installed, run:
 * Run `uv sync --group mpich --group dev --group jax --group torch`
 * If you don't plan to use either jax or torch, you can omit one or both of those groups.
+
 If you have a system MPI installed (e.g. on HPC systems), run:
 * Run `which mpicc`
 * Create a `.env` file containing `export MPICC=${MPICC_LOCATION}`
