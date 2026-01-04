@@ -11,6 +11,7 @@ Subpackages
    pysces.mesh_generation
    pysces.models_3d
    pysces.operations_2d
+   pysces.shallow_water_models
 
 Submodules
 ----------
@@ -19,7 +20,6 @@ Submodules
    :maxdepth: 4
 
    pysces.config
-   pysces.pysces_types
    pysces.set_config
    pysces.spectral
 

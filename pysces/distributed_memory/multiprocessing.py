@@ -642,15 +642,15 @@ def project_scalar_for_mpi(fs, grid):
   Parameters
   ----------
   fs : `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of processor-local 2D scalars to perform continuity projection on.
+    List of processor-local 2D scalars to perform continuity projection on.
   grids : `list[dict[str, Any]]`
-      List of grids, each of which contains
-      "vert_redundancy_send" and "vert_redundancy_receive", and "vert_redundancy_local"
+    List of grids, each of which contains
+    "vert_redundancy_send" and "vert_redundancy_receive", and "vert_redundancy_local"
 
   Returns
   -------
   `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of continuous processor-local scalars on which continuity projection was performed.
+    List of continuous processor-local scalars on which continuity projection was performed.
 
   Notes
   -----
@@ -668,7 +668,6 @@ def project_scalar_for_mpi(fs, grid):
   ------
   Error
     Raises any error that can be raised by exchange_buffers_mpi function.
-
   """
   # This is primarily for testing!
   # do not use in model code!
@@ -691,10 +690,10 @@ def project_scalar_triple_mpi(fs_in, grid, dim, scaled=True, two_d=True):
   Parameters
   ----------
   fs : `list[Array[tuple[elem_idx, gll_idx, gll_idx], Float]]`
-      List of processor-local 2D scalars to perform continuity projection on.
+    List of processor-local 2D scalars to perform continuity projection on.
   grids : `list[dict[str, Any]]`
-      List of grids, each of which contains
-      "triples_send", "triples_receive", and "assembly_triple"
+    List of grids, each of which contains
+    "triples_send", "triples_receive", and "assembly_triple"
 
   Returns
   -------
@@ -704,12 +703,12 @@ def project_scalar_triple_mpi(fs_in, grid, dim, scaled=True, two_d=True):
   Notes
   -----
   * See `se_grid.create_spectral_element_grid` with `proc_idx=local_proc_idx`
-  for how to create the `grids[proc_idx]` entries.
+    for how to create the `grids[proc_idx]` entries.
   * To create your own dummy grid, see `se_grid.vert_redundancy_triage`
-  for how to create "vert_redundancy_send", "vert_redundancy_receive",
-  and "vert_redundancy_local", then see
-  `se_grid.init_assembly_global` and `se_grid.init_assembly_local` for how to generate
-  ("triples_send", "triples_receive"), and "assembly_triple", respectively.
+    for how to create "vert_redundancy_send", "vert_redundancy_receive",
+    and "vert_redundancy_local", then see
+    `se_grid.init_assembly_global` and `se_grid.init_assembly_local` for how to generate
+    ("triples_send", "triples_receive"), and "assembly_triple", respectively.
 
   Raises
   ------

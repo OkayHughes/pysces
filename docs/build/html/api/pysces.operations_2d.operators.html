@@ -61,6 +61,9 @@
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -91,6 +94,9 @@
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -121,6 +127,9 @@
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -151,20 +160,23 @@
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_curl_wk_cov">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_curl_wk_cov</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_curl_wk_cov" title="Link to this definition">¶</a></dt>
 <dd><p>[Description]</p>
-<dl class="field-list simple">
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
+<dd class="field-odd"><dl>
 <dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
 </dd>
 <dt><strong>second</strong></dt><dd><p>the 2nd param</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which weak curl is calculated.</p>
 </dd>
 </dl>
 </dd>
@@ -181,50 +193,51 @@
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_divergence">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_divergence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_divergence" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local spherical divergence of a physical vector.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>u</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]</span></dt><dd><p>Vector field (u, v) in spherical coordinates
+to apply divergence operator to</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which divergence is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt><strong>div_u</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>Spherical divergence of <cite>u</cite></p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_divergence_wk">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_divergence_wk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_divergence_wk" title="Link to this definition">¶</a></dt>
 <dd><p>[Description]</p>
-<dl class="field-list simple">
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
+<dd class="field-odd"><dl>
 <dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
 </dd>
 <dt><strong>second</strong></dt><dd><p>the 2nd param</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which weak divergence is calculated.</p>
 </dd>
 </dl>
 </dd>
@@ -241,186 +254,182 @@
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_gradient">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_gradient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_gradient" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local gradient of f in spherical coordinates.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>f</strong><span class="classifier"><a href="#id1"><span class="problematic" id="id2">`</span></a>Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>The scalar field to calulate the gradient of</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which gradient is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt>grad_f: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]</dt><dd><p>The spherical gradient of f</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_gradient_wk_cov">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_gradient_wk_cov</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_gradient_wk_cov" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local weak gradient of f in spherical coordinates
+using covariant test functions.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>f</strong><span class="classifier"><a href="#id3"><span class="problematic" id="id4">`</span></a>Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>The scalar field to calulate the gradient of</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which weak gradient is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt>wk_grad_f: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]</dt><dd><p>The weak spherical gradient of f, expanded in covariant test functions.</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>[TODO] Explain what’s going on in the math here
+One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_laplacian">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_laplacian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_laplacian" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local spherical laplacian of f.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>f</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>Scalar field to which to apply the laplacian operator</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which the laplacian is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt><strong>laplace_f</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>Spherical laplacian of <cite>f</cite></p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_laplacian_wk">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_laplacian_wk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_laplacian_wk" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local weak spherical laplacian of f.</p>
+<p>Use this function for hyperviscosity.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>f</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>Scalar field to which to apply the weak laplacian operator</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which the weak laplacian is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt><strong>laplace_f</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>Weak spherical laplacian of <cite>f</cite></p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>When performing assembly, this is already scaled by mass matrix quantities
+due to how quadrature is computed in SE.</p>
+<p>[TODO] Explain how the math works</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_vec_laplacian_wk">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_vec_laplacian_wk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu_div_fact</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_vec_laplacian_wk" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local weak spherical vector laplacian of a physical vector field u.</p>
+<p>Use this function for hyperviscosity.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>u</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]</span></dt><dd><p>Scalar field to which to apply the weak laplacian operator</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which the weak vector laplacian is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt><strong>laplace_u</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]</span></dt><dd><p>Weak spherical vector laplacian of <cite>u</cite></p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>When performing assembly, this is already scaled by mass matrix quantities
+due to how quadrature is computed in SE.</p>
+<p>[TODO] Explain how the math works</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.operations_2d.operators.sphere_vorticity">
 <span class="sig-prename descclassname"><span class="pre">pysces.operations_2d.operators.</span></span><span class="sig-name descname"><span class="pre">sphere_vorticity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.operations_2d.operators.sphere_vorticity" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
-<dl class="field-list simple">
+<dd><p>Calculate the element-local spherical vorticity of a physical vector.</p>
+<dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dd class="field-odd"><dl>
+<dt><strong>u</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]</span></dt><dd><p>Vector field (u, v) in spherical coordinates
+to calculate vorticity of</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
+<dt><strong>grid</strong><span class="classifier"><cite>SpectralElementGrid</cite></span></dt><dd><p>Spectral element grid struct that contains coordinate and metric data.</p>
 </dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>a</strong><span class="classifier"><cite>float</cite>, default=1.0</span></dt><dd><p>Radius of sphere on which vorticity is calculated.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
+<dt><strong>vort_u</strong><span class="classifier">Array[tuple[elem_idx, gll_idx, gll_idx], Float]</span></dt><dd><p>Spherical vorticity of <cite>u</cite></p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>One typically uses <cite>se_grid.create_spectral_element_grid</cite> to create
+the <cite>grid</cite> argument.</p>
 </dd></dl>
 
 </section>
