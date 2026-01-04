@@ -12,9 +12,10 @@ Given the constraints of these design decisions, it is unlikely that the resulti
 modern environment manager for Python that we use for development and testing.
 
 ## MPI-dependent steps
+If you don't have MPI installed, run:
 * Run `uv sync --group mpich --group dev --group jax --group torch`
 * If you don't plan to use either jax or torch, you can omit one or both of those groups.
-## System MPI (e.g., HPC systems)
+If you have a system MPI installed (e.g. on HPC systems), run:
 * Run `which mpicc`
 * Create a `.env` file containing `export MPICC=${MPICC_LOCATION}`
 * Run `uv sync --env-file .env --group dev --group jax --group torch`
@@ -55,7 +56,7 @@ with PyTorch as a backend, but we don't typically optimize for PyTorch performan
 # Policy on intellectual property
 
 The view of the maintainer is that since the training data 
-used to train LLMS was obtained without the consent, 
+used to train LLMS was obtained without the consent of the people who made it, 
 LLMs trained on this data are structurally incapable
 of determining when they are commiting plagiarism or theft.
 
