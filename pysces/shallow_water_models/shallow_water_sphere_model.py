@@ -1,8 +1,9 @@
-from ..config import jnp, jit, versatile_assert, device_wrapper, np
-from ..operations_2d.assembly import project_scalar
+from ..config import jnp, jit, versatile_assert, device_wrapper, np, is_main_proc
+from ..distributed_memory.multiprocessing import project_scalar_triple_mpi
 from ..operations_2d.operators import sphere_vorticity, sphere_gradient, sphere_divergence
 from ..operations_2d.operators import sphere_laplacian_wk, sphere_vec_laplacian_wk
 from functools import partial
+from sys import stdout
 
 
 def create_state_struct(u, h, hs):
@@ -87,9 +88,7 @@ def project_state(state, grid, dims):
   KeyError
       when a key error
   """
-  u = project_scalar(state["u"][:, :, :, 0], grid, dims)
-  v = project_scalar(state["u"][:, :, :, 1], grid, dims)
-  h = project_scalar(state["h"][:, :, :], grid, dims)
+  u, v, h = project_scalar_triple_mpi([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]], grid, dims, two_d=True)
   return create_state_struct(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 
@@ -330,7 +329,10 @@ def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, ste
   times = jnp.arange(0.0, end_time, dt)
   k = 0
   for t in times:
-    print(f"{k/len(times-1)*100}%")
+    if is_main_proc:
+      print(f"{k/len(times-1)*100}%")
+      stdout.flush()
+
     if step_type == "ssprk3":
       state_tmp = advance_step_ssprk3(state_n, dt, grid, config, dims)
     elif step_type == "euler":
@@ -346,3 +348,4 @@ def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, ste
     versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["h"]))))
     k += 1
   return state_n
+

@@ -13,10 +13,10 @@ if DEBUG:
   import matplotlib.pyplot as plt
 
 
-def test_sw_model():
+def test_sw_model_dist():
   npt = 4
   nx = 15
-  grid, dims = create_quasi_uniform_grid(nx, npt)
+  grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
   config = get_config_sw(alpha=jnp.pi / 4, ne=15)
   test_config = get_williamson_steady_config(config)
   u_init = device_wrapper(williamson_tc2_u(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
@@ -45,27 +45,27 @@ def test_sw_model():
                     lat.flatten(),
                     device_unwrapper(final_state["u"][:, :, :, 0].flatten()))
     plt.colorbar()
-    plt.savefig(join(fig_dir, "U_final.pdf"))
+    plt.savefig(join(fig_dir, "U_final_dist.pdf"))
     plt.figure()
     plt.title("V at time {t}")
     plt.tricontourf(lon.flatten(),
                     lat.flatten(),
                     device_unwrapper(final_state["u"][:, :, :, 1].flatten()))
     plt.colorbar()
-    plt.savefig(join(fig_dir, "V_final.pdf"))
+    plt.savefig(join(fig_dir, "V_final_dist.pdf"))
     plt.figure()
     plt.title("h at time {t}")
     plt.tricontourf(lon.flatten(),
                     lat.flatten(),
                     device_unwrapper(final_state["h"].flatten()))
     plt.colorbar()
-    plt.savefig(join(fig_dir, "h_final.pdf"))
+    plt.savefig(join(fig_dir, "h_final_dist.pdf"))
 
 
-def test_galewsky():
+def test_galewsky_dist():
   npt = 4
   nx = 61
-  grid, dims = create_quasi_uniform_grid(nx, npt)
+  grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
 
   config = get_config_sw(ne=15)
   test_config = get_galewsky_config(config)
@@ -94,23 +94,23 @@ def test_galewsky():
     plt.tricontourf(lon.flatten(), lat.flatten(),
                     device_unwrapper(final_state["u"][:, :, :, 0].flatten()), levels=levels)
     plt.colorbar()
-    plt.savefig(join(fig_dir, "galewsky_U_final.pdf"))
+    plt.savefig(join(fig_dir, "galewsky_U_final_dist.pdf"))
     plt.figure()
     plt.title(f"V at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
                     device_unwrapper(final_state["u"][:, :, :, 1].flatten()))
     plt.colorbar()
-    plt.savefig(join(fig_dir, "galewsky_V_final.pdf"))
+    plt.savefig(join(fig_dir, "galewsky_V_final_dist.pdf"))
     plt.figure()
     plt.title(f"h at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
                     device_unwrapper(final_state["h"].flatten()))
     plt.colorbar()
-    plt.savefig(join(fig_dir, "galewsky_h_final.pdf"))
+    plt.savefig(join(fig_dir, "galewsky_h_final_dist.pdf"))
     plt.figure()
     plt.title(f"vorticity at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
                     device_unwrapper(vort.flatten()),
                     vmin=-0.0002, vmax=0.0002)
     plt.colorbar()
-    plt.savefig(join(fig_dir, "galewsky_vort_final.pdf"))
+    plt.savefig(join(fig_dir, "galewsky_vort_final_dist.pdf"))
