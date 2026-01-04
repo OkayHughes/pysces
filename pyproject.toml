@@ -27,6 +27,6 @@ jax = [
 torch = [
     "torchvision>=0.24.1",
 ]
-numpy = [
+mpich = [
     "mpich>=4.3.2",
 ]
