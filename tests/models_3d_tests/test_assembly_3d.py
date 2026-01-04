@@ -4,6 +4,7 @@ from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.models_3d.theta_l.model_state import project_scalar_3d, project_scalar_3d_for
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 
+
 def test_project_3d():
   npt = 4
   nx = 3

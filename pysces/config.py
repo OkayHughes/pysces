@@ -2,10 +2,14 @@ import os
 from json import dumps
 import numpy as np
 from json import loads
+from typing import Hashable
+from mpi4py import MPI
+
 
 def get_config_filepath():
-  #return os.path.join(os.path.dirname(os.path.abspath(__file__)), "pysces_config.json")
+  # return os.path.join(os.path.dirname(os.path.abspath(__file__)), "pysces_config.json")
   return os.path.join(os.getcwd(), "pysces_config.json")
+
 
 def write_config(debug=True,
                  use_mpi=False,
@@ -21,6 +25,7 @@ def write_config(debug=True,
                    "use_double": use_double}
   with open(get_config_filepath(), "w") as config_file:
     config_file.write(dumps(config_struct, indent=2))
+
 
 def parse_config_file():
   config_filename = get_config_filepath()
@@ -164,11 +169,26 @@ else:
   def cast_type(arr, dtype):
     return arr.astype(dtype)
 
-from mpi4py import MPI
 mpi_comm = MPI.COMM_WORLD
 mpi_rank = mpi_comm.Get_rank()
 mpi_size = mpi_comm.Get_size()
-
-
+is_main_proc = mpi_rank == 0
 
 do_mpi_communication = mpi_size > 1
+
+
+class grid_info():
+
+  def __init__(self, **kwargs):
+    for k, v in zip(kwargs.keys(), kwargs.values()):
+      assert isinstance(k, Hashable), f"Unhashable key {k} passed to grid_info"
+      assert isinstance(v, Hashable), f"Unhashable value {v} passed to grid_info"
+    self._dict = frozenset([(k, v) for k, v in zip(kwargs.keys(), kwargs.values())])
+
+  def __hash__(self):
+    return hash(self._dict)
+
+  def __getitem__(self, key):
+    for k, v in self._dict:
+      if k == key:
+        return v

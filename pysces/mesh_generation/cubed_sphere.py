@@ -1,7 +1,9 @@
 from ..config import np
-from .mesh_definitions import BACKWARDS, FORWARDS
-from .mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE, face_topo, axis_info, MAX_VERT_DEGREE, vert_info
+from .mesh_definitions import FORWARDS
+from .mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE,
+                               face_topo, axis_info, MAX_VERT_DEGREE, vert_info)
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
+
 
 def edge_to_vert(edge_id, is_forwards=FORWARDS):
   """
@@ -19,7 +21,7 @@ def edge_to_vert(edge_id, is_forwards=FORWARDS):
   -------
   `tuple[int, int]`
       (vert_idx_0, vert_idx_1)
-  
+
   Notes
   --------
   See mesh_definitions for grid conventions on
@@ -57,7 +59,7 @@ def edge_match(nx, free_idx, id_edge_out, is_forwards):
       Whichever of the horizontal or vertical indices
       is varying across the current cubed-sphere edge.
   id_edge_out: `int`
-      The the cubed-sphere edge of the paired face 
+      The the cubed-sphere edge of the paired face
       along which edges are joined
   is_forwards
       Are the two paired cubed-sphere edges
@@ -88,7 +90,7 @@ def edge_match(nx, free_idx, id_edge_out, is_forwards):
 def elem_id_fn(nx, face_idx, x_idx, y_idx):
   """
   Maps an element within a
-  regular grid on a cubed-sphere face 
+  regular grid on a cubed-sphere face
   to a scalar index.
 
   Parameters
@@ -107,7 +109,7 @@ def elem_id_fn(nx, face_idx, x_idx, y_idx):
   -------
   `int`
       The global index of the element.
-  
+
   Notes
   -----
   This should be the inverse of `inv_elem_id_fn`
@@ -167,7 +169,7 @@ def gen_cube_topo(nx):
   face_mask: `Array[tuple[elem_idx], Int]`
     An integer mask describing which face of the cubed sphere each element lies on.
   face_position: `Array[tuple[elem_idx, vert_idx, xyz], Float]`
-    Positions of the element vertices on the reference cube 
+    Positions of the element vertices on the reference cube
     in 3d Cartesian space
   face_position_2d: `Array[tuple[elem_idx, vert_idx, xy], Float]`
     Positions of the element vertices within the local (x, y)

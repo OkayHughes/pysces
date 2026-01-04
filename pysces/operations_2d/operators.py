@@ -20,7 +20,7 @@ def sphere_gradient(f, grid, a=1.0):
   -----
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
-  
+
   Returns
   -------
   grad_f: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
@@ -40,7 +40,7 @@ def sphere_divergence(u, grid, a=1.0):
   Parameters
   ----------
   u : Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
-      Vector field (u, v) in spherical coordinates 
+      Vector field (u, v) in spherical coordinates
       to apply divergence operator to
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -72,7 +72,7 @@ def sphere_vorticity(u, grid, a=1.0):
   Parameters
   ----------
   u : Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
-      Vector field (u, v) in spherical coordinates 
+      Vector field (u, v) in spherical coordinates
       to calculate vorticity of
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -148,7 +148,7 @@ def sphere_laplacian_wk(f, grid, a=1.0):
   Notes
   -----
   When performing assembly, this is already scaled by mass matrix quantities
-  due to how quadrature is computed in SE. 
+  due to how quadrature is computed in SE.
 
   [TODO] Explain how the math works
 
@@ -179,7 +179,7 @@ def sphere_gradient_wk_cov(s, grid, a=1.0):
   [TODO] Explain what's going on in the math here
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
-  
+
   Returns
   -------
   wk_grad_f: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
@@ -274,7 +274,7 @@ def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
   Notes
   -----
   When performing assembly, this is already scaled by mass matrix quantities
-  due to how quadrature is computed in SE. 
+  due to how quadrature is computed in SE.
 
   [TODO] Explain how the math works
 

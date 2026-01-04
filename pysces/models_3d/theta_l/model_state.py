@@ -1,4 +1,4 @@
-from ...config import jnp, vmap_1d_apply, jit, np, flip
+from ...config import jnp, jit, np, flip
 from ...operations_2d.assembly import project_scalar, project_scalar_for
 from ...distributed_memory.multiprocessing import project_scalar_triple_mpi
 from ...operations_2d.operators import sphere_gradient
@@ -147,6 +147,7 @@ def init_tracer_struct(Q):
 #     return project_scalar(vec, h_grid, dims, scaled=scaled)
 #   return vmap_1d_apply(project_onlyarg, variable, -1, -1)
 
+@partial(jit, static_argnames=["dims", "scaled"])
 def project_scalar_3d(variable, h_grid, dims, scaled=True):
   return project_scalar_triple_mpi([variable], h_grid, dims, scaled=scaled, two_d=False)[0]
 

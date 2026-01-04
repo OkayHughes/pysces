@@ -21,7 +21,7 @@ def hilbert_curve(n_subdiv):
   Notes
   -----
   Without loss of generality,
-  the initial generator is assumed to be 
+  the initial generator is assumed to be
   ^
   |  |
   |__|
@@ -146,7 +146,7 @@ def processor_id_to_range(proc_idx, num_elems, num_procs):
   assigned to remote processors as well.
 
   Invoking code should be careful about using the specifics
-  of the return value of this function, as there may eventually 
+  of the return value of this function, as there may eventually
   be a better way to do this.
 
   Raises
@@ -176,15 +176,15 @@ def get_decomp(num_elems, num_procs):
   ----------
   num_elems: int
       The number of elements in the global grid
-  num_procs: int 
+  num_procs: int
       The total number of processors
       among which the grid will be divided,
       e.g. `config.mpi_size`.
-  
+
   Notes
   -----
   Invoking code should be careful about using the specifics
-  of the return value of get_decomp, as there may eventually 
+  of the return value of get_decomp, as there may eventually
   be a better way to do this.
 
   Returns
@@ -254,7 +254,7 @@ def local_to_global(elem_idxs_local, proc_idx, decomp):
   Parameters
   ----------
   elem_idxs_local: `Array[*Shape, Float]`
-      Element indexes used to index 
+      Element indexes used to index
       processor local data.
   proc_idx: `int`
       The processor index to which the local indexes
@@ -278,7 +278,7 @@ def global_to_local(elem_idxs_global, proc_idx, decomp):
   Parameters
   ----------
   elem_idxs_global: `Array[*Shape, Float]`
-      Element indexes used to index 
+      Element indexes used to index
       global grid data.
   proc_idx: `int`
       The processor index to which the local indexes should

@@ -3,13 +3,13 @@ from pysces.distributed_memory.multiprocessing import (project_scalar_for_stub,
                                                        assemble_scalar_for_pack, assemble_scalar_for_unpack,
                                                        exchange_buffers_stub, extract_fields_triple, extract_fields_for,
                                                        accumulate_fields_for, accumulate_fields_triple,
-                                                       project_scalar_for_mpi,project_scalar_triple_stub,
+                                                       project_scalar_for_mpi, project_scalar_triple_stub,
                                                        project_scalar_triple_mpi)
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.se_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
-from pysces.config import device_unwrapper, np, do_mpi_communication, use_wrapper, device_wrapper, mpi_size, mpi_rank
+from pysces.config import device_unwrapper, np, jnp, use_wrapper, device_wrapper, mpi_size, mpi_rank
 from ..handmade_grids import init_test_grid, vert_redundancy_gll
 from ..context import test_npts
 from ..context import seed as global_seed
@@ -148,10 +148,12 @@ def test_unordered_assembly_triple_stub():
           fs[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
           for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
             fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
-          fs_ref = [[np.copy(f[0])] for f in fs]
+          for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
+            fs[source_proc_idx][0] = device_wrapper(fs[source_proc_idx][0])
+          fs_ref = [[jnp.copy(f[0])] for f in fs]
           fs_out = project_scalar_triple_stub(fs, grids, dims)
           for (f, f_new) in zip(fs_ref, fs_out):
-            assert (np.allclose(f[0], f_new[0]))
+            assert (np.allclose(device_unwrapper(f[0]), device_unwrapper(f_new[0])))
 
         # test all scalars at once
         fs_ref = [[] for _ in range(nproc)]
@@ -163,12 +165,12 @@ def test_unordered_assembly_triple_stub():
           for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
             fs_tmp[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
           for proc_idx in range(nproc):
-            fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
-            fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
+            fs_ref[proc_idx].append(device_wrapper(fs_tmp[proc_idx][0]))
+            fs[proc_idx].append(device_wrapper(fs_tmp[proc_idx][0]))
         fs_out = project_scalar_triple_stub(fs, grids, dims)
         for (f, f_new) in zip(fs_ref, fs_out):
           for (f_pair, f_new_pair) in zip(f, f_new):
-            assert (np.allclose(f_pair, f_new_pair))
+            assert (np.allclose(device_unwrapper(f_pair), device_unwrapper(f_new_pair)))
 
 
 def test_stub_exchange():
@@ -346,14 +348,16 @@ def test_extract_fields_triples():
                                                                                            buffers_device):
               for remote_idx in buffer_for.keys():
                 for field_idx in range(len(buffer_for[remote_idx])):
-                  assert np.allclose(buffer_for[remote_idx][field_idx], buffer_device[remote_idx][field_idx])
-                  assert np.allclose(f[field_idx], f_device[field_idx])
+                  assert np.allclose(buffer_for[remote_idx][field_idx],
+                                     device_unwrapper(buffer_device[remote_idx][field_idx]))
+                  assert np.allclose(f[field_idx],
+                                     device_unwrapper(f_device[field_idx]))
               fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nowrapper["vert_redundancy_receive"])
               fijk_fields_triple = accumulate_fields_triple(f_device, buffer_device, grid["triples_receive"], dim)
               assert len(fijk_fields_for) == len(fijk_fields_triple)
               for field_idx in range(len(fijk_fields_for)):
                 assert np.allclose(f[field_idx], device_unwrapper(f_device[field_idx]))
-                assert np.allclose(fijk_fields_for[field_idx], fijk_fields_triple[field_idx])
+                assert np.allclose(fijk_fields_for[field_idx], device_unwrapper(fijk_fields_triple[field_idx]))
 
 
 def test_mpi_exchange_for():
@@ -386,30 +390,30 @@ def test_mpi_exchange_for():
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
         grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                  grid_total["jacobian"],
-                                                  grid_total["jacobian_inv"],
-                                                  grid_total["recip_met_det"],
-                                                  grid_total["met_det"],
-                                                  grid_total["mass_mat"],
-                                                  grid_total["mass_matrix_inv"],
-                                                  grid_total["vert_redundancy"],
-                                                  proc_idx, decomp, wrapped=False)
+                                                 grid_total["jacobian"],
+                                                 grid_total["jacobian_inv"],
+                                                 grid_total["recip_met_det"],
+                                                 grid_total["met_det"],
+                                                 grid_total["mass_mat"],
+                                                 grid_total["mass_matrix_inv"],
+                                                 grid_total["vert_redundancy"],
+                                                 proc_idx, decomp, wrapped=False)
         grids.append(grid)
         dims.append(dim)
         total_elems += dim["num_elem"]
       assert (dim_total["num_elem"] == total_elems)
       grid_local = grids[local_proc_idx]
-      dim_local = dims[local_proc_idx]
 
       def zeros_f():
         fs = []
         for grid in grids:
           fs.append([np.zeros_like(grid["physical_coords"][:, :, :, 0])])
         return fs
+
       def rand_f(seed=global_seed):
         fs = []
         for grid_idx, grid in enumerate(grids):
-          np.random.seed(grid_idx+seed)
+          np.random.seed(grid_idx + seed)
           fs.append([np.random.uniform(grid["physical_coords"][:, :, :, 0])])
         return fs
 
@@ -424,7 +428,7 @@ def test_mpi_exchange_for():
         fs_out = project_scalar_for_stub(fs, grids)
         f_out = project_scalar_for_mpi(fs[local_proc_idx], grid_local)
         assert (np.allclose(fs_ref[local_proc_idx][0], fs_out[local_proc_idx][0]))
-        assert (np.allclose(fs_ref[local_proc_idx][0], f_out))  
+        assert (np.allclose(fs_ref[local_proc_idx][0], f_out))
 
       # test all scalars at once
       fs_ref = [[] for _ in range(nproc)]
@@ -451,7 +455,7 @@ def test_mpi_exchange_for():
       fs_stub_out = project_scalar_for_stub(fs_rand, grids)
       f_out = project_scalar_for_mpi(fs_rand[local_proc_idx], grid_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
-        assert (np.allclose(f_stub, f_mpi))  
+        assert (np.allclose(f_stub, f_mpi))
 
 
 def test_mpi_exchange_triple():
@@ -485,14 +489,14 @@ def test_mpi_exchange_triple():
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
         grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                  grid_total_nowrapper["jacobian"],
-                                                  grid_total_nowrapper["jacobian_inv"],
-                                                  grid_total_nowrapper["recip_met_det"],
-                                                  grid_total_nowrapper["met_det"],
-                                                  grid_total_nowrapper["mass_mat"],
-                                                  grid_total_nowrapper["mass_matrix_inv"],
-                                                  grid_total_nowrapper["vert_redundancy"],
-                                                  proc_idx, decomp, wrapped=use_wrapper)
+                                                 grid_total_nowrapper["jacobian"],
+                                                 grid_total_nowrapper["jacobian_inv"],
+                                                 grid_total_nowrapper["recip_met_det"],
+                                                 grid_total_nowrapper["met_det"],
+                                                 grid_total_nowrapper["mass_mat"],
+                                                 grid_total_nowrapper["mass_matrix_inv"],
+                                                 grid_total_nowrapper["vert_redundancy"],
+                                                 proc_idx, decomp, wrapped=use_wrapper)
         grids.append(grid)
         dims.append(dim)
         total_elems += dim["num_elem"]
@@ -505,10 +509,11 @@ def test_mpi_exchange_triple():
         for grid in grids:
           fs.append([np.zeros_like(grid["physical_coords"][:, :, :, 0])])
         return fs
+
       def rand_f(seed=0):
         fs = []
         for grid_idx, grid in enumerate(grids):
-          np.random.seed(grid_idx+seed)
+          np.random.seed(grid_idx + seed)
           fs.append([np.random.uniform(grid["physical_coords"][:, :, :, 0])])
         return fs
 
@@ -523,7 +528,7 @@ def test_mpi_exchange_triple():
         fs_out = project_scalar_triple_stub(fs, grids, dims)
         f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
         assert (np.allclose(fs_ref[local_proc_idx][0], fs_out[local_proc_idx][0]))
-        assert (np.allclose(fs_ref[local_proc_idx][0], f_out))  
+        assert (np.allclose(fs_ref[local_proc_idx][0], f_out))
 
       # test all scalars at once
       fs_ref = [[] for _ in range(nproc)]
@@ -550,6 +555,4 @@ def test_mpi_exchange_triple():
       fs_stub_out = project_scalar_triple_stub(fs_rand, grids, dims)
       f_out = project_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
-        assert (np.allclose(f_stub, f_mpi)) 
-
-
+        assert (np.allclose(f_stub, f_mpi))

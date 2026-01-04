@@ -6,7 +6,13 @@ from ..spectral import init_spectral
 from ..mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
 
 
-def init_assembly_matrix_local(NELEM, npt, vert_redundancy_local):
+def init_assembly_matrix(NELEM, npt, assembly_triple):
+  data, rows, cols = assembly_triple
+  assembly_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
+  return assembly_matrix
+
+
+def init_assembly_local(NELEM, npt, vert_redundancy_local):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
@@ -20,28 +26,16 @@ def init_assembly_matrix_local(NELEM, npt, vert_redundancy_local):
   rows = []
   cols = []
 
-  #for face_idx in range(NELEM):
-  #  for i_idx in range(npt):
-  #    for j_idx in range(npt):
-  #      data.append(1.0)
-  #      rows.append(index_hack[face_idx, i_idx, j_idx])
-  #      cols.append(index_hack[face_idx, i_idx, j_idx])
   for ((local_face_idx, local_i, local_j),
        (remote_face_id, remote_i, remote_j)) in vert_redundancy_local:
-        data.append(1.0)
-        rows.append(index_hack[remote_face_id, remote_i, remote_j])
-        cols.append(index_hack[local_face_idx, local_i, local_j])
-
-  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  # note: must reintroduce inv_mass_mat in DSS routine.
-  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  assembly_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
+    data.append(1.0)
+    rows.append(index_hack[remote_face_id, remote_i, remote_j])
+    cols.append(index_hack[local_face_idx, local_i, local_j])
 
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
-  return assembly_matrix, (np.array(data, dtype=np.float64),
-                      np.array(rows, dtype=np.int64),
-                      np.array(cols, dtype=np.int64))
+  return (np.array(data, dtype=np.float64),
+          np.array(rows, dtype=np.int64),
+          np.array(cols, dtype=np.int64))
 
 
 def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
@@ -90,34 +84,7 @@ def triage_vert_redundancy(vert_redundancy_gll,
   vert_red_local_flat, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_flat, proc_idx, decomp)
   vert_red_local = vert_red_flat_to_hierarchy(vert_red_local_flat)
 
-
-  # for target_global_idx in vert_redundancy_gll.keys():
-  #   for target_i, target_j in vert_redundancy_gll[target_global_idx].keys():
-  #     for source_global_idx, source_i, source_j in vert_redundancy_gll[target_global_idx][(target_i, target_j)]:
-  #       target_proc_idx = elem_idx_global_to_proc_idx(target_global_idx, decomp)
-  #       source_proc_idx = elem_idx_global_to_proc_idx(source_global_idx, decomp)
-  #       if (target_proc_idx == proc_idx and source_proc_idx == proc_idx):
-  #         target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
-  #         if target_local_idx not in vert_redundancy_local.keys():
-  #           vert_redundancy_local[target_local_idx] = {}
-  #         if (target_i, target_j) not in vert_redundancy_local[target_local_idx].keys():
-  #           vert_redundancy_local[target_local_idx][(target_i, target_j)] = []
-  #         source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
-  #         vert_redundancy_local[target_local_idx][target_i, target_j].append((source_local_idx, source_i, source_j))
-  #       elif (target_proc_idx == proc_idx and not
-  #             source_proc_idx == proc_idx):
-  #         target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
-  #         if source_proc_idx not in vert_redundancy_receive.keys():
-  #           vert_redundancy_receive[source_proc_idx] = []
-  #         vert_redundancy_receive[source_proc_idx].append(((target_local_idx, target_i, target_j)))
-  #       elif (not target_proc_idx == proc_idx and
-  #             source_proc_idx == proc_idx):
-  #         source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
-  #         if target_proc_idx not in vert_redundancy_send.keys():
-  #           vert_redundancy_send[target_proc_idx] = []
-  #         vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
   return vert_red_local, vert_red_send, vert_red_receive
-
 
 
 def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
@@ -131,25 +98,25 @@ def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
 
   for ((target_global_idx, target_i, target_j),
        (source_global_idx, source_i, source_j)) in vert_redundancy_gll_flat:
-        target_proc_idx = elem_idx_global_to_proc_idx(target_global_idx, decomp)
-        source_proc_idx = elem_idx_global_to_proc_idx(source_global_idx, decomp)
-        if (target_proc_idx == proc_idx and source_proc_idx == proc_idx):
-          target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
-          source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
-          vert_redundancy_local.append(((target_local_idx, target_i, target_j),
-                                        (source_local_idx, source_i, source_j)))
-        elif (target_proc_idx == proc_idx and not
-              source_proc_idx == proc_idx):
-          target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
-          if source_proc_idx not in vert_redundancy_receive.keys():
-            vert_redundancy_receive[source_proc_idx] = []
-          vert_redundancy_receive[source_proc_idx].append(((target_local_idx, target_i, target_j)))
-        elif (not target_proc_idx == proc_idx and
-              source_proc_idx == proc_idx):
-          source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
-          if target_proc_idx not in vert_redundancy_send.keys():
-            vert_redundancy_send[target_proc_idx] = []
-          vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
+    target_proc_idx = elem_idx_global_to_proc_idx(target_global_idx, decomp)
+    source_proc_idx = elem_idx_global_to_proc_idx(source_global_idx, decomp)
+    if (target_proc_idx == proc_idx and source_proc_idx == proc_idx):
+      target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
+      source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
+      vert_redundancy_local.append(((target_local_idx, target_i, target_j),
+                                    (source_local_idx, source_i, source_j)))
+    elif (target_proc_idx == proc_idx and not
+          source_proc_idx == proc_idx):
+      target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
+      if source_proc_idx not in vert_redundancy_receive.keys():
+        vert_redundancy_receive[source_proc_idx] = []
+      vert_redundancy_receive[source_proc_idx].append(((target_local_idx, target_i, target_j)))
+    elif (not target_proc_idx == proc_idx and
+          source_proc_idx == proc_idx):
+      source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
+      if target_proc_idx not in vert_redundancy_send.keys():
+        vert_redundancy_send[target_proc_idx] = []
+      vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
   return vert_redundancy_local, vert_redundancy_send, vert_redundancy_receive
 
 
@@ -182,6 +149,9 @@ def create_spectral_element_grid(latlon,
                                  decomp,
                                  element_reordering=None,
                                  wrapped=use_wrapper):
+
+  # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
+  # this extra conditional is not extraneous.
   if wrapped:
     wrapper = device_wrapper
   else:
@@ -197,14 +167,11 @@ def create_spectral_element_grid(latlon,
   # This function currently assumes that the full grid can be loaded into memory.
   # This should be fine up to, e.g., quarter-degree grids.
 
-
-  # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
-  # this extra conditional is not extraneous.
   spectrals = init_spectral(npt)
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(vert_redundancy_gll_flat,
                                                                              proc_idx,
                                                                              decomp)
-  assembly_matrix, assembly_triple = init_assembly_matrix_local(NELEM, npt, vert_red_local)
+  assembly_triple = init_assembly_local(NELEM, npt, vert_red_local)
   triples_send, triples_recv = init_assembly_global(NELEM, npt, vert_red_send, vert_red_recv)
 
   met_inv = np.einsum("fijgs, fijhs->fijgh",
@@ -246,12 +213,16 @@ def create_spectral_element_grid(latlon,
   #   ret["dss_matrix"] = torch.sparse_coo_tensor((dss_triple[2], dss_triple[3]),
   #                                                dss_triple[0],
   #                                                size=(NELEM * npt * npt, NELEM * npt * npt))
-  ret["vert_redundancy"] =  vert_red_local
-  ret["vert_redundancy_send"] = vert_red_send
-  ret["vert_redundancy_receive"] = vert_red_recv
-  ret["assembly_matrix"] = assembly_matrix
+  if not wrapped:
+    ret["vert_redundancy"] = vert_red_local
+    ret["vert_redundancy_send"] = vert_red_send
+    ret["vert_redundancy_receive"] = vert_red_recv
+
   ret["assembly_triple"] = assembly_triple
   ret["triples_recv"] = triples_send
   ret["triples_recv"] = triples_recv
-  grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0])
+  send_dims = {}
+  for proc_idx in triples_send.keys():
+    send_dims[str(proc_idx)] = triples_send[proc_idx][0].size
+  grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0], **send_dims)
   return ret, grid_dims

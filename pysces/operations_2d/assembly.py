@@ -1,9 +1,5 @@
-from ..config import np, use_wrapper, jit, wrapper_type, jnp
+from ..config import np, use_wrapper, jit, wrapper_type
 from functools import partial
-
-
-if use_wrapper and wrapper_type == "jax":
-    import jax
 
 
 def summation_local_for(f, grid, *args):
@@ -33,7 +29,7 @@ def summation_local_for(f, grid, *args):
   workspace = f.copy()
   for ((local_face_idx, local_i, local_j),
        (remote_face_id, remote_i, remote_j)) in vert_redundancy_gll:
-        workspace[remote_face_id, remote_i, remote_j] += f[local_face_idx, local_i, local_j]
+    workspace[remote_face_id, remote_i, remote_j] += f[local_face_idx, local_i, local_j]
   # this line works even for multi-processor decompositions.
 
   return workspace
@@ -80,7 +76,7 @@ def project_scalar_for(f, grid, *args, scaled=True):
   return workspace
 
 
-def project_scalar_sparse(f, grid, *args, scaled=True):
+def project_scalar_sparse(f, grid, matrix, *args, scaled=True):
   """
   [Description]
 
@@ -105,9 +101,9 @@ def project_scalar_sparse(f, grid, *args, scaled=True):
   """
   if scaled:
     vals_scaled = f * grid["mass_matrix"]
-    ret = vals_scaled + (grid["assembly_matrix"] @ (vals_scaled).flatten()).reshape(f.shape)
+    ret = vals_scaled + (matrix @ (vals_scaled).flatten()).reshape(f.shape)
   else:
-    ret = f + (grid["assembly_matrix"] @ (f).flatten()).reshape(f.shape)
+    ret = f + (matrix @ (f).flatten()).reshape(f.shape)
   return ret * grid["mass_matrix_inv"]
 
 
@@ -185,9 +181,4 @@ def project_scalar_wrapper(f, grid, dims, scaled=True):
   return scaled_f * grid["mass_matrix_inv"]
 
 
-if use_wrapper and wrapper_type == "jax":
-  project_scalar = project_scalar_wrapper
-elif use_wrapper and wrapper_type == "torch":
-  project_scalar = project_scalar_wrapper
-else:
-  project_scalar = project_scalar_sparse
+project_scalar = project_scalar_wrapper

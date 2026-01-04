@@ -9,9 +9,8 @@ def get_figdir():
   return os.path.join(os.path.dirname(os.path.abspath(__file__)), "_figures")
 
 
-extensive = False
+extensive = True
 test_division_factor = 1.0 if extensive else 1000.0
 test_npts = [3, 4, 5, 6] if extensive else [3, 4]
-
 
 seed = 0

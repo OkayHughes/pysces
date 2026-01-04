@@ -1,4 +1,3 @@
-from json import dumps
 from argparse import ArgumentParser
 
 

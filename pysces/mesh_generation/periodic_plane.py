@@ -142,7 +142,7 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
   gll_to_planar_jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]`
       Jacobian of mapping from reference element onto plane.
   vert_redundancy_gll: `dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]`
-      Gridpoint redundancy struct. 
+      Gridpoint redundancy struct.
   npt: `int`
       Number of 1D gll points used in grid.
   wrapped: `bool`, default=use_wrapper

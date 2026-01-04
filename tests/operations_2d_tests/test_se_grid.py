@@ -3,9 +3,9 @@ from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundan
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.distributed_memory.processor_decomposition import get_decomp, local_to_global
 from pysces.operations_2d.se_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,
-                                          init_assembly_matrix_local, create_spectral_element_grid, triage_vert_redundancy)
+                                          init_assembly_local, create_spectral_element_grid, triage_vert_redundancy)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
-from pysces.config import np, use_wrapper, wrapper_type, device_unwrapper
+from pysces.config import np
 from ..context import test_npts
 
 
@@ -157,9 +157,10 @@ def test_assembly_init():
   vert_red_total = flip_triple(se_grid["assembly_triple"])
   ct = len(vert_red_total)
   for proc_idx in range(nproc):
-    vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(se_grid["vert_redundancy"], proc_idx, decomp)
+    vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(se_grid["vert_redundancy"],
+                                                                               proc_idx, decomp)
     metdet = subset_var(se_grid["met_det"], proc_idx, decomp, wrapped=False)
-    _, assembly_triple = init_assembly_matrix_local(metdet.shape[0], npt, vert_red_local)
+    assembly_triple = init_assembly_local(metdet.shape[0], npt, vert_red_local)
     ct -= len(flip_triple(assembly_triple))
     triples_send, triples_receive = init_assembly_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
     for remote_proc_idx in triples_send.keys():
@@ -197,14 +198,14 @@ def test_triples_order():
                                                    grid_total["vert_redundancy"],
                                                    proc_idx, decomp, wrapped=True)
           grid_nowrapper, _ = create_spectral_element_grid(grid_total["physical_coords"],
-                                                       grid_total["jacobian"],
-                                                       grid_total["jacobian_inv"],
-                                                       grid_total["recip_met_det"],
-                                                       grid_total["met_det"],
-                                                       grid_total["mass_mat"],
-                                                       grid_total["mass_matrix_inv"],
-                                                       grid_total["vert_redundancy"],
-                                                       proc_idx, decomp, wrapped=False)
+                                                           grid_total["jacobian"],
+                                                           grid_total["jacobian_inv"],
+                                                           grid_total["recip_met_det"],
+                                                           grid_total["met_det"],
+                                                           grid_total["mass_mat"],
+                                                           grid_total["mass_matrix_inv"],
+                                                           grid_total["vert_redundancy"],
+                                                           proc_idx, decomp, wrapped=False)
           grids.append(grid)
           grids_nowrapper.append(grid_nowrapper)
           dims.append(dim)

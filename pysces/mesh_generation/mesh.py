@@ -6,7 +6,7 @@ from ..spectral import init_spectral
 
 def mesh_to_cart_bilinear(face_position, npt):
   """
-  Bilinearly map cartesian elements corners to 
+  Bilinearly map cartesian elements corners to
   cartesian tensor-GLL mesh.
 
   Parameters
@@ -21,7 +21,7 @@ def mesh_to_cart_bilinear(face_position, npt):
   -----
   This method works for general meshes, and is not
   specific to a particular topology.
-  
+
   Returns
   -------
   gll_position : `Array[tuple[elem_idx, gll_idx, gll_idx, cart_idx], Float]`
@@ -59,7 +59,7 @@ def mesh_to_cart_bilinear(face_position, npt):
 
 def gen_gll_redundancy(vert_redundancy, npt):
   """
-  Enumerate all redundant DOFs in a global 
+  Enumerate all redundant DOFs in a global
   SpectralElementGrid.
 
   Parameters
@@ -77,7 +77,7 @@ def gen_gll_redundancy(vert_redundancy, npt):
   specific to a particular topology.
 
   DOFs are not considered redundant with themselves.
-  If assembling the Spectral Element projection operator 
+  If assembling the Spectral Element projection operator
   from this struct, you must construct the diagonal entries yourself.
 
   Returns

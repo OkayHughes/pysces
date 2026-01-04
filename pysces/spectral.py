@@ -16,7 +16,7 @@ def init_deriv(gll_points):
   Returns
   -------
   deriv: Array[tuple[deriv_eval_idx, nodal_value_idx], Float]
-      Derivative for calculating 
+      Derivative for calculating
 
   Notes
   -----
@@ -84,7 +84,7 @@ def init_spectral(npt):
   Returns
   -------
   spectrals: dict[str, Array]
-    Contains 
+    Contains
     * "gll_points": Array[tuple[gll_idx], Float]
       1d GLL points
     * "gll_weights": Array[tuple[gll_idx], Float]

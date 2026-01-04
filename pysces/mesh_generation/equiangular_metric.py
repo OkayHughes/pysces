@@ -9,9 +9,9 @@ from ..spectral import init_spectral
 
 def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
   """
-  Use the equiangular cubed sphere map 
-  to evaluate latitude, longitude and jacobian ∂(x, y)/∂(λ, φ) 
-  for a quasi-regular cubed-sphere grid. 
+  Use the equiangular cubed sphere map
+  to evaluate latitude, longitude and jacobian ∂(x, y)/∂(λ, φ)
+  for a quasi-regular cubed-sphere grid.
 
   Parameters
   ----------
@@ -301,7 +301,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
 def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
                           cube_to_sphere_jacobian, vert_redundancy_gll, npt, wrapped=use_wrapper, proc_idx=None):
   """
-  Collate individual coordinate mappings into global SpectralElementGrid 
+  Collate individual coordinate mappings into global SpectralElementGrid
   on an equiangular cubed sphere grid.
 
   Parameters
@@ -309,11 +309,11 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian,
   gll_latlon: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]`
       Grid point positions in spherical coordinates.
   gll_to_cube_jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]`
-      Jacobian of mapping from reference element onto cube faces. 
+      Jacobian of mapping from reference element onto cube faces.
   cube_to_sphere_jacobian: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy]`
       Jacobian of mapping from cube face to sphere
   vert_redundancy_gll: `dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]`
-      Gridpoint redundancy struct. 
+      Gridpoint redundancy struct.
   npt: `int`
       Number of 1D gll points used in grid.
   wrapped: `bool`, default=use_wrapper
@@ -432,7 +432,7 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
 
 def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper, proc_idx=None):
   """
-  Generate an equiangular quasi-uniform cubed-sphere 
+  Generate an equiangular quasi-uniform cubed-sphere
   SpectralElementGrid.
 
   Parameters
@@ -452,4 +452,10 @@ def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper, proc_idx=None):
   """
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, wrapped=wrapped, proc_idx=proc_idx)
+  return gen_metric_from_topo(face_connectivity,
+                              face_mask,
+                              face_position_2d,
+                              vert_redundancy,
+                              npt,
+                              wrapped=wrapped,
+                              proc_idx=proc_idx)

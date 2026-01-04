@@ -1,7 +1,8 @@
-from ...config import jnp, versatile_assert
+from ...config import jnp, is_main_proc
 from .theta_hyperviscosity import get_ref_states
 from .time_stepping import advance_euler, advance_euler_hypervis, ullrich_5stage, advance_euler_sponge
 from .model_state import remap_state
+from sys import stdout
 
 
 def check_nan(state):
@@ -66,7 +67,9 @@ def simulate_theta(end_time, ne_min, state_in,
   times = jnp.arange(0.0, end_time, dt)
   k = 0
   for t in times:
-    print(f"{k/len(times-1)*100}%")
+    if is_main_proc:
+      print(f"{k/len(times-1)*100}%")
+      stdout.flush()
     if step_type == "euler":
       state_tmp = advance_euler(state_n, dt, h_grid, v_grid, config, dims, hydrostatic=hydrostatic, deep=False)
       state_np1 = state_tmp

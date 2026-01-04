@@ -19,7 +19,7 @@ def test_theta_steady_state():
   model_config = init_config()
   test_config = get_umjs_config(model_config=model_config)
   model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=False, hydrostatic=False)
-  total_time = (3600.0 * 24.0 * 3.0) / (test_division_factor)
+  total_time = (3600.0 * 24.0 * 10.0) / (test_division_factor)
   for diffusion in [False, True]:
     end_state = simulate_theta(total_time, nx, model_state,
                                h_grid, v_grid,
@@ -67,3 +67,25 @@ def test_theta_steady_state():
     else:
       assert(not np.any(np.isnan(device_unwrapper(end_state["u"][:, :, :, :, 1]))))
 
+
+def test_theta_baro_wave():
+  npt = 4
+  nx = 30
+  h_grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
+  v_grid = create_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"])
+  model_config = init_config()
+  test_config = get_umjs_config(model_config=model_config)
+  model_state, _ = get_umjs_state(h_grid, v_grid, model_config,
+                                  test_config, dims, mountain=False, hydrostatic=False,
+                                  pert_type="exponential")
+  total_time = (3600.0 * 24.0 * 30.0) / (test_division_factor)
+  end_state = simulate_theta(total_time, nx, model_state,
+                             h_grid, v_grid,
+                             model_config, dims,
+                             hydrostatic=True,
+                             deep=False,
+                             diffusion=False,
+                             step_type="ull5",
+                             sponge_split=3)

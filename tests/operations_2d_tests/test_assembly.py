@@ -2,7 +2,11 @@ from pysces.config import np, device_wrapper, use_wrapper, wrapper_type
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
-from pysces.operations_2d.assembly import project_scalar_for, project_scalar_wrapper, project_scalar_sparse, project_scalar
+from pysces.operations_2d.assembly import (project_scalar_for,
+                                           project_scalar_wrapper,
+                                           project_scalar_sparse,
+                                           project_scalar)
+from pysces.operations_2d.se_grid import init_assembly_matrix
 from ..context import test_npts
 
 
@@ -42,13 +46,16 @@ def test_projection_equiv():
     for nx in [7, 8]:
       face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
       vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-      grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, wrapped=False)
+      grid, dims = gen_metric_from_topo(face_connectivity,
+                                        face_mask,
+                                        face_position_2d,
+                                        vert_redundancy,
+                                        npt, wrapped=False)
       grid_wrapped, dims_wrapped = gen_metric_from_topo(face_connectivity,
                                                         face_mask,
                                                         face_position_2d,
                                                         vert_redundancy,
-                                                        npt,
-                                                        wrapped=use_wrapper)
+                                                        npt, wrapped=use_wrapper)
       fn = device_wrapper(np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0]))
       assert (np.allclose(project_scalar(fn, grid_wrapped, dims), fn))
       ones = np.ones_like(grid["met_det"])
@@ -63,16 +70,26 @@ def test_projection_equiv_rand():
     for nx in [7, 8]:
       face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
       vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-      grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt, wrapped=False)
+      grid, dims = gen_metric_from_topo(face_connectivity,
+                                        face_mask,
+                                        face_position_2d,
+                                        vert_redundancy,
+                                        npt, wrapped=False)
       grid_wrapped, dims_wrapped = gen_metric_from_topo(face_connectivity,
                                                         face_mask,
                                                         face_position_2d,
                                                         vert_redundancy,
                                                         npt,
                                                         wrapped=use_wrapper)
+      assembly_matrix = init_assembly_matrix(dims["num_elem"], dims["npt"], grid["assembly_triple"])
       for _ in range(20):
         fn_rand = np.random.uniform(size=grid["physical_coords"][:, :, :, 1].shape)
         if wrapper_type == "jax":
-          assert (np.allclose(np.asarray(project_scalar_wrapper(device_wrapper(fn_rand), grid_wrapped, dims_wrapped)), project_scalar_for(fn_rand, grid)))
+          assert (np.allclose(np.asarray(project_scalar_wrapper(device_wrapper(fn_rand),
+                                                                grid_wrapped, dims_wrapped)),
+                              project_scalar_for(fn_rand, grid)))
 
-        assert (np.allclose(project_scalar_sparse(device_wrapper(fn_rand), grid), project_scalar_for(fn_rand, grid)))
+        assert (np.allclose(project_scalar_sparse(device_wrapper(fn_rand),
+                                                  grid,
+                                                  assembly_matrix),
+                            project_scalar_for(fn_rand, grid)))
