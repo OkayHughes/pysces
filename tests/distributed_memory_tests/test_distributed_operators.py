@@ -28,7 +28,7 @@ def test_vector_identites_sphere():
       discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                                  inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                                  inner_prod(fn, sphere_divergence(v, grid), grid))
-      assert (jnp.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
+      assert (np.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
 
 
 def test_vector_identities_plane():
@@ -50,7 +50,7 @@ def test_vector_identities_plane():
     discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                                inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                                inner_prod(fn, sphere_divergence(v, grid), grid))
-    assert (jnp.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
+    assert (np.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
 
 
 def test_vector_identites_rand_sphere():
@@ -74,7 +74,7 @@ def test_vector_identites_rand_sphere():
         discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                                    inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                                    inner_prod(fn, div, grid))
-        assert (jnp.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
+        assert (np.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
 
 
 def test_vector_identites_rand_plane():
@@ -99,7 +99,7 @@ def test_vector_identites_rand_plane():
       discrete_divergence_thm = (inner_prod(v[:, :, :, 0], grad[:, :, :, 0], grid) +
                                  inner_prod(v[:, :, :, 1], grad[:, :, :, 1], grid) +
                                  inner_prod(fn, div, grid))
-      assert (jnp.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
+      assert (np.allclose(global_sum(discrete_divergence_thm), jnp.zeros((1,)), atol=eps))
 
 
 def test_equivalence_rand_sphere():

@@ -217,10 +217,6 @@ def create_spectral_element_grid(latlon,
     ret["vert_redundancy"] = vert_red_local
     ret["vert_redundancy_send"] = vert_red_send
     ret["vert_redundancy_receive"] = vert_red_recv
-
-  ret["assembly_triple"] = assembly_triple
-  ret["triples_recv"] = triples_send
-  ret["triples_recv"] = triples_recv
   send_dims = {}
   for proc_idx in triples_send.keys():
     send_dims[str(proc_idx)] = triples_send[proc_idx][0].size

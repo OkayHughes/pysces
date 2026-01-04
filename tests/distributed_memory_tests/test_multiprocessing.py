@@ -148,12 +148,12 @@ def test_unordered_assembly_triple_stub():
           fs[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
           for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
             fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
-          for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
+          for source_proc_idx in range(len(fs)):
             fs[source_proc_idx][0] = device_wrapper(fs[source_proc_idx][0])
-          fs_ref = [[jnp.copy(f[0])] for f in fs]
+          fs_ref = [[np.copy(f[0])] for f in fs]
           fs_out = project_scalar_triple_stub(fs, grids, dims)
           for (f, f_new) in zip(fs_ref, fs_out):
-            assert (np.allclose(device_unwrapper(f[0]), device_unwrapper(f_new[0])))
+            assert (np.allclose(f[0], device_unwrapper(f_new[0])))
 
         # test all scalars at once
         fs_ref = [[] for _ in range(nproc)]
@@ -524,11 +524,13 @@ def test_mpi_exchange_triple():
         fs[target_proc_idx][0][target_local_face_idx, target_i, target_j] = 1.0
         for source_proc_idx, source_local_face_idx, source_i, source_j in pairs[pair_key]:
           fs[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
+        for source_proc_idx in range(len(fs)):
+          fs[source_proc_idx][0] = device_wrapper(fs[source_proc_idx][0])
         fs_ref = [[np.copy(f[0])] for f in fs]
         fs_out = project_scalar_triple_stub(fs, grids, dims)
-        f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
-        assert (np.allclose(fs_ref[local_proc_idx][0], fs_out[local_proc_idx][0]))
-        assert (np.allclose(fs_ref[local_proc_idx][0], f_out))
+        f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)[0]
+        assert (np.allclose(fs_ref[local_proc_idx][0], device_unwrapper(fs_out[local_proc_idx][0])))
+        assert (np.allclose(fs_ref[local_proc_idx][0], device_unwrapper(f_out)))
 
       # test all scalars at once
       fs_ref = [[] for _ in range(nproc)]
@@ -541,7 +543,7 @@ def test_mpi_exchange_triple():
           fs_tmp[source_proc_idx][0][source_local_face_idx, source_i, source_j] = 1.0
         for proc_idx in range(nproc):
           fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
-          fs[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
+          fs[proc_idx].append(device_wrapper(fs_tmp[proc_idx][0]))
       fs_out = project_scalar_triple_stub(fs, grids, dims)
       f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
       for (f_pair, f_new_pair) in zip(fs_out[local_proc_idx], f_out):
@@ -551,7 +553,7 @@ def test_mpi_exchange_triple():
       for seed in range(num_fields):
         f_rand = rand_f()
         for proc_idx in range(nproc):
-          fs_rand[proc_idx].append(np.copy(f_rand[proc_idx][0]))
+          fs_rand[proc_idx].append(device_wrapper(f_rand[proc_idx][0]))
       fs_stub_out = project_scalar_triple_stub(fs_rand, grids, dims)
       f_out = project_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
