@@ -1,7 +1,9 @@
-from ..config import np, DEBUG
+from ..config import np, DEBUG, use_wrapper, mpi_size
+from ..distributed_memory.processor_decomposition import get_decomp
 from .jacobian_utils import bilinear, bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
+from ..operations_2d.se_grid import create_spectral_element_grid
 
 
 def edge_to_vert(edge_id, is_forwards=FORWARDS):
@@ -336,3 +338,90 @@ def gen_vert_redundancy(nx, face_connectivity, face_position):
         vert_redundancy[elem_idx][vert_idx].remove((elem_idx, vert_idx))
 
   return vert_redundancy
+
+
+
+def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
+                          cartesian_to_sphere_jacobian, vert_redundancy_gll, npt, wrapped=use_wrapper, proc_idx=None):
+  """
+  Collate individual coordinate mappings into global SpectralElementGrid
+  on an equiangular cubed sphere grid.
+
+  Parameters
+  ----------
+  gll_latlon: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]`
+      Grid point positions in spherical coordinates.
+  gll_to_cube_jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]`
+      Jacobian of mapping from reference element onto cube faces.
+  cube_to_sphere_jacobian: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy]`
+      Jacobian of mapping from cube face to sphere
+  vert_redundancy_gll: `dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]`
+      Gridpoint redundancy struct.
+  npt: `int`
+      Number of 1D gll points used in grid.
+  wrapped: `bool`, default=use_wrapper
+      Flag that determines whether returned grid
+      will use accelerator framework arrays
+      or numpy arrays.
+
+  Notes
+  --------
+  * See `mesh.gen_gll_redundancy` for a description of `vert_redundancy_gll`
+  * See `se_grid.create_spectral_element_grid` for description of
+  the grid data structure.
+
+  Returns
+  -------
+  SpectralElementGrid
+    Global spectral element grid.
+  """
+  NELEM = gll_latlon.shape[0]
+  if proc_idx is not None:
+    decomp = get_decomp(NELEM, mpi_size)
+  else:
+    proc_idx = 0
+    decomp = get_decomp(NELEM, 1)
+
+  gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cartesian_to_sphere_jacobian, gll_to_cartesian_jacobian)
+  gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
+  gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
+
+  rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
+
+  metdet = 1.0 / rmetdet
+  too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
+  too_close_to_bottom = np.abs(gll_latlon[:, :, :, 0] + np.pi / 2) < 1e-8
+  for i_idx, j_idx, entry in zip([0, 1, 0, 1],
+                                 [0, 1, 1, 0],
+                                 [1.0, 1.0, 0.0, 0.0]):
+    gll_to_sphere_jacobian[:, :, :,
+                           i_idx, j_idx] = np.where(np.logical_or(too_close_to_top,
+                                                                  too_close_to_bottom),
+                                                    entry,
+                                                    gll_to_sphere_jacobian[:, :, :, i_idx, j_idx])
+    gll_to_sphere_jacobian_inv[:, :, :,
+                               i_idx, j_idx] = np.where(np.logical_or(too_close_to_top,
+                                                                      too_close_to_bottom),
+                                                        entry,
+                                                        gll_to_sphere_jacobian_inv[:, :, :, i_idx, j_idx])
+  spectrals = init_spectral(npt)
+
+  mass_mat = metdet.copy() * (spectrals["gll_weights"][np.newaxis, :, np.newaxis] *
+                              spectrals["gll_weights"][np.newaxis, np.newaxis, :])
+
+  for local_face_idx in vert_redundancy_gll.keys():
+    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
+      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
+        mass_mat[remote_face_id, remote_i, remote_j] += (metdet[local_face_idx, local_i, local_j] *
+                                                         (spectrals["gll_weights"][local_i] *
+                                                          spectrals["gll_weights"][local_j]))
+
+  inv_mass_mat = 1.0 / mass_mat
+  vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
+
+  return create_spectral_element_grid(gll_latlon,
+                                      gll_to_sphere_jacobian,
+                                      gll_to_sphere_jacobian_inv,
+                                      rmetdet, metdet, mass_mat,
+                                      inv_mass_mat, vert_red_flat,
+                                      proc_idx, decomp, wrapped=wrapped)

@@ -1,10 +1,10 @@
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo, create_quasi_uniform_grid
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
-from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
+from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
 from pysces.distributed_memory.processor_decomposition import get_decomp, local_to_global
 from pysces.operations_2d.se_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,
-                                          init_assembly_local, create_spectral_element_grid, triage_vert_redundancy)
+                                          init_assembly_local, create_spectral_element_grid)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np
 from ..context import test_npts
@@ -20,8 +20,8 @@ def test_vert_triage_artificial():
   vert_sends = []
   vert_recvs = []
   for proc_idx in range(nproc):
-    vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy(vert_redundancy_gll, proc_idx, decomp)
-    vert_locals.append(vert_red_local)
+    vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_hierarchy_to_flat(vert_redundancy_gll), proc_idx, decomp)
+    vert_locals.append(vert_red_flat_to_hierarchy(vert_red_local))
     vert_sends.append(vert_red_send)
     vert_recvs.append(vert_red_receive)
 
@@ -100,9 +100,10 @@ def test_vert_red_triage():
         vert_sends = []
         vert_recvs = []
         for proc_idx in range(nproc):
-          vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy(vert_redundancy_gll,
+          vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(grid["vert_redundancy"],
                                                                                    proc_idx,
                                                                                    decomp)
+          vert_red_local = vert_red_flat_to_hierarchy(vert_red_local)
           vert_locals.append(vert_red_local)
           vert_sends.append(vert_red_send)
           vert_recvs.append(vert_red_receive)
