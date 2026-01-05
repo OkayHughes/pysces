@@ -1,5 +1,6 @@
 from pysces.config import np
-from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.mesh_generation.cubed_sphere import gen_cube_topo
+from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_terms_equiangular, gen_metric_from_topo
 from pysces.mesh_generation.mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 from ..context import test_npts

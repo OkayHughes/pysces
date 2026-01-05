@@ -1,5 +1,6 @@
 from pysces.config import np
-from pysces.mesh_generation.cubed_sphere import face_topo, gen_cube_topo, edge_to_vert, gen_vert_redundancy
+from pysces.mesh_generation.cubed_sphere import face_topo, gen_cube_topo
+from pysces.mesh_generation.mesh import gen_vert_redundancy, edge_to_vert
 from pysces.mesh_generation.mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE
 from pysces.mesh_generation.mesh_definitions import LEFT_FACE, RIGHT_FACE
 from pysces.mesh_generation.cubed_sphere import inv_elem_id_fn, elem_id_fn

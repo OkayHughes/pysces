@@ -1,6 +1,7 @@
 from pysces.config import np, jnp, device_unwrapper, device_wrapper, use_wrapper, wrapper_type
 
-from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.mesh_generation.cubed_sphere import gen_cube_topo
+from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.models_3d.initialization.umjs14 import (get_umjs_config,
                                                     evaluate_pressure_temperature,

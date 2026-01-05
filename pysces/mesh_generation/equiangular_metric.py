@@ -2,7 +2,8 @@ from ..config import np, DEBUG, use_wrapper, mpi_size
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy, vert_red_hierarchy_to_flat
 from .mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from ..operations_2d.se_grid import create_spectral_element_grid
-from .cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from .cubed_sphere import gen_cube_topo
+from .mesh import gen_vert_redundancy
 from ..distributed_memory.processor_decomposition import get_decomp
 from ..spectral import init_spectral
 

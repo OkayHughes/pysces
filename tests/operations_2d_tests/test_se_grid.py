@@ -1,5 +1,6 @@
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo, create_quasi_uniform_grid
-from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.mesh_generation.cubed_sphere import gen_cube_topo
+from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.distributed_memory.processor_decomposition import get_decomp, local_to_global
 from pysces.operations_2d.se_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,

@@ -1,5 +1,6 @@
 from pysces.config import np, use_wrapper, device_wrapper, device_unwrapper
-from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.mesh_generation.cubed_sphere import gen_cube_topo
+from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.models_3d.theta_l.model_state import project_scalar_3d, project_scalar_3d_for
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy

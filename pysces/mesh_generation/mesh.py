@@ -1,7 +1,49 @@
 from ..config import np, DEBUG
 from .jacobian_utils import bilinear, bilinear_jacobian
-from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
+from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
+
+
+def edge_to_vert(edge_id, is_forwards=FORWARDS):
+  """
+  Map an edge id of oriented vertex ids of a given element edge.
+
+  Parameters
+  ----------
+  edge_id : `int`
+      Index of edge within an element
+  is_forwards: `int`, default=FORWARDS
+      Is the edge reversed from its
+      default orientation.
+
+  Returns
+  -------
+  `tuple[int, int]`
+      (vert_idx_0, vert_idx_1)
+
+  Notes
+  --------
+  See mesh_definitions for grid conventions on
+  vertex_idx, edge enumeration, and default direction.
+  """
+  if edge_id == TOP_EDGE:
+    v_idx_in_0 = 0
+    v_idx_in_1 = 1
+  elif edge_id == LEFT_EDGE:
+    v_idx_in_0 = 0
+    v_idx_in_1 = 2
+  elif edge_id == RIGHT_EDGE:
+    v_idx_in_0 = 1
+    v_idx_in_1 = 3
+  elif edge_id == BOTTOM_EDGE:
+    v_idx_in_0 = 2
+    v_idx_in_1 = 3
+  if is_forwards != FORWARDS:
+    return v_idx_in_1, v_idx_in_0
+  else:
+    return v_idx_in_0, v_idx_in_1
+
+
 
 
 def mesh_to_cart_bilinear(face_position, npt):
@@ -229,4 +271,68 @@ def vert_red_hierarchy_to_flat(vert_redundancy_gll):
       for source_idx, source_i, source_j in vert_redundancy_gll[target_idx][(target_i, target_j)]:
         vert_redundancy.append(((target_idx, target_i, target_j),
                                 (source_idx, source_i, source_j)))
+  return vert_redundancy
+
+
+def gen_vert_redundancy(nx, face_connectivity, face_position):
+  """
+  Enumerate redundant DOFs on the elemental
+  representation of an arbitrary mesh
+
+  Parameters
+  ----------
+  nx : `int`
+    The number of elements on a cubed-sphere edge.
+  face_connectivity : `Array[tuple[elem_idx, edge_idx, 3], Int]`
+    An array containing the topological information about the grid.
+    It is unpacked as
+    ```
+    (remote_elem_idx, remote_edge_idx, same_direction) = face_connectivity[local_elem_idx,
+                                                                           edge_idx, :]
+    ```
+
+  Returns
+  -------
+  `vert_redundancy: dict[local_elem_idx, dict[vert_idx, set[tuple[remote_elem_idx, vert_idx]]]]`
+      `dict[local_elem_idx][vert_idx]` is a set of tuples
+      `(remote_elem_idx, vert_idx_pair)` which represent vertices that
+      share the same physical coordinates as `(local_elem_idx, vert_idx)`.
+      Therefore, they represent redundant degrees of freedom.
+
+  Notes
+  -----
+  This struct deliberately does not contain diagonal associations, i.e.
+  (local_elem_idx, vert_idx) <-/-> (local_elem_idx, vert_idx)
+  """
+  vert_redundancy = dict()
+
+  def wrap(elem_idx, vert_idx):
+    if elem_idx not in vert_redundancy.keys():
+      vert_redundancy[elem_idx] = dict()
+    if vert_idx not in vert_redundancy[elem_idx].keys():
+      vert_redundancy[elem_idx][vert_idx] = set()
+
+  for elem_idx in range(len(face_connectivity)):
+    for edge_idx in [TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE]:
+      idx_pair, edge_idx_pair, is_forwards = face_connectivity[elem_idx, edge_idx, :]
+      v0_local, v1_local = edge_to_vert(edge_idx)
+      v0_pair, v1_pair = edge_to_vert(edge_idx_pair, is_forwards=is_forwards)
+      wrap(elem_idx, v0_local)
+      wrap(elem_idx, v1_local)
+      vert_redundancy[elem_idx][v0_local].add((idx_pair, v0_pair))
+      vert_redundancy[elem_idx][v1_local].add((idx_pair, v1_pair))
+  # The following is a crude-but-concise way to ensure
+  # (elem_idx_pair, v_idx_pair) in vert_redundancy[elem_idx][v_idx]  <=>
+  # (elem_idx, v_idx) in vert_redundancy[elem_idx_pair][v_idx_pair]
+  for _ in range(MAX_VERT_DEGREE_UNSTRUCTURED):
+    for elem_idx in vert_redundancy.keys():
+      for vert_idx in vert_redundancy[elem_idx].keys():
+        for elem_idx_pair, vert_idx_pair in vert_redundancy[elem_idx][vert_idx]:
+          vert_redundancy[elem_idx_pair][vert_idx_pair].update(vert_redundancy[elem_idx][vert_idx])
+  # filter out diagonal
+  for elem_idx in vert_redundancy.keys():
+    for vert_idx in vert_redundancy[elem_idx].keys():
+       if (elem_idx, vert_idx) in vert_redundancy[elem_idx][vert_idx]:
+        vert_redundancy[elem_idx][vert_idx].remove((elem_idx, vert_idx))
+
   return vert_redundancy

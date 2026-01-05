@@ -1,49 +1,9 @@
 from ..config import np
+from .mesh import edge_to_vert
 from .mesh_definitions import FORWARDS
 from .mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE,
                                face_topo, axis_info, MAX_VERT_DEGREE, vert_info)
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
-
-
-def edge_to_vert(edge_id, is_forwards=FORWARDS):
-  """
-  Map an edge id of oriented vertex ids of a given element edge.
-
-  Parameters
-  ----------
-  edge_id : `int`
-      Index of edge within an element
-  is_forwards: `int`, default=FORWARDS
-      Is the edge reversed from its
-      default orientation.
-
-  Returns
-  -------
-  `tuple[int, int]`
-      (vert_idx_0, vert_idx_1)
-
-  Notes
-  --------
-  See mesh_definitions for grid conventions on
-  vertex_idx, edge enumeration, and default direction.
-  """
-  if edge_id == TOP_EDGE:
-    v_idx_in_0 = 0
-    v_idx_in_1 = 1
-  elif edge_id == LEFT_EDGE:
-    v_idx_in_0 = 0
-    v_idx_in_1 = 2
-  elif edge_id == RIGHT_EDGE:
-    v_idx_in_0 = 1
-    v_idx_in_1 = 3
-  elif edge_id == BOTTOM_EDGE:
-    v_idx_in_0 = 2
-    v_idx_in_1 = 3
-  if is_forwards != FORWARDS:
-    return v_idx_in_1, v_idx_in_0
-  else:
-    return v_idx_in_0, v_idx_in_1
-
 
 def edge_match(nx, free_idx, id_edge_out, is_forwards):
   """
@@ -85,7 +45,6 @@ def edge_match(nx, free_idx, id_edge_out, is_forwards):
     x_idx_out = nx - 1
     y_idx_out = free_idx_flip
   return x_idx_out, y_idx_out
-
 
 def elem_id_fn(nx, face_idx, x_idx, y_idx):
   """
@@ -240,7 +199,7 @@ def gen_cube_topo(nx):
   return face_connectivity, face_mask, face_position, face_position_2d
 
 
-def gen_vert_redundancy(nx, face_connectivity, face_position):
+def gen_vert_redundancy_cube(nx, face_connectivity, face_position):
   """
   Enumerate redundant DOFs on the elemental
   representation of a quasi-regular cubed sphere grid.

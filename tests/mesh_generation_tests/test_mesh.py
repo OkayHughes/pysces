@@ -1,5 +1,6 @@
 from ..context import test_npts
-from pysces.mesh_generation.cubed_sphere import gen_cube_topo, gen_vert_redundancy
+from pysces.mesh_generation.cubed_sphere import gen_cube_topo
+from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE
 from pysces.mesh_generation.mesh_definitions import BACK_FACE, LEFT_FACE, RIGHT_FACE
 from pysces.mesh_generation.cubed_sphere import elem_id_fn

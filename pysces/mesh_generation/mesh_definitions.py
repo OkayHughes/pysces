@@ -82,3 +82,4 @@ axis_info = {TOP_FACE: (0, 1.0, 1, -1.0),
 
 # NOTE: this may not be appropriate for unstructured grids!
 MAX_VERT_DEGREE = 4
+MAX_VERT_DEGREE_UNSTRUCTURED = 8
