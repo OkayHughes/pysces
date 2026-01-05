@@ -1,5 +1,5 @@
 # Overview
-The purpose of this project is to create the a highly readable, well documented, well tested atmospheric dynamical core with support for variable resolution meshes with support for automatic differentiation and machine learing.
+The purpose of this project is to create the a highly readable, well documented, well tested atmospheric dynamical core with support for variable resolution meshes, as well as automatic differentiation for machine learing and data assimilation.
 This project prioritizes code readability and maintainability over performance. 
 We want to minimize external dependencies and, insofar as it is possible, create a codebase that is entirely written in python.
 Given the constraints of these design decisions, it is unlikely that the resulting dynamical core will scale to hundreds or thousands of  nodes on an HPC computing system. This aligns with our stated goal of making atmospheric modeling accessible.

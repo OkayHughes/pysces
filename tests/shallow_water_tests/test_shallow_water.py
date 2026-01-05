@@ -3,7 +3,7 @@ from pysces.shallow_water_models.shallow_water_sphere_model import get_config_sw
 from pysces.shallow_water_models.williamson_init import get_williamson_steady_config, williamson_tc2_h, williamson_tc2_hs, williamson_tc2_u
 from pysces.shallow_water_models.galewsky_init import get_galewsky_config, galewsky_wind, galewsky_hs, galewsky_h
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.mesh_generation.unstructured_metric import create_quasi_uniform_grid_unstructured
+from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_unstructured
 from pysces.operations_2d.operators import inner_prod, sphere_vorticity
 from pysces.operations_2d.assembly import project_scalar
 from ..context import get_figdir, test_division_factor
@@ -66,7 +66,7 @@ def test_sw_model():
 def test_galewsky():
   npt = 4
   nx = 61
-  grid, dims = create_quasi_uniform_grid_unstructured(nx, npt)
+  grid, dims = create_quasi_uniform_grid(nx, npt)
 
   config = get_config_sw(ne=15)
   test_config = get_galewsky_config(config)

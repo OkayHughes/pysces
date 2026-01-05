@@ -1,8 +1,11 @@
 from pysces.config import np
-from pysces.mesh_generation.jacobian_utils import bilinear, bilinear_jacobian
+from pysces.mesh_generation.jacobian_utils import (bilinear, bilinear_jacobian,
+                                                   cart_to_unit_sphere, unit_sphere_to_cart,
+                                                   cart_to_unit_sphere_coords_jacobian,
+                                                   unit_sphere_to_cart_coords_jacobian)
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.spectral import init_spectral
-from ..context import test_npts
+from ..context import test_npts, get_figdir
 
 
 def test_bilinear():
@@ -87,3 +90,47 @@ def test_bilinear_cs():
           dres_dbeta = (diff_plus - diff_minus) / (2 * eps)
           assert (np.max(np.abs(dres_dalpha - jac_test[:, :, 0])) < 1e-7)
           assert (np.max(np.abs(dres_dbeta - jac_test[:, :, 1])) < 1e-7)
+
+
+def test_sphere_coords():
+  lat_1d = np.linspace(-np.pi / 2.0, np.pi / 2.0, 10)
+  lon_1d = np.linspace(0, 2 * np.pi, 20)
+  lat, lon = np.meshgrid(lat_1d, lon_1d)
+  lat = lat.reshape((-1, 1, 1))
+  lon = lon.reshape((-1, 1, 1))
+  latlon = np.stack((lat, lon), axis=-1)
+  cart = unit_sphere_to_cart(latlon)
+  latlon_out = cart_to_unit_sphere(cart)
+  latlon[:, :, :, 1] = np.mod(latlon[:, :, :, 1], 2*np.pi)
+  assert np.allclose(latlon_out, latlon, atol=1e-7)
+
+
+def test_sphere_coords_jacobian():
+  npts = 100
+  lat_1d = np.linspace(-np.pi / 2.0, np.pi / 2.0, npts+2)[1:-1]
+  np.random.seed(0)
+  lon_1d = np.linspace(-np.pi, np.pi, 2* npts)
+  lat, lon = np.meshgrid(lat_1d, lon_1d)
+  lat = lat.reshape((-1, 1, 1))
+  lon = lon.reshape((-1, 1, 1))
+  latlon = np.stack((lat, lon), axis=-1)
+  cart = unit_sphere_to_cart(latlon)
+  cart_to_sphere = cart_to_unit_sphere_coords_jacobian(cart)
+  sphere_to_cart = unit_sphere_to_cart_coords_jacobian(latlon)
+  cart_to_sphere[:, :, :, 1, :] *= np.cos(latlon[:, :, :, 0])[:, :, :, np.newaxis]
+  sphere_to_cart[:, :, :, :, 1] /= np.cos(latlon[:, :, :, 0])[:, :, :, np.newaxis]
+  rand_vecs_latlon = np.random.normal(size=latlon.shape)
+  cart_vecs = np.einsum("fijcs,fijs->fijc", sphere_to_cart, rand_vecs_latlon)
+  sph_from_cart_vecs = np.einsum("fijsc,fijc->fijs", cart_to_sphere, cart_vecs)
+  norm_sph_vecs = np.linalg.norm(rand_vecs_latlon, axis=-1)
+  norm_cart_vecs = np.linalg.norm(cart_vecs, axis=-1)
+  norm_sph_from_cart_vecs = np.linalg.norm(sph_from_cart_vecs, axis=-1)
+  assert np.allclose(norm_cart_vecs, norm_sph_vecs)
+  assert np.allclose(norm_sph_from_cart_vecs, norm_sph_vecs)
+  iprod_sph = np.einsum("fijc, fijc->fij", cart_vecs / norm_cart_vecs[:, :, :, np.newaxis], cart)
+  assert np.allclose(iprod_sph, 0.0)
+
+  maybe_identity = np.einsum("fijsc,fijct->fijst", cart_to_sphere, sphere_to_cart)
+  maybe_identity_2 = np.einsum("fijcs,fijct->fijst", sphere_to_cart, sphere_to_cart)
+  assert np.allclose(maybe_identity_2, np.eye(2)[np.newaxis, np.newaxis, np.newaxis, :, :])
+  assert np.allclose(maybe_identity, np.eye(2)[np.newaxis, np.newaxis, np.newaxis, :, :])

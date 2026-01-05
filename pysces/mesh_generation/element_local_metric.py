@@ -3,25 +3,13 @@ from .mesh_definitions import (TOP_EDGE, BOTTOM_EDGE, LEFT_EDGE, RIGHT_EDGE, MAX
 from .mesh import edge_to_vert, gen_vert_redundancy, gen_gll_redundancy, mesh_to_cart_bilinear, generate_metric_terms
 from .equiangular_metric import gen_metric_terms_equiangular
 from .cubed_sphere import gen_cube_topo
+from .jacobian_utils import unit_sphere_to_cart, cart_to_unit_sphere_coords_jacobian, cart_to_unit_sphere
 
 
-def sphere_to_cart(latlon):
-  lat = np.take(latlon, 0, axis=-1)
-  lon = np.take(latlon, 1, axis=-1)
-  cos_lat = np.cos(lat)
-  cart = np.stack((cos_lat * np.cos(lon),
-                   cos_lat * np.sin(lon),
-                   np.sin(lat)), axis=-1)
-  return cart
-def cart_to_sphere_unit_sphere(xyz):
-  latlon = np.stack((np.asin(xyz[:, :, :, 2]),
-                     np.atan2(xyz[:, :, :, 1],
-                              xyz[:, :, :, 0])), axis=-1)
-  return latlon
 
 
 def gen_metric_terms_unstructured(latlon_corners, npt, rotate=False):
-  cart_corners = sphere_to_cart(latlon_corners)
+  cart_corners = unit_sphere_to_cart(latlon_corners)
   print(cart_corners.shape)
   if rotate:
     theta = 1e-3
@@ -36,15 +24,12 @@ def gen_metric_terms_unstructured(latlon_corners, npt, rotate=False):
   # 1/‖p‖³ (‖p‖² I − pp⊤)
   cart_to_unit_sphere_jacobian = 1.0/norm_cart[:, :, :, np.newaxis, np.newaxis]**3 * (norm_cart[:, :, :, np.newaxis, np.newaxis]**2 * np.eye(3)[np.newaxis, np.newaxis, np.newaxis, :, :] -
                                                                                       np.einsum("fijc,fijd->fijcd", cart_points_3d, cart_points_3d))
-  x = gll_xyz[:, :, :, 0]
-  y = gll_xyz[:, :, :, 1]
-  z = gll_xyz[:, :, :, 2]
-  gll_latlon = cart_to_sphere_unit_sphere(gll_xyz)
-  normsq_2d = x**2 + y**2
-  unit_sphere_to_sph_coords_jacobian = np.zeros((latlon_corners.shape[0], npt, npt, 2, 3))
-  unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 2] = 1.0 / np.sqrt(1 - z**2)
-  unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 0] = -y / normsq_2d
-  unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 1] = x / normsq_2d
+
+  gll_latlon = cart_to_unit_sphere(gll_xyz)
+  unit_sphere_to_sph_coords_jacobian = cart_to_unit_sphere_coords_jacobian(gll_xyz)
+  # unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 2] = 1.0 / np.sqrt(1 - z**2)
+  # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 0] = -y / normsq_2d
+  # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 1] = x / normsq_2d
   # unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 2][np.abs(z) > 1-1e-8] = 0.0
   # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 0][normsq_2d < 1e-8] = -1.0
   # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 1][normsq_2d < 1e-8] = 1.0
