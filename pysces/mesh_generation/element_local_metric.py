@@ -6,11 +6,8 @@ from .cubed_sphere import gen_cube_topo
 from .jacobian_utils import unit_sphere_to_cart, cart_to_unit_sphere_coords_jacobian, cart_to_unit_sphere
 
 
-
-
-def gen_metric_terms_unstructured(latlon_corners, npt, rotate=False):
+def gen_metric_terms_elem_local(latlon_corners, npt, rotate=False):
   cart_corners = unit_sphere_to_cart(latlon_corners)
-  print(cart_corners.shape)
   if rotate:
     theta = 1e-3
 
@@ -27,15 +24,9 @@ def gen_metric_terms_unstructured(latlon_corners, npt, rotate=False):
 
   gll_latlon = cart_to_unit_sphere(gll_xyz)
   unit_sphere_to_sph_coords_jacobian = cart_to_unit_sphere_coords_jacobian(gll_xyz)
-  # unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 2] = 1.0 / np.sqrt(1 - z**2)
-  # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 0] = -y / normsq_2d
-  # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 1] = x / normsq_2d
-  # unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 2][np.abs(z) > 1-1e-8] = 0.0
-  # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 0][normsq_2d < 1e-8] = -1.0
-  # unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 1][normsq_2d < 1e-8] = 1.0
 
   cart_to_sphere_jacobian = np.einsum("fijcd,fijsc->fijds", cart_to_unit_sphere_jacobian, unit_sphere_to_sph_coords_jacobian)
-  #cart_to_sphere_jacobian = np.einsum("fijdc, fijsd->fijcs", cart_to_unit_sphere_jacobian, sphere_to_sphere_jacobian)
+
   # gll_latlon[:, :, :, 1] = np.mod(gll_latlon[:, :, :, 1], 2 * np.pi - 1e-9)
   # too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
   # too_close_to_bottom = np.abs(gll_latlon[:, :, :, 0] + np.pi / 2) < 1e-8
@@ -45,7 +36,7 @@ def gen_metric_terms_unstructured(latlon_corners, npt, rotate=False):
   return gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian
 
 
-def create_quasi_uniform_grid_unstructured(nx, npt, wrapped=use_wrapper, proc_idx=None, rotate=True):
+def create_quasi_uniform_grid_elem_local(nx, npt, wrapped=use_wrapper, proc_idx=None, rotate=True):
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   gll_position_equi, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
@@ -61,9 +52,7 @@ def create_quasi_uniform_grid_unstructured(nx, npt, wrapped=use_wrapper, proc_id
   #                      too_close_to_bottom)
   # latlon_corners[:, :, 1] = np.where(mask, 0.0, latlon_corners[:, :, 1])
 
-  gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian = gen_metric_terms_unstructured(latlon_corners, npt, rotate=rotate)
-  print(gll_to_cart_jacobian.shape)
-  print(cart_to_sphere_jacobian.shape)
+  gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian = gen_metric_terms_elem_local(latlon_corners, npt, rotate=rotate)
 
 
   return generate_metric_terms(gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian, cube_redundancy, npt,

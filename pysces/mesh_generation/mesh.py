@@ -4,7 +4,7 @@ from .jacobian_utils import bilinear, bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
 from ..operations_2d.se_grid import create_spectral_element_grid
-
+from .jacobian_utils import unit_sphere_to_cart_coords_jacobian
 
 def edge_to_vert(edge_id, is_forwards=FORWARDS):
   """
@@ -408,6 +408,7 @@ def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
 
   mass_mat = metdet.copy() * (spectrals["gll_weights"][np.newaxis, :, np.newaxis] *
                               spectrals["gll_weights"][np.newaxis, np.newaxis, :])
+  physical_coords_to_cartesian = unit_sphere_to_cart_coords_jacobian(gll_latlon)
 
   for local_face_idx in vert_redundancy_gll.keys():
     for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
@@ -422,6 +423,7 @@ def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
   return create_spectral_element_grid(gll_latlon,
                                       gll_to_sphere_jacobian,
                                       gll_to_sphere_jacobian_inv,
+                                      physical_coords_to_cartesian,
                                       rmetdet, metdet, mass_mat,
                                       inv_mass_mat, vert_red_flat,
                                       proc_idx, decomp, wrapped=wrapped)

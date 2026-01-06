@@ -83,10 +83,9 @@ def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_recei
 #   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 #   vert_red_local_flat, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_flat, proc_idx, decomp)
 #   vert_red_local = vert_red_flat_to_hierarchy(vert_red_local_flat)
+  # return vert_red_local, vert_red_send, vert_red_receive
 
-  return vert_red_local, vert_red_send, vert_red_receive
-
-def init_hypervis_tensor_copypaste(met_inv, jacobian_inv, hypervis_scaling=3.2):
+def init_hypervis_tensor(met_inv, jacobian_inv, hypervis_scaling=3.2):
 
   # matricies for tensor hyper-viscosity
   # compute eigenvectors of metinv (probably same as computed above)
@@ -96,39 +95,45 @@ def init_hypervis_tensor_copypaste(met_inv, jacobian_inv, hypervis_scaling=3.2):
               (met_inv[:, :, :, 0, 0] - met_inv[:, :, :, 1, 1])**2))/2.0
   eig_two = (met_inv[:, :, :, 0, 0] + met_inv[:, :, :, 1, 1] - np.sqrt(4.0 * met_inv[:, :, :, 0, 1]*met_inv[:, :, :, 1, 0] +
               (met_inv[:, :, :, 0, 0] - met_inv[:, :, :, 1, 1])**2))/2.0
-          
+
   # use DE to store M - Lambda, to compute eigenvectors
   char_mat =np.copy(met_inv)
   char_mat[:, :, :, 0, 0] = char_mat[:, :, :, 0, 0] - eig_one
   char_mat[:, :, :, 1, 1] = char_mat[:, :, :, 1, 1] - eig_one
-  E = np.copy(met_inv)
-  indices = np.argmax(np.abs(char_mat).reshape(*char_mat.shape[:3], 4))
+  E = np.nan * np.ones_like(met_inv)
+  abs_charmat = np.abs(char_mat).reshape(*char_mat.shape[:3], 4)
+  indices = np.argmax(abs_charmat, axis=-1)
   indices_2d = np.unravel_index(indices, shape=(2, 2))
-  if np.max(np.abs(char_mat)) == 0:
-    E[:, :, :, 0, 0] = 1.0
-    E[:, :, :, 1, 0] = 0.0
-  elif (indices_2d[:, :, :, 0] == 0 and indices_2d[:, :, :, 1] == 0):
-    E[:, :, :, 1, 0] = 1.0
-    E[:, :, :, 0, 0] = -char_mat[:, :, :, 1, 0] / char_mat[:, :, :, 0, 0]
-  elif ( indices_2d[:, :, :, 0] == 0 and indices_2d[:, :, :, 1] == 1):
-      E[:, :, :, 1, 0] = 1.0
-      E[:, :, :, 0, 0] = -char_mat[:, :, :, 1, 1] / char_mat[:, :, :, 0, 1]
-  elif ( indices_2d[:, :, :, 0] == 1 and indices_2d[:, :, :, 1] == 0):
-      E[:, :, :, 0, 0] = 1.0
-      E[:, :, :, 1, 0] = -char_mat[:, :, :, 0, 0] / char_mat[:, :, :, 1,0]
-  elif ( indices_2d[:, :, :, 0] == 1 and indices_2d[:, :, :, 1] == 1):
-      E[:, :, :, 0, 0] = 1.0
-      E[:, :, :, 1, 0] = -char_mat[:, :, :, 0, 1] / char_mat[:, :, :, 1, 1]
+  mask_upper_left = np.logical_and(indices_2d[0] == 0, indices_2d[1] == 0)
+  mask_upper_right = np.logical_and(indices_2d[0] == 0, indices_2d[1] == 1)
+  mask_lower_left = np.logical_and(indices_2d[0] == 1, indices_2d[1] == 0)
+  mask_lower_right = np.logical_and(indices_2d[0] == 1, indices_2d[1] == 1)
+  char_mat_mask = np.isclose(np.max(abs_charmat, axis=-1), 0.0)
+  
+  E[:, :, :, 1, 0] = np.where(mask_lower_right, -char_mat[:, :, :, 0, 1] / char_mat[:, :, :, 1, 1], E[:, :, :, 1, 0])
+  E[:, :, :, 0, 0] = np.where(mask_lower_right, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 0, 0])
+
+  E[:, :, :, 1, 0] = np.where(mask_lower_left, -char_mat[:, :, :, 0, 0] / char_mat[:, :, :, 1,0], E[:, :, :, 1, 0])
+  E[:, :, :, 0, 0] = np.where(mask_lower_left, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 0, 0])
+
+  E[:, :, :, 1, 0] = np.where(mask_upper_right, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 1, 0])
+  E[:, :, :, 0, 0] = np.where(mask_upper_right, -char_mat[:, :, :, 1, 1] / char_mat[:, :, :, 0, 1], E[:, :, :, 0, 0])
+
+  E[:, :, :, 1, 0] = np.where(mask_upper_left, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 1, 0])
+  E[:, :, :, 0, 0] = np.where(mask_upper_left, -char_mat[:, :, :, 1, 0] / char_mat[:, :, :, 0, 0], E[:, :, :, 0, 0])
+
+  E[:, :, :, 0, 0] = np.where(char_mat_mask, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 0, 0])
+  E[:, :, :, 1, 0] = np.where(char_mat_mask, np.zeros_like(E[:, :, :, 0, 0]), E[:, :, :, 1, 0])
 
   # the other eigenvector is orthgonal:
   E[:, :, :, 0, 1] = -E[:, :, :, 1,0]
   E[:, :, :, 1, 1]= E[:, :, :, 0, 0]
+  assert not np.any(np.isnan(E))
 
   #normalize columns
   for idx in range(2):
     E[:, :, :, :, idx] /= np.sqrt(np.sum(E[:, :, :, :, idx]*
                                          E[:, :, :, :, idx], axis=-1))[:, :, :, np.newaxis]; 
-
   # OBTAINING TENSOR FOR HV:
 
   # Instead of the traditional scalar Laplace operator \grad \cdot \grad
@@ -196,9 +201,9 @@ def init_hypervis_tensor_copypaste(met_inv, jacobian_inv, hypervis_scaling=3.2):
   DEL = np.zeros_like(DE)
   DEL[:, :, :, :, 0] = (lamStar1**2 * eig_one)[:, :, :, np.newaxis] * DE[:, :, :, :, 0]
   DEL[:, :, :, :, 1] = (lamStar2**2 * eig_two)[:, :, :, np.newaxis] * DE[:, :, :, :, 1]
-
   #matrix (DE) * Lam^* * Lam  *E^t *D^t or (DE) * (Lam^*)^2 * Lam  *E^t *D^t 
-  viscosity_tensor = np.einsum("fijgs,fijsh->fijgh", DEL, DE)
+  viscosity_tensor = np.einsum("fijgs,fijhs->fijgh", DEL, DE)
+
   # V(1,1)=sum(DEL(1,:)*DE(1,:))
   # V(1,2)=sum(DEL(1,:)*DE(2,:))
   # V(2,1)=sum(DEL(2,:)*DE(1,:))
@@ -206,7 +211,9 @@ def init_hypervis_tensor_copypaste(met_inv, jacobian_inv, hypervis_scaling=3.2):
 
   # NOTE: missing rearth**4 scaling compared to HOMME code
 	# elem%tensorVisc(i,j,:,:)=V(:,:)
+
   return viscosity_tensor
+
 
 def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
                                 proc_idx, decomp):
@@ -261,6 +268,7 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapp
 def create_spectral_element_grid(latlon,
                                  gll_to_sphere_jacobian,
                                  gll_to_sphere_jacobian_inv,
+                                 physical_coords_to_cartesian,
                                  rmetdet,
                                  metdet,
                                  mass_mat,
@@ -312,6 +320,7 @@ def create_spectral_element_grid(latlon,
                                    wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
                                    wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
   ret = {"physical_coords": subset_wrapper(latlon),
+         "physical_coords_to_cartesian": subset_wrapper(physical_coords_to_cartesian),
          "jacobian": subset_wrapper(gll_to_sphere_jacobian),
          "jacobian_inv": subset_wrapper(gll_to_sphere_jacobian_inv),
          "recip_met_det": subset_wrapper(rmetdet),

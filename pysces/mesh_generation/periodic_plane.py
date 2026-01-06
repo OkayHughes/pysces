@@ -171,6 +171,9 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 
+  physical_coords_to_cartesian = (np.eye(3)[np.newaxis, np.newaxis, np.newaxis, :, :2] * 
+                                  np.ones((NELEM, npt, npt, 1, 1)))
+
   rmetdet = np.linalg.det(gll_to_planar_jacobian_inv)
 
   metdet = 1.0 / rmetdet
@@ -191,6 +194,7 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
   return create_spectral_element_grid(physical_coords,
                                       gll_to_planar_jacobian,
                                       gll_to_planar_jacobian_inv,
+                                      physical_coords_to_cartesian,
                                       rmetdet, metdet, mass_mat,
                                       inv_mass_mat, vert_red_flat,
                                       proc_idx, decomp, wrapped=wrapped)
