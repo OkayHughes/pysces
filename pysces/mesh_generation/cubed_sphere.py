@@ -5,6 +5,7 @@ from .mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEF
                                face_topo, axis_info, MAX_VERT_DEGREE, vert_info)
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
 
+
 def edge_match(nx, free_idx, id_edge_out, is_forwards):
   """
   Return the horizontal and vertical element indexes
@@ -45,6 +46,7 @@ def edge_match(nx, free_idx, id_edge_out, is_forwards):
     x_idx_out = nx - 1
     y_idx_out = free_idx_flip
   return x_idx_out, y_idx_out
+
 
 def elem_id_fn(nx, face_idx, x_idx, y_idx):
   """

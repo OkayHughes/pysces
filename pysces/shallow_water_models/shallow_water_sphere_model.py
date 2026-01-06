@@ -88,7 +88,8 @@ def project_state(state, grid, dims):
   KeyError
       when a key error
   """
-  u, v, h = project_scalar_triple_mpi([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]], grid, dims, two_d=True)
+  u, v, h = project_scalar_triple_mpi([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]],
+                                      grid, dims, two_d=True)
   return create_state_struct(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 
@@ -348,4 +349,3 @@ def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, ste
     versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["h"]))))
     k += 1
   return state_n
-

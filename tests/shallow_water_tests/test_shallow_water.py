@@ -1,9 +1,11 @@
-from pysces.config import jnp, np, DEBUG, device_unwrapper, device_wrapper, mpi_rank
+from pysces.config import jnp, np, DEBUG, device_unwrapper, device_wrapper
 from pysces.shallow_water_models.shallow_water_sphere_model import get_config_sw, create_state_struct, simulate_sw
-from pysces.shallow_water_models.williamson_init import get_williamson_steady_config, williamson_tc2_h, williamson_tc2_hs, williamson_tc2_u
+from pysces.shallow_water_models.williamson_init import (get_williamson_steady_config,
+                                                         williamson_tc2_h,
+                                                         williamson_tc2_hs,
+                                                         williamson_tc2_u)
 from pysces.shallow_water_models.galewsky_init import get_galewsky_config, galewsky_wind, galewsky_hs, galewsky_h
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_unstructured
 from pysces.operations_2d.operators import inner_prod, sphere_vorticity
 from pysces.operations_2d.assembly import project_scalar
 from ..context import get_figdir, test_division_factor
@@ -20,9 +22,15 @@ def test_sw_model():
   grid, dims = create_quasi_uniform_grid(nx, npt)
   config = get_config_sw(alpha=jnp.pi / 4, ne=15)
   test_config = get_williamson_steady_config(config)
-  u_init = device_wrapper(williamson_tc2_u(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
-  h_init = device_wrapper(williamson_tc2_h(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
-  hs_init = device_wrapper(williamson_tc2_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
+  u_init = device_wrapper(williamson_tc2_u(grid["physical_coords"][:, :, :, 0],
+                                           grid["physical_coords"][:, :, :, 1],
+                                           test_config))
+  h_init = device_wrapper(williamson_tc2_h(grid["physical_coords"][:, :, :, 0],
+                                           grid["physical_coords"][:, :, :, 1],
+                                           test_config))
+  hs_init = device_wrapper(williamson_tc2_hs(grid["physical_coords"][:, :, :, 0],
+                                             grid["physical_coords"][:, :, :, 1],
+                                             test_config))
   print(u_init.dtype)
   init_state = create_state_struct(u_init, h_init, hs_init)
 
@@ -72,9 +80,15 @@ def test_galewsky():
   test_config = get_galewsky_config(config)
 
   T = (144 * 3600) / test_division_factor
-  u_init = device_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
-  h_init = device_wrapper(galewsky_h(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
-  hs_init = device_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1], test_config))
+  u_init = device_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0],
+                                        grid["physical_coords"][:, :, :, 1],
+                                        test_config))
+  h_init = device_wrapper(galewsky_h(grid["physical_coords"][:, :, :, 0],
+                                     grid["physical_coords"][:, :, :, 1],
+                                     test_config))
+  hs_init = device_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0],
+                                       grid["physical_coords"][:, :, :, 1],
+                                       test_config))
   init_state = create_state_struct(u_init, h_init, hs_init)
   final_state = simulate_sw(T, nx, init_state, grid, config, dims, diffusion=True)
   mass_init = inner_prod(h_init, h_init, grid)

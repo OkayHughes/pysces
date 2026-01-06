@@ -5,6 +5,7 @@ from pysces.config import np
 from ..context import test_npts
 from .tensor_hypervis_ref import tensor_hypervis_ref
 
+
 def test_hypervisc_tensor():
   for nx in [5, 6]:
     for npt in test_npts:

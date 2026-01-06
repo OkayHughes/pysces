@@ -5,7 +5,7 @@ from pysces.mesh_generation.jacobian_utils import (bilinear, bilinear_jacobian,
                                                    unit_sphere_to_cart_coords_jacobian)
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.spectral import init_spectral
-from ..context import test_npts, get_figdir
+from ..context import test_npts
 
 
 def test_bilinear():
@@ -101,15 +101,15 @@ def test_sphere_coords():
   latlon = np.stack((lat, lon), axis=-1)
   cart = unit_sphere_to_cart(latlon)
   latlon_out = cart_to_unit_sphere(cart)
-  latlon[:, :, :, 1] = np.mod(latlon[:, :, :, 1], 2*np.pi)
+  latlon[:, :, :, 1] = np.mod(latlon[:, :, :, 1], 2 * np.pi)
   assert np.allclose(latlon_out, latlon, atol=1e-7)
 
 
 def test_sphere_coords_jacobian():
   npts = 100
-  lat_1d = np.linspace(-np.pi / 2.0, np.pi / 2.0, npts+2)[1:-1]
+  lat_1d = np.linspace(-np.pi / 2.0, np.pi / 2.0, npts + 2)[1:-1]
   np.random.seed(0)
-  lon_1d = np.linspace(-np.pi, np.pi, 2* npts)
+  lon_1d = np.linspace(-np.pi, np.pi, 2 * npts)
   lat, lon = np.meshgrid(lat_1d, lon_1d)
   lat = lat.reshape((-1, 1, 1))
   lon = lon.reshape((-1, 1, 1))

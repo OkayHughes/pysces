@@ -171,7 +171,7 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 
-  physical_coords_to_cartesian = (np.eye(3)[np.newaxis, np.newaxis, np.newaxis, :, :2] * 
+  physical_coords_to_cartesian = (np.eye(3)[np.newaxis, np.newaxis, np.newaxis, :, :2] *
                                   np.ones((NELEM, npt, npt, 1, 1)))
 
   rmetdet = np.linalg.det(gll_to_planar_jacobian_inv)

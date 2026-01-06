@@ -1,5 +1,4 @@
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo, create_quasi_uniform_grid
-from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_elem_local
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
@@ -21,7 +20,8 @@ def test_vert_triage_artificial():
   vert_sends = []
   vert_recvs = []
   for proc_idx in range(nproc):
-    vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_hierarchy_to_flat(vert_redundancy_gll), proc_idx, decomp)
+    vert_red_gll_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
+    vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_gll_flat, proc_idx, decomp)
     vert_locals.append(vert_red_flat_to_hierarchy(vert_red_local))
     vert_sends.append(vert_red_send)
     vert_recvs.append(vert_red_receive)
@@ -74,7 +74,6 @@ def test_vert_triage_artificial():
 
 
 def test_vert_red_triage():
-  return
   for npt in test_npts:
     for nproc in range(1, 6):
       for nx in range(2, 5):
@@ -103,8 +102,8 @@ def test_vert_red_triage():
         vert_recvs = []
         for proc_idx in range(nproc):
           vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(grid["vert_redundancy"],
-                                                                                   proc_idx,
-                                                                                   decomp)
+                                                                                        proc_idx,
+                                                                                        decomp)
           vert_red_local = vert_red_flat_to_hierarchy(vert_red_local)
           vert_locals.append(vert_red_local)
           vert_sends.append(vert_red_send)

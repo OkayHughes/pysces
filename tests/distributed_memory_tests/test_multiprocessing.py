@@ -9,7 +9,7 @@ from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.se_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
-from pysces.config import device_unwrapper, np, jnp, use_wrapper, device_wrapper, mpi_size, mpi_rank
+from pysces.config import device_unwrapper, np, use_wrapper, device_wrapper, mpi_size, mpi_rank
 from ..handmade_grids import init_test_grid, vert_redundancy_gll
 from ..context import test_npts
 from ..context import seed as global_seed
@@ -46,6 +46,7 @@ def test_unordered_assembly_for_stub():
           grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
                                                    grid_total["jacobian"],
                                                    grid_total["jacobian_inv"],
+                                                   grid_total["physical_coords_to_cartesian"],
                                                    grid_total["recip_met_det"],
                                                    grid_total["met_det"],
                                                    grid_total["mass_mat"],
@@ -124,6 +125,7 @@ def test_unordered_assembly_triple_stub():
           grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
                                                    grid_total["jacobian"],
                                                    grid_total["jacobian_inv"],
+                                                   grid_total["physical_coords_to_cartesian"],
                                                    grid_total["recip_met_det"],
                                                    grid_total["met_det"],
                                                    grid_total["mass_mat"],
@@ -204,6 +206,7 @@ def test_stub_exchange():
     grid, dim = create_spectral_element_grid(se_grid["physical_coords"],
                                              se_grid["jacobian"],
                                              se_grid["jacobian_inv"],
+                                             se_grid["physical_coords_to_cartesian"],
                                              se_grid["recip_met_det"],
                                              se_grid["met_det"],
                                              se_grid["mass_mat"],
@@ -296,6 +299,7 @@ def test_extract_fields_triples():
               grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
                                                        grid_total_nowrapper["jacobian"],
                                                        grid_total_nowrapper["jacobian_inv"],
+                                                       grid_total_nowrapper["physical_coords_to_cartesian"],
                                                        grid_total_nowrapper["recip_met_det"],
                                                        grid_total_nowrapper["met_det"],
                                                        grid_total_nowrapper["mass_mat"],
@@ -305,6 +309,7 @@ def test_extract_fields_triples():
               grid_nodevice, _ = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
                                                               grid_total_nowrapper["jacobian"],
                                                               grid_total_nowrapper["jacobian_inv"],
+                                                              grid_total_nowrapper["physical_coords_to_cartesian"],
                                                               grid_total_nowrapper["recip_met_det"],
                                                               grid_total_nowrapper["met_det"],
                                                               grid_total_nowrapper["mass_mat"],
@@ -392,6 +397,7 @@ def test_mpi_exchange_for():
         grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
                                                  grid_total["jacobian"],
                                                  grid_total["jacobian_inv"],
+                                                 grid_total["physical_coords_to_cartesian"],
                                                  grid_total["recip_met_det"],
                                                  grid_total["met_det"],
                                                  grid_total["mass_mat"],
@@ -491,6 +497,7 @@ def test_mpi_exchange_triple():
         grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
                                                  grid_total_nowrapper["jacobian"],
                                                  grid_total_nowrapper["jacobian_inv"],
+                                                 grid_total_nowrapper["physical_coords_to_cartesian"],
                                                  grid_total_nowrapper["recip_met_det"],
                                                  grid_total_nowrapper["met_det"],
                                                  grid_total_nowrapper["mass_mat"],

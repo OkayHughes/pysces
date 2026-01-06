@@ -1,6 +1,5 @@
 from ..config import use_wrapper, np
-from .mesh_definitions import (TOP_EDGE, BOTTOM_EDGE, LEFT_EDGE, RIGHT_EDGE, MAX_VERT_DEGREE)
-from .mesh import edge_to_vert, gen_vert_redundancy, gen_gll_redundancy, mesh_to_cart_bilinear, generate_metric_terms
+from .mesh import gen_vert_redundancy, gen_gll_redundancy, mesh_to_cart_bilinear, generate_metric_terms
 from .equiangular_metric import gen_metric_terms_equiangular
 from .cubed_sphere import gen_cube_topo
 from .jacobian_utils import unit_sphere_to_cart, cart_to_unit_sphere_coords_jacobian, cart_to_unit_sphere
@@ -16,16 +15,20 @@ def gen_metric_terms_elem_local(latlon_corners, npt, rotate=False):
                                 (0.0, np.sin(theta), np.cos(theta))])
     cart_corners = np.einsum("kl, fvk->fvl", rotation_matrix, cart_corners)
   cart_points_3d, gll_to_cart_jacobian = mesh_to_cart_bilinear(cart_corners, npt)
-  norm_cart =  np.linalg.norm(cart_points_3d, axis=-1)
+  norm_cart = np.linalg.norm(cart_points_3d, axis=-1)
   gll_xyz = cart_points_3d / norm_cart[:, :, :, np.newaxis]
   # 1/‖p‖³ (‖p‖² I − pp⊤)
-  cart_to_unit_sphere_jacobian = 1.0/norm_cart[:, :, :, np.newaxis, np.newaxis]**3 * (norm_cart[:, :, :, np.newaxis, np.newaxis]**2 * np.eye(3)[np.newaxis, np.newaxis, np.newaxis, :, :] -
-                                                                                      np.einsum("fijc,fijd->fijcd", cart_points_3d, cart_points_3d))
+  cart_to_unit_sphere_jacobian = (1.0 / norm_cart[:, :, :, np.newaxis, np.newaxis]**3 *
+                                  (norm_cart[:, :, :, np.newaxis, np.newaxis]**2 *
+                                   np.eye(3)[np.newaxis, np.newaxis, np.newaxis, :, :] -
+                                   np.einsum("fijc,fijd->fijcd", cart_points_3d, cart_points_3d)))
 
   gll_latlon = cart_to_unit_sphere(gll_xyz)
   unit_sphere_to_sph_coords_jacobian = cart_to_unit_sphere_coords_jacobian(gll_xyz)
 
-  cart_to_sphere_jacobian = np.einsum("fijcd,fijsc->fijds", cart_to_unit_sphere_jacobian, unit_sphere_to_sph_coords_jacobian)
+  cart_to_sphere_jacobian = np.einsum("fijcd,fijsc->fijds",
+                                      cart_to_unit_sphere_jacobian,
+                                      unit_sphere_to_sph_coords_jacobian)
 
   # gll_latlon[:, :, :, 1] = np.mod(gll_latlon[:, :, :, 1], 2 * np.pi - 1e-9)
   # too_close_to_top = np.abs(gll_latlon[:, :, :, 0] - np.pi / 2) < 1e-8
@@ -43,7 +46,7 @@ def create_quasi_uniform_grid_elem_local(nx, npt, wrapped=use_wrapper, proc_idx=
   cube_redundancy = gen_gll_redundancy(vert_redundancy, npt)
   gll_latlon_equi, _ = gen_metric_terms_equiangular(face_mask, gll_position_equi, npt)
   latlon_corners = np.zeros((gll_latlon_equi.shape[0], 4, 2))
-  for vert_idx, (i_in, j_in) in enumerate([(0, 0), (npt-1, 0), (0, npt-1), (npt-1, npt-1)]):
+  for vert_idx, (i_in, j_in) in enumerate([(0, 0), (npt - 1, 0), (0, npt - 1), (npt - 1, npt - 1)]):
       latlon_corners[:, vert_idx, :] = gll_latlon_equi[:, i_in, j_in, :]
 
   # too_close_to_top = np.abs(latlon_corners[:, :, 0] - np.pi / 2) < 1e-8
@@ -52,8 +55,9 @@ def create_quasi_uniform_grid_elem_local(nx, npt, wrapped=use_wrapper, proc_idx=
   #                      too_close_to_bottom)
   # latlon_corners[:, :, 1] = np.where(mask, 0.0, latlon_corners[:, :, 1])
 
-  gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian = gen_metric_terms_elem_local(latlon_corners, npt, rotate=rotate)
-
+  gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian = gen_metric_terms_elem_local(latlon_corners,
+                                                                                          npt,
+                                                                                          rotate=rotate)
 
   return generate_metric_terms(gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian, cube_redundancy, npt,
                                wrapped=wrapped, proc_idx=proc_idx)

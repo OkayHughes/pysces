@@ -1,5 +1,6 @@
 from ..config import np
 
+
 def bilinear(v0, v1, v2, v3, alpha, beta):
   """
   Compute bilinear mapping for unstructured arrays of
@@ -94,7 +95,8 @@ def unit_sphere_to_cart(latlon):
 def cart_to_unit_sphere(xyz):
   latlon = np.stack((np.asin(xyz[:, :, :, 2]),
                      np.mod(np.atan2(xyz[:, :, :, 1],
-                              xyz[:, :, :, 0]) + 2 * np.pi, 2*np.pi)), axis=-1)
+                                     xyz[:, :, :, 0]) + 2 * np.pi,
+                            2 * np.pi)), axis=-1)
   return latlon
 
 
@@ -103,13 +105,12 @@ def unit_sphere_to_cart_coords_jacobian(latlon):
   lon = latlon[:, :, :, 1]
   unit_sphere_to_sph_coords_jacobian = np.zeros((*lat.shape[:3], 3, 2))
   unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 0] = -np.sin(lat) * np.cos(lon)
-  unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 1] =  np.cos(lat) * -np.sin(lon)
+  unit_sphere_to_sph_coords_jacobian[:, :, :, 0, 1] = np.cos(lat) * -np.sin(lon)
   unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 0] = -np.sin(lat) * np.sin(lon)
   unit_sphere_to_sph_coords_jacobian[:, :, :, 1, 1] = np.cos(lat) * np.cos(lon)
   unit_sphere_to_sph_coords_jacobian[:, :, :, 2, 0] = np.cos(lat)
   unit_sphere_to_sph_coords_jacobian[:, :, :, 2, 1] = 0.0
   return unit_sphere_to_sph_coords_jacobian
-#-y * normsq_2d  * np.cos(lat) * -np.sin(lon) + x/normsq_2d * np.cos(lat) * np.cos(lon)
 
 
 def cart_to_unit_sphere_coords_jacobian(xyz):

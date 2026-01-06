@@ -6,6 +6,7 @@ from ..spectral import init_spectral
 from ..operations_2d.se_grid import create_spectral_element_grid
 from .jacobian_utils import unit_sphere_to_cart_coords_jacobian
 
+
 def edge_to_vert(edge_id, is_forwards=FORWARDS):
   """
   Map an edge id of oriented vertex ids of a given element edge.
@@ -44,8 +45,6 @@ def edge_to_vert(edge_id, is_forwards=FORWARDS):
     return v_idx_in_1, v_idx_in_0
   else:
     return v_idx_in_0, v_idx_in_1
-
-
 
 
 def mesh_to_cart_bilinear(face_position, npt):
@@ -338,7 +337,6 @@ def gen_vert_redundancy(nx, face_connectivity, face_position):
         vert_redundancy[elem_idx][vert_idx].remove((elem_idx, vert_idx))
 
   return vert_redundancy
-
 
 
 def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,

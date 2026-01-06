@@ -1,10 +1,8 @@
-from ..config import np, DEBUG, use_wrapper, mpi_size
-from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy, vert_red_hierarchy_to_flat, generate_metric_terms
+from ..config import np, DEBUG, use_wrapper
+from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy, generate_metric_terms
 from .mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from .cubed_sphere import gen_cube_topo
 from .mesh import gen_vert_redundancy
-from ..distributed_memory.processor_decomposition import get_decomp
-from ..spectral import init_spectral
 
 
 def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
@@ -296,8 +294,6 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
   #                                   xyz_rotated[:, :, :, 0])), axis=-1)
 
   return gll_latlon, cube_to_sphere_jacobian
-
-
 
 
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt,
