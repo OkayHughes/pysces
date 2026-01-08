@@ -9,21 +9,21 @@ for 2D elements.
 We use the cubed-sphere convention
               --------------
               |            |
-              |            |
-              |y    Top    |
-              |↑           |
+              |  (π/2, ·)  |
+              |y     ·     |
+              |↑    Top    |
               |·→x         |
   ----------------------------------------------------
   |           |            |            |            |
-  |           |            |            |            |
-  |y  Left    |y   Front   |y   Right   |y   Back    |
-  |↑          |↑           |↑           |↑           |
+  | (0, 3π/2) | (ϕ=0, λ=0) |  (0, π/2)  |   (0, π)   |
+  |y    ·     |y     ·     |y     ·     |y     ·     |
+  |↑  Left    |↑   Front   |↑   Right   |↑   Back    |
   |·→x        |·→x         |·→x         |·→x         |
   ----------------------------------------------------
               |            |
-              |            |
-              |y  Bottom   |
-              |↑           |
+              |  (-π/2, ·) |
+              |y     ·     |
+              |↑  Bottom   |
               |·→x         |
               --------------
 where the above diagram is folded along non-conforming edges

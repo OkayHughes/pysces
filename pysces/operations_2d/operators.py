@@ -125,7 +125,7 @@ def sphere_laplacian(f, grid, a=1.0):
 
 
 @jit
-def sphere_laplacian_wk(f, grid, a=1.0):
+def sphere_laplacian_wk(f, grid, a=1.0, apply_tensor=False):
   """
   Calculate the element-local weak spherical laplacian of f.
 
@@ -156,6 +156,8 @@ def sphere_laplacian_wk(f, grid, a=1.0):
   the `grid` argument.
   """
   grad = sphere_gradient(f, grid, a=a)
+  if apply_tensor:
+    grad = jnp.einsum("fijs,fijts->fijt", grad, grid["viscosity_tensor"]) * a**4
   return sphere_divergence_wk(grad, grid, a=a)
 
 

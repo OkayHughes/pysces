@@ -1,7 +1,10 @@
 from ..config import np, device_wrapper, use_wrapper, device_unwrapper, jnp
 from scipy.sparse import coo_array
 from frozendict import frozendict
+from .assembly import project_scalar
+from ..mesh_generation.jacobian_utils import bilinear
 from ..distributed_memory.processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
+from ..distributed_memory.multiprocessing import project_scalar_triple_mpi
 from ..spectral import init_spectral
 
 
@@ -83,6 +86,58 @@ def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_recei
 #   vert_red_local_flat, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_flat, proc_idx, decomp)
 #   vert_red_local = vert_red_flat_to_hierarchy(vert_red_local_flat)
   # return vert_red_local, vert_red_send, vert_red_receive
+
+
+def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
+                                proc_idx, decomp):
+  # current understanding: this works because the outer
+  # three for loops will iterate in exactly the same order for
+  # the sending and recieving processor
+  vert_redundancy_local = []
+  vert_redundancy_send = {}
+  vert_redundancy_receive = {}
+
+  for ((target_global_idx, target_i, target_j),
+       (source_global_idx, source_i, source_j)) in vert_redundancy_gll_flat:
+    target_proc_idx = elem_idx_global_to_proc_idx(target_global_idx, decomp)
+    source_proc_idx = elem_idx_global_to_proc_idx(source_global_idx, decomp)
+    if (target_proc_idx == proc_idx and source_proc_idx == proc_idx):
+      target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
+      source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
+      vert_redundancy_local.append(((target_local_idx, target_i, target_j),
+                                    (source_local_idx, source_i, source_j)))
+    elif (target_proc_idx == proc_idx and not
+          source_proc_idx == proc_idx):
+      target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
+      if source_proc_idx not in vert_redundancy_receive.keys():
+        vert_redundancy_receive[source_proc_idx] = []
+      vert_redundancy_receive[source_proc_idx].append(((target_local_idx, target_i, target_j)))
+    elif (not target_proc_idx == proc_idx and
+          source_proc_idx == proc_idx):
+      source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
+      if target_proc_idx not in vert_redundancy_send.keys():
+        vert_redundancy_send[target_proc_idx] = []
+      vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
+  return vert_redundancy_local, vert_redundancy_send, vert_redundancy_receive
+
+
+def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapper):
+  NELEM_GLOBAL = var.shape[0]
+  if element_reordering is None:
+    element_reordering = np.arange(0, NELEM_GLOBAL)
+  dtype = var.dtype
+  if wrapped:
+    var_np = device_unwrapper(var)
+  else:
+    var_np = var
+  var_subset = np.take(var_np, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
+  if wrapped:
+    var_out = device_wrapper(var_subset, dtype=dtype)
+  else:
+    var_out = var_subset
+  return var_out
+
+
 
 def init_hypervis_tensor(met_inv, jacobian_inv, hypervis_scaling=3.2):
 
@@ -175,7 +230,7 @@ def init_hypervis_tensor(met_inv, jacobian_inv, hypervis_scaling=3.2):
   # Bringing [nu_tensor] to 1/[sec]:
   #  lamStar1=1/(eig(1)**(hypervis_scaling/4.0d0)) *(rearth**2.0d0)
   #  lamStar2=1/(eig(2)**(hypervis_scaling/4.0d0)) *(rearth**2.0d0)
-  # OPERATOR_HV = ( (np-1)*dx_unif_sphere / 2 )^{hv_scaling} * rearth^4
+  # OPERATOR_HV = ( (np-1)*dx_unit_sphere / 2 )^{hv_scaling} * rearth^4
   # Conversion formula:
   # nu_tensor = nu_const * OPERATOR_HV^{-1}, so
   # nu_tensor = nu_const *( 2*rearth /((np-1)*dx))^{hv_scaling} * rearth^{-4.0}.
@@ -206,56 +261,6 @@ def init_hypervis_tensor(met_inv, jacobian_inv, hypervis_scaling=3.2):
   # NOTE: missing rearth**4 scaling compared to HOMME code
 
   return viscosity_tensor
-
-
-def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
-                                proc_idx, decomp):
-  # current understanding: this works because the outer
-  # three for loops will iterate in exactly the same order for
-  # the sending and recieving processor
-  vert_redundancy_local = []
-  vert_redundancy_send = {}
-  vert_redundancy_receive = {}
-
-  for ((target_global_idx, target_i, target_j),
-       (source_global_idx, source_i, source_j)) in vert_redundancy_gll_flat:
-    target_proc_idx = elem_idx_global_to_proc_idx(target_global_idx, decomp)
-    source_proc_idx = elem_idx_global_to_proc_idx(source_global_idx, decomp)
-    if (target_proc_idx == proc_idx and source_proc_idx == proc_idx):
-      target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
-      source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
-      vert_redundancy_local.append(((target_local_idx, target_i, target_j),
-                                    (source_local_idx, source_i, source_j)))
-    elif (target_proc_idx == proc_idx and not
-          source_proc_idx == proc_idx):
-      target_local_idx = int(global_to_local(target_global_idx, proc_idx, decomp))
-      if source_proc_idx not in vert_redundancy_receive.keys():
-        vert_redundancy_receive[source_proc_idx] = []
-      vert_redundancy_receive[source_proc_idx].append(((target_local_idx, target_i, target_j)))
-    elif (not target_proc_idx == proc_idx and
-          source_proc_idx == proc_idx):
-      source_local_idx = int(global_to_local(source_global_idx, proc_idx, decomp))
-      if target_proc_idx not in vert_redundancy_send.keys():
-        vert_redundancy_send[target_proc_idx] = []
-      vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
-  return vert_redundancy_local, vert_redundancy_send, vert_redundancy_receive
-
-
-def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapper):
-  NELEM_GLOBAL = var.shape[0]
-  if element_reordering is None:
-    element_reordering = np.arange(0, NELEM_GLOBAL)
-  dtype = var.dtype
-  if wrapped:
-    var_np = device_unwrapper(var)
-  else:
-    var_np = var
-  var_subset = np.take(var_np, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
-  if wrapped:
-    var_out = device_wrapper(var_subset, dtype=dtype)
-  else:
-    var_out = var_subset
-  return var_out
 
 
 def create_spectral_element_grid(latlon,
@@ -312,6 +317,7 @@ def create_spectral_element_grid(latlon,
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
                                    wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
                                    wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
+  viscosity_tensor = init_hypervis_tensor(met_inv, gll_to_sphere_jacobian_inv)
   ret = {"physical_coords": subset_wrapper(latlon),
          "physical_coords_to_cartesian": subset_wrapper(physical_coords_to_cartesian),
          "jacobian": subset_wrapper(gll_to_sphere_jacobian),
@@ -322,6 +328,7 @@ def create_spectral_element_grid(latlon,
          "mass_matrix_inv": subset_wrapper(inv_mass_mat),
          "met_inv": subset_wrapper(met_inv),
          "mass_matrix": subset_wrapper(mass_matrix),
+         "viscosity_tensor": subset_wrapper(viscosity_tensor),
          "deriv": wrapper(spectrals["deriv"]),
          "gll_weights": wrapper(spectrals["gll_weights"]),
          "assembly_triple": (wrapper(assembly_triple[0]),
@@ -345,3 +352,36 @@ def create_spectral_element_grid(latlon,
     send_dims[str(proc_idx)] = triples_send[proc_idx][0].size
   grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0], **send_dims)
   return ret, grid_dims
+
+def postprocess_grid(grid, dims, distributed=False):
+  npt = dims["npt"]
+  spectral = init_spectral(npt)
+  def project_matrix(matrix):
+    upper_left = np.copy(matrix[:, :, :, 0, 0])
+    upper_right = np.copy(matrix[:, :, :, 0, 1])
+    lower_left = np.copy(matrix[:, :, :, 1, 0])
+    lower_right = np.copy(matrix[:, :, :, 1, 1])
+    upper_left = project_scalar(upper_left, grid, dims)
+    upper_right = project_scalar(upper_right, grid, dims)
+    lower_left = project_scalar(lower_left, grid, dims)
+    lower_right = project_scalar(lower_right, grid, dims)
+    left_col = np.stack((upper_left, lower_left), axis=-1)
+    right_col = np.stack((upper_right, lower_right), axis=-1)
+    return np.stack((left_col, right_col), axis=-1)
+  tensor_cont = project_matrix(grid["viscosity_tensor"])
+  tensor_bilinear = np.zeros_like(tensor_cont)
+  for i_idx in range(npt):
+    for j_idx in range(npt):
+        alpha = spectral["gll_points"][i_idx]
+        beta = spectral["gll_points"][j_idx]
+        v0 = tensor_cont[:, 0, 0, :, :]
+        v1 = tensor_cont[:, 0, npt-1, :, :]
+        v2 = tensor_cont[:, npt-1, 0, :, :]
+        v3 = tensor_cont[:, npt-1, npt-1, :, :]
+        tensor_bilinear[:, i_idx, j_idx, :, :] = bilinear(v0,
+                                                          v1,
+                                                          v2,
+                                                          v3, alpha, beta)
+
+  grid["viscosity_tensor"] = tensor_bilinear
+  return grid

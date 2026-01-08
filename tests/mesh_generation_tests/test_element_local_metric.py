@@ -1,6 +1,7 @@
-from pysces.config import np
-from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_elem_local
-from ..context import test_npts
+from pysces.config import np, device_unwrapper
+from pysces.mesh_generation.element_local_metric import (create_quasi_uniform_grid_elem_local,
+                                                         create_mobius_like_grid_elem_local)
+from ..context import test_npts, get_figdir
 
 
 def test_gen_metric():
@@ -20,3 +21,19 @@ def test_gen_mass_mat():
       assert (np.allclose(np.sum(grid["met_det"] *
                                  (grid["gll_weights"][np.newaxis, :, np.newaxis] *
                                   grid["gll_weights"][np.newaxis, np.newaxis, :])), 4 * np.pi))
+
+
+def test_new_grid_tmp():
+  np.random.seed(0)
+  for npt in test_npts:
+    for nx in [15, 16]:
+      for _ in range(10):
+        axis_dilation = np.random.uniform(high=1.5, low=1.0, size=(3,))
+        offset = np.random.uniform(high=0.25, low=0.0, size=(3,))
+        matrix = np.random.normal(size=(3,3))
+        Q, _ = np.linalg.qr(matrix)
+        grid, _ = create_mobius_like_grid_elem_local(nx, npt, axis_dilation=axis_dilation, offset=offset, orthogonal_transform=Q)
+        assert (np.allclose(np.sum(grid["met_det"] *
+                                    (grid["gll_weights"][np.newaxis, :, np.newaxis] *
+                                    grid["gll_weights"][np.newaxis, np.newaxis, :])), 4 * np.pi))
+        assert not np.any(np.isnan(device_unwrapper(grid["met_det"])))
