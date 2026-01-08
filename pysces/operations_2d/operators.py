@@ -9,7 +9,7 @@ def sphere_gradient(f, grid, a=1.0):
 
   Parameters
   ----------
-  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       The scalar field to calulate the gradient of
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -23,7 +23,7 @@ def sphere_gradient(f, grid, a=1.0):
 
   Returns
   -------
-  grad_f: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
+  grad_f: `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
       The spherical gradient of f
   """
   df_da = jnp.einsum("fij,ki->fkj", f, grid["deriv"])
@@ -39,7 +39,7 @@ def sphere_divergence(u, grid, a=1.0):
 
   Parameters
   ----------
-  u : Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
       Vector field (u, v) in spherical coordinates
       to apply divergence operator to
   grid : `SpectralElementGrid`
@@ -49,7 +49,7 @@ def sphere_divergence(u, grid, a=1.0):
 
   Returns
   -------
-  div_u : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  div_u : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Spherical divergence of `u`
 
   Notes
@@ -71,7 +71,7 @@ def sphere_vorticity(u, grid, a=1.0):
 
   Parameters
   ----------
-  u : Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
       Vector field (u, v) in spherical coordinates
       to calculate vorticity of
   grid : `SpectralElementGrid`
@@ -81,7 +81,7 @@ def sphere_vorticity(u, grid, a=1.0):
 
   Returns
   -------
-  vort_u : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  vort_u : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
     Spherical vorticity of `u`
 
   Notes
@@ -103,7 +103,7 @@ def sphere_laplacian(f, grid, a=1.0):
 
   Parameters
   ----------
-  f : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Scalar field to which to apply the laplacian operator
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -112,7 +112,7 @@ def sphere_laplacian(f, grid, a=1.0):
 
   Returns
   -------
-  laplace_f : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  laplace_f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
     Spherical laplacian of `f`
 
   Notes
@@ -133,7 +133,7 @@ def sphere_laplacian_wk(f, grid, a=1.0, apply_tensor=False):
 
   Parameters
   ----------
-  f : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
       Scalar field to which to apply the weak laplacian operator
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -142,7 +142,7 @@ def sphere_laplacian_wk(f, grid, a=1.0, apply_tensor=False):
 
   Returns
   -------
-  laplace_f : Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  wk_laplace_f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
     Weak spherical laplacian of `f`
 
   Notes
@@ -164,12 +164,12 @@ def sphere_laplacian_wk(f, grid, a=1.0, apply_tensor=False):
 @jit
 def sphere_gradient_wk_cov(s, grid, a=1.0):
   """
-  Calculate the element-local weak gradient of f in spherical coordinates
+  Calculate the element-local weak gradient of s in spherical coordinates
   using covariant test functions.
 
   Parameters
   ----------
-  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+  s : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]
       The scalar field to calulate the gradient of
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -184,8 +184,8 @@ def sphere_gradient_wk_cov(s, grid, a=1.0):
 
   Returns
   -------
-  wk_grad_f: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
-      The weak spherical gradient of f, expanded in covariant test functions.
+  wk_grad_s: Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
+      The weak spherical gradient of s.
   """
   gll_weights = grid["gll_weights"]
   deriv = grid["deriv"]
@@ -219,31 +219,27 @@ def sphere_gradient_wk_cov(s, grid, a=1.0):
 @jit
 def sphere_curl_wk_cov(s, grid, a=1.0):
   """
-  [Description]
+  Calculates weak horizontal spherical curl of the vector s𝐤 using covariant test functions.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
+  s : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]
+      The scalar field to use for horizontal curl.
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
   a : `float`, default=1.0
-      Radius of sphere on which weak curl is calculated.
-
-  Returns
-  -------
-  string
-      a value in a string
+      Radius of sphere on which weak gradient is calculated.
 
   Notes
   -----
+  [TODO] Explain what's going on in the math here
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
 
-  Raises
-  ------
-  KeyError
-      when a key error
+  Returns
+  -------
+  wk_curl_s: `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
+      The weak spherical horizontal curl of s.
   """
   gll_weights = grid["gll_weights"]
   deriv = grid["deriv"]
@@ -261,7 +257,7 @@ def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
 
   Parameters
   ----------
-  u : Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
       Scalar field to which to apply the weak laplacian operator
   grid : `SpectralElementGrid`
       Spectral element grid struct that contains coordinate and metric data.
@@ -270,7 +266,7 @@ def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
 
   Returns
   -------
-  laplace_u : Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]
+  laplace_u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
     Weak spherical vector laplacian of `u`
 
   Notes
@@ -302,31 +298,27 @@ def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
 @jit
 def sphere_divergence_wk(u, grid, a=1.0):
   """
-  [Description]
+  Calculates weak spherical horizontal divergence of the vector u, given in spherical coordinates.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
+      The vector field to apply divergence to.
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
   a : `float`, default=1.0
-      Radius of sphere on which weak divergence is calculated.
-
-  Returns
-  -------
-  string
-      a value in a string
+      Radius of sphere on which weak gradient is calculated.
 
   Notes
   -----
+  [TODO] Explain what's going on in the math here
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
 
-  Raises
-  ------
-  KeyError
-      when a key error
+  Returns
+  -------
+  wk_div_u: `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
+      The weak spherical horizontal divergence of s.
   """
   contra = sph_to_contra(u, grid)
   gll_weights = grid["gll_weights"]
@@ -340,31 +332,25 @@ def sphere_divergence_wk(u, grid, a=1.0):
 @jit
 def contra_to_sph(u, grid):
   """
-  [Description]
+  Convert a vector given in contravariant coordinates on the local
+  reference element to physical coordinates.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, alpha_beta_super], Float]`
+      The vector field in contravariant coordinates to map to physical coordinates
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
 
   Returns
   -------
-  string
-      a value in a string
+  u_physical : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
+      The vector in physical coordinates
 
   Notes
   -----
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
-
-  Raises
-  ------
-  KeyError
-      when a key error
   """
   return flip(jnp.einsum("fijg,fijsg->fijs", u, grid["jacobian"]), -1)
 
@@ -372,31 +358,25 @@ def contra_to_sph(u, grid):
 @jit
 def sph_to_contra(u, grid):
   """
-  [Description]
+  Convert a vector given in physical coordinates to contravariant
+  coordinates on the reference domain.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
+      The vector field in physical coordinates to map to contravariant coordinates
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
 
   Returns
   -------
-  string
-      a value in a string
+  u_contra : `Array[tuple[elem_idx, gll_idx, gll_idx, alpha_beta_super], Float]
+      The vector in physical coordinates
 
   Notes
   -----
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
-
-  Raises
-  ------
-  KeyError
-      when a key error
   """
   return jnp.einsum("fijs,fijgs->fijg", flip(u, -1), grid["jacobian_inv"])
 
@@ -404,31 +384,25 @@ def sph_to_contra(u, grid):
 @jit
 def sph_to_cov(u, grid):
   """
-  [Description]
+  Convert a vector given in physical coordinates to covariant
+  coordinates on the reference domain.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  u : `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
+      The vector field in physical coordinates to map to covariant coordinates
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
 
   Returns
   -------
-  string
-      a value in a string
+  u_contra : `Array[tuple[elem_idx, gll_idx, gll_idx, alpha_beta_sub], Float]
+      The vector in physical coordinates
 
   Notes
   -----
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
-
-  Raises
-  ------
-  KeyError
-      when a key error
   """
   return jnp.einsum("fijs,fijsg->fijg", flip(u, -1), grid["jacobian"])
 
@@ -436,31 +410,34 @@ def sph_to_cov(u, grid):
 @jit
 def inner_prod(f, g, grid):
   """
-  [Description]
+  Calculate the Spectral Element discrete (processor-local) inner product of
+  two scalars.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  f: `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
+      The first argument of the inner product
+  g: `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
+      The second argument of the inner product
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
 
   Returns
   -------
-  string
-      a value in a string
+  Float
+      Inner product over elements contained in `grid`.
 
   Notes
   -----
+  * By inner product, we mean the inner product of functions induced by global quadrature, namely 
+ 〈f, g〉 = ∫f, g dA for real functions.
+  * To calculate the inner product with distributed memory parallelism (e.g., MPI),
+  simply call multiprocessing.global_sum on the result of `inner_product`.
+  * To calculate the inner product of two vectors in physical coordinates, use 
+  inner_prod(u0[..., 0], u1[..., 0], grid) + inner_prod(u0[..., 1], u1[..., 1]).
+  * The induced norm is simply `jnp.sqrt(inner_prod(f, f, grid))` (unless using distributed memory).
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
-
-  Raises
-  ------
-  KeyError
-      when a key error
   """
   return jnp.sum(f * g * (grid["met_det"] *
                           grid["gll_weights"][np.newaxis, :, np.newaxis] *

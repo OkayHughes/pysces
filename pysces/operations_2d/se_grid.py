@@ -77,17 +77,6 @@ def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_recei
   return triples_send, triples_receive
 
 
-# def triage_vert_redundancy(vert_redundancy_gll,
-#                            proc_idx, decomp):
-#   # current understanding: this works because the outer
-#   # three for loops will iterate in exactly the same order for
-#   # the sending and recieving processor
-#   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
-#   vert_red_local_flat, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_flat, proc_idx, decomp)
-#   vert_red_local = vert_red_flat_to_hierarchy(vert_red_local_flat)
-  # return vert_red_local, vert_red_send, vert_red_receive
-
-
 def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
                                 proc_idx, decomp):
   # current understanding: this works because the outer
