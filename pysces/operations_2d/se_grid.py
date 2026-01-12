@@ -2,9 +2,9 @@ from ..config import np, device_wrapper, use_wrapper, device_unwrapper, jnp
 from scipy.sparse import coo_array
 from frozendict import frozendict
 from .assembly import project_scalar
-from ..mesh_generation.jacobian_utils import bilinear
+from ..mesh_generation.coordinate_utils import bilinear
 from ..distributed_memory.processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
-from ..distributed_memory.multiprocessing import project_scalar_triple_mpi
+from ..distributed_memory.multiprocessing import project_scalar_triple_mpi, global_max, global_min
 from ..spectral import init_spectral
 
 
@@ -128,128 +128,86 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapp
 
 
 
-def init_hypervis_tensor(met_inv, jacobian_inv, hypervis_scaling=3.2):
+def init_hypervis_tensor(met_inv, jacobian, hypervis_scaling=3.2):
+  """
+  Initialize the metric tensor used to encode anisotropic resolution-dependent hyperviscosity 
+  for unstructured grids.
 
-  # matricies for tensor hyper-viscosity
-  # compute eigenvectors of metinv (probably same as computed above)
-  # M = elem%metinv(i,j,:,:)
+  Parameters
+  ----------
+  met_inv : `Array[tuple[elem_idx, gll_idx, gll_idx, alpha_beta_idx, alpha_beta_idx], Float]`
+      The inverse metric tensor jacobian_inv*transpose(jacobian_inv)
+  grid : `SpectralElementGrid`
+      Spectral element grid struct that contains coordinate and metric data.
+  jacobian : `Array[tuple[elem_idx, gll_idx, gll_idx, alpha_beta_idx, alpha_beta_idx], Float]`
+      The jacobian matrix that takes covariant/contravariant vectors on the 
+      reference element to spherical coordinates.
+  hypervis_scaling: `Float`, default=3.2
+      Power to use in resolution-dependent hyperviscosity 
+  Notes
+  -----
+  * We assume here that tensor hyperviscosity is applied as 
+  ∇·(V ∇(∆^{2(lap_ord-1)} f). For example, for default fourth-order hyperviscosity 
+  `lap_ord = 2`, hyperviscosity is calculated as ∇·V ∇A[∇·∇f], where A is the
+  spectral element projection operator, e.g., assembly.project_scalar.
+  * The viscosity tensor can be understood in the following way. We will focus on 
+  fourth order hyperviscosity for simplicity. Recall that the point of hyperviscosity
+  is to heavily damp unresolvable grid-scale flow features
+  without artificially damping resolved flow.
+  On a quasi-uniform grid, hyperviscosity can be applied as ν_const ∆^2 f (note that 
+  this laplacian is applied on the unit sphere). Empirical experiments show that
+  ν_const = 1e15(ne30/neXX)^(3.2) is a good
+  choice of a spatio-temporally homogeneous hyperdiffusion constant.
+  Using non-uniform grids introduces two complications. Firstly,
+  some grid cells should have much smaller area than others,
+  because this is the point of using variable-resolution modeling. 
+  This might motivate using a gridpoint-dependent ν, such as 
+  calculating the ratio of the area of the element that contains it to
+  the average grid cell area of an NE30 grid. However, grid cells can also
+  be quite distorted (especially in regions where the grid is transitioning from
+  a coarser to a finer grid). In a grid cell that is twice as tall as it is wide
+  (imagine we are woring on an x, y tangent plane)
+  a 4∆y feature may be well resolved in the x direction, but poorly resolved due to the
+  increased distance between quadrature points in the y direction. The 
+  standard spherical Laplacian ∇·∇f is constructed so that a grid with distorted elements
+  will still converge to correct solution as grid resolution increases. This motivates the
+  construction of a metric tensor V (recall: this is a positive definite matrix
+  that induces a modified notion of, e.g., the length of a vector) that allows us to 
+  damp small-scale features in a way that re-introduces grid distortion.
+  * To do this, we do an eigendomposition of the the (symmetric) inverse metric M= J^{-1}J^{-T} 
+  into M = E Λ E^T (recall, E are unit eigenvectors and M is symmetric, so E, E^T are inverses of each other),
+  where Λ = diag((4/((npt-1)∆x)^2, 4/((npt-1)∆y)^2). Note that 4 is the area of the reference element [-1, 1]^2.
+  Because most unstructured grids bilinearly map the reference element to the sphere 
+  in a way that is approximately bilinear on > nx=15 grids, ∆x and ∆y are essentially the cartesian length between grid points,
+  and (npt-1)∆x, (npt-1)∆y are ∆x_elem, ∆y_elem, respectively. We then define 
+  Λ^* = diag(1/λ_0^(-hv_scaling/2.0), 1/λ_1^(-hv_scaling/2.0)), and it turns out that
+  V = J E Λ Λ^* E^T J^T satisfies the properties we're looking for. In practice,
+  the result of hyperviscosity must be scaled by radius_earth**4. Once that scaling is done,
+  one can derive an equivalent ν_tensor given a ν_const, using the grid-dependent 
+  value h = ((np-1)*∆x/2)^{hv_scaling} * radius_earth**4, and find 
+  ν_tensor = ν_const / h. Therefore, a spatially uniform hyperviscosity with ν_const=10^15
+  would have ν_tensor=7e-8 (though in practice most runs use 3.4e-8).
+  [TODO] Make this explanation more accessible
 
-  eig_one = (met_inv[:, :, :, 0, 0] + met_inv[:, :, :, 1, 1] +
-             np.sqrt(4.0 * met_inv[:, :, :, 0, 1] * met_inv[:, :, :, 1, 0] +
-                     (met_inv[:, :, :, 0, 0] - met_inv[:, :, :, 1, 1])**2)) / 2.0
-  eig_two = (met_inv[:, :, :, 0, 0] + met_inv[:, :, :, 1, 1] -
-             np.sqrt(4.0 * met_inv[:, :, :, 0, 1] * met_inv[:, :, :, 1, 0] +
-                     (met_inv[:, :, :, 0, 0] - met_inv[:, :, :, 1, 1])**2)) / 2.0
+  One typically uses `se_grid.create_spectral_element_grid` to create
+  the `grid` argument.
 
-  # use DE to store M - Lambda, to compute eigenvectors
-  char_mat = np.copy(met_inv)
-  char_mat[:, :, :, 0, 0] = char_mat[:, :, :, 0, 0] - eig_one
-  char_mat[:, :, :, 1, 1] = char_mat[:, :, :, 1, 1] - eig_one
-  E = np.nan * np.ones_like(met_inv)
-  abs_charmat = np.abs(char_mat).reshape(*char_mat.shape[:3], 4)
-  indices = np.argmax(abs_charmat, axis=-1)
-  indices_2d = np.unravel_index(indices, shape=(2, 2))
-  mask_upper_left = np.logical_and(indices_2d[0] == 0, indices_2d[1] == 0)
-  mask_upper_right = np.logical_and(indices_2d[0] == 0, indices_2d[1] == 1)
-  mask_lower_left = np.logical_and(indices_2d[0] == 1, indices_2d[1] == 0)
-  mask_lower_right = np.logical_and(indices_2d[0] == 1, indices_2d[1] == 1)
-  char_mat_mask = np.isclose(np.max(abs_charmat, axis=-1), 0.0)
+  Returns
+  -------
+  viscosity_tensor: `Array[tuple[elem_idx, gll_idx, gll_idx, lon_lat], Float]`
+      Anisotropy tensor applied in last application of laplacian within hyperviscosity.
+  """
 
-  E[:, :, :, 1, 0] = np.where(mask_lower_right, -char_mat[:, :, :, 0, 1] / char_mat[:, :, :, 1, 1], E[:, :, :, 1, 0])
-  E[:, :, :, 0, 0] = np.where(mask_lower_right, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 0, 0])
-
-  E[:, :, :, 1, 0] = np.where(mask_lower_left, -char_mat[:, :, :, 0, 0] / char_mat[:, :, :, 1, 0], E[:, :, :, 1, 0])
-  E[:, :, :, 0, 0] = np.where(mask_lower_left, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 0, 0])
-
-  E[:, :, :, 1, 0] = np.where(mask_upper_right, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 1, 0])
-  E[:, :, :, 0, 0] = np.where(mask_upper_right, -char_mat[:, :, :, 1, 1] / char_mat[:, :, :, 0, 1], E[:, :, :, 0, 0])
-
-  E[:, :, :, 1, 0] = np.where(mask_upper_left, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 1, 0])
-  E[:, :, :, 0, 0] = np.where(mask_upper_left, -char_mat[:, :, :, 1, 0] / char_mat[:, :, :, 0, 0], E[:, :, :, 0, 0])
-
-  E[:, :, :, 0, 0] = np.where(char_mat_mask, np.ones_like(E[:, :, :, 0, 0]), E[:, :, :, 0, 0])
-  E[:, :, :, 1, 0] = np.where(char_mat_mask, np.zeros_like(E[:, :, :, 0, 0]), E[:, :, :, 1, 0])
-
-  # the other eigenvector is orthgonal:
-  E[:, :, :, 0, 1] = -E[:, :, :, 1, 0]
-  E[:, :, :, 1, 1] = E[:, :, :, 0, 0]
-  assert not np.any(np.isnan(E))
-
-  # normalize columns
-  for idx in range(2):
-    E[:, :, :, :, idx] /= np.sqrt(np.sum(E[:, :, :, :, idx] *
-                                         E[:, :, :, :, idx], axis=-1))[:, :, :, np.newaxis]
-  # OBTAINING TENSOR FOR HV:
-
-  # Instead of the traditional scalar Laplace operator \grad \cdot \grad
-  # we introduce \grad \cdot V \grad
-  # where V = D E LAM LAM^* E^T D^T.
-  # Recall (metric_tensor)^{-1}=(D^T D)^{-1} = E LAM E^T.
-  # Here, LAM = diag( 4/((np-1)dx)^2 , 4/((np-1)dy)^2 ) = diag(  4/(dx_elem)^2, 4/(dy_elem)^2 )
-  # Note that metric tensors and LAM correspondingly are quantities on a unit sphere.
-
-  # This motivates us to use V = D E LAM LAM^* E^T D^T
-  # where LAM^* = diag( nu1, nu2 ) where nu1, nu2 are HV coefficients scaled like
-  # (dx)^{hv_scaling/2}, (dy)^{hv_scaling/2}.
-  # (Halves in powers come from the fact that HV consists of two Laplace iterations.)
-
-  # Originally, we took LAM^* = diag(
-  #  1/(eig(1)**(hypervis_scaling/4.0d0))*(rearth**(hypervis_scaling/2.0d0))
-  #  1/(eig(2)**(hypervis_scaling/4.0d0))*(rearth**(hypervis_scaling/2.0d0)) ) =
-  #  = diag( lamStar1, lamStar2)
-  #  \simeq ((np-1)*dx_sphere / 2 )^hv_scaling/2 = SQRT(OPERATOR_HV)
-  # because 1/eig(...) \simeq (dx_on_unit_sphere)^2 .
-  # Introducing the notation OPERATOR = lamStar^2 is useful for conversion formulas.
-
-  # This leads to the following conversion formula: nu_const is nu used for traditional HV on uniform grids
-  # nu_tensor = nu_const * OPERATOR_HV^{-1}, so
-  # nu_tensor = nu_const *((np-1)*dx_sphere / 2 )^{ - hv_scaling} or
-  # nu_tensor = nu_const *(2/( (np-1) * dx_sphere) )^{hv_scaling} .
-  # dx_sphere = 2\pi *rearth/(np-1)/4/NE
-  # [nu_tensor] = [meter]^{4-hp_scaling}/[sec]
-
-  # (1) Later developments:
-  # Apply tensor V only at the second Laplace iteration. Thus, LAM^* should be scaled as
-  # (dx)^{hv_scaling}, (dy)^{hv_scaling},
-  # see this code below:
-  #          DEL(1:2,1) = (lamStar1**2) *eig(1)*DE(1:2,1)
-  #          DEL(1:2,2) = (lamStar2**2) *eig(2)*DE(1:2,2)
-
-  # (2) Later developments:
-  # Bringing [nu_tensor] to 1/[sec]:
-  #  lamStar1=1/(eig(1)**(hypervis_scaling/4.0d0)) *(rearth**2.0d0)
-  #  lamStar2=1/(eig(2)**(hypervis_scaling/4.0d0)) *(rearth**2.0d0)
-  # OPERATOR_HV = ( (np-1)*dx_unit_sphere / 2 )^{hv_scaling} * rearth^4
-  # Conversion formula:
-  # nu_tensor = nu_const * OPERATOR_HV^{-1}, so
-  # nu_tensor = nu_const *( 2*rearth /((np-1)*dx))^{hv_scaling} * rearth^{-4.0}.
-
-  # For the baseline coefficient nu=1e15 for NE30,
-  # nu_tensor=7e-8 (BUT RUN TWICE AS SMALL VALUE FOR NOW) for hv_scaling=3.2
-  # and
-  # nu_tensor=1.3e-6 for hv_scaling=4.0.
-
-  # matrix D*E
-  DE = np.einsum("fijgs,fijsh->fijgh", jacobian_inv, E)
-
-  lamStar1 = 1.0 / (eig_one**(hypervis_scaling / 4.0))  # * (rearth**2.0)
-  lamStar2 = 1.0 / (eig_two**(hypervis_scaling / 4.0))  # * (rearth**2.0)
-
-  # matrix (DE) * Lam^* * Lam , tensor HV when V is applied at each Laplace calculation
-  #          DEL(1:2,1) = lamStar1*eig(1)*DE(1:2,1)
-  #          DEL(1:2,2) = lamStar2*eig(2)*DE(1:2,2)
-
-  # matrix (DE) * (Lam^*)^2 * Lam, tensor HV when V is applied only once, at the last Laplace calculation
-  # will only work with hyperviscosity, not viscosity
-  DEL = np.zeros_like(DE)
-  DEL[:, :, :, :, 0] = (lamStar1**2 * eig_one)[:, :, :, np.newaxis] * DE[:, :, :, :, 0]
-  DEL[:, :, :, :, 1] = (lamStar2**2 * eig_two)[:, :, :, np.newaxis] * DE[:, :, :, :, 1]
-  # matrix (DE) * Lam^* * Lam  *E^t *D^t or (DE) * (Lam^*)^2 * Lam  *E^t *D^t
-  viscosity_tensor = np.einsum("fijgs,fijhs->fijgh", DEL, DE)
+  eigs, evecs_normed = jnp.linalg.eigh(met_inv)
+  lam_star = 1.0 / (eigs**(hypervis_scaling / 4.0))
+  met_inv_scaled = jnp.einsum("fijmc, fijnc, fijc, fijc->fijmn", evecs_normed, evecs_normed, eigs, lam_star**2)
 
   # NOTE: missing rearth**4 scaling compared to HOMME code
-
-  return viscosity_tensor
+  viscosity_tensor = jnp.einsum("fijmn, fijsm, fijrn -> fijsr",
+                                met_inv_scaled,
+                                jacobian,
+                                jacobian)
+  return viscosity_tensor, hypervis_scaling
 
 
 def create_spectral_element_grid(latlon,
@@ -306,7 +264,7 @@ def create_spectral_element_grid(latlon,
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
                                    wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
                                    wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
-  viscosity_tensor = init_hypervis_tensor(met_inv, gll_to_sphere_jacobian_inv)
+  viscosity_tensor, hypervis_scaling = init_hypervis_tensor(met_inv, gll_to_sphere_jacobian)
   ret = {"physical_coords": subset_wrapper(latlon),
          "physical_coords_to_cartesian": subset_wrapper(physical_coords_to_cartesian),
          "jacobian": subset_wrapper(gll_to_sphere_jacobian),
@@ -323,6 +281,7 @@ def create_spectral_element_grid(latlon,
          "assembly_triple": (wrapper(assembly_triple[0]),
                              wrapper(assembly_triple[1], dtype=jnp.int64),
                              wrapper(assembly_triple[2], dtype=jnp.int64)),
+         "hypervis_scaling": wrapper(hypervis_scaling),
          "triples_send": triples_send,
          "triples_receive": triples_recv
          }
@@ -361,8 +320,8 @@ def postprocess_grid(grid, dims, distributed=False):
   tensor_bilinear = np.zeros_like(tensor_cont)
   for i_idx in range(npt):
     for j_idx in range(npt):
-        alpha = spectral["gll_points"][i_idx]
-        beta = spectral["gll_points"][j_idx]
+        beta = spectral["gll_points"][i_idx]
+        alpha = spectral["gll_points"][j_idx]
         v0 = tensor_cont[:, 0, 0, :, :]
         v1 = tensor_cont[:, 0, npt-1, :, :]
         v2 = tensor_cont[:, npt-1, 0, :, :]
@@ -374,3 +333,12 @@ def postprocess_grid(grid, dims, distributed=False):
 
   grid["viscosity_tensor"] = tensor_bilinear
   return grid
+
+
+def get_grid_deformation_metrics(grid, npt):
+  eigs, _ = jnp.linalg.eigh(grid["met_inv"])
+  max_svd = jnp.sqrt(jnp.max(eigs, axis=-1))
+  min_svd =  jnp.sqrt(jnp.min(eigs, axis=-1))
+  dx_short = 1.0 / (max_svd*0.5*(npt-1))
+  dx_long  = 1.0 / (min_svd*0.5*(npt-1))
+  return max_svd, dx_short, dx_long

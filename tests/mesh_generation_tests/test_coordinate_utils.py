@@ -1,5 +1,5 @@
 from pysces.config import np
-from pysces.mesh_generation.jacobian_utils import (bilinear, bilinear_jacobian,
+from pysces.mesh_generation.coordinate_utils import (bilinear, bilinear_jacobian,
                                                    cart_to_unit_sphere, unit_sphere_to_cart,
                                                    cart_to_unit_sphere_coords_jacobian,
                                                    unit_sphere_to_cart_coords_jacobian)

@@ -1,4 +1,4 @@
-from ..config import device_wrapper
+from ..config import device_wrapper, jnp
 
 
 def init_config(Rgas=287.0,
@@ -9,11 +9,7 @@ def init_config(Rgas=287.0,
                 cp=1005.0,
                 Rvap=461.50,
                 ne=30,
-                nu_base=1e15,
-                nu_top=2.5e5,
-                nu_phi=-1.0,
-                nu_dpi=-1.0,
-                nu_div_factor=2.5,
+
                 T_ref=288.0,
                 T_ref_lapse=0.0065):
   """
@@ -41,9 +37,6 @@ def init_config(Rgas=287.0,
   radius_earth_base = 6371e3
   if radius_earth < 0:
     radius_earth = radius_earth_base
-  nu = nu_base * ((30 / ne) * (radius_earth / radius_earth_base))**3.2
-  nu_phi = nu if nu_phi < 0 else nu_phi
-  nu_dpi = nu if nu_dpi < 0 else nu_dpi
   return {"Rgas": device_wrapper(Rgas),
           "Rvap": device_wrapper(Rvap),
           "cp": device_wrapper(cp),
@@ -51,10 +44,23 @@ def init_config(Rgas=287.0,
           "radius_earth": device_wrapper(radius_earth),
           "period_earth": device_wrapper(period_earth),
           "p0": device_wrapper(p0),
-          "diffusion": {"nu": device_wrapper(nu),
-                        "nu_phi": device_wrapper(nu_phi),
-                        "nu_dpi": device_wrapper(nu_dpi),
-                        "nu_div_factor": device_wrapper(nu_div_factor),
-                        "nu_top": device_wrapper(nu_top)},
           "reference_profiles": {"T_ref": device_wrapper(T_ref),
                                  "T_ref_lapse": device_wrapper(T_ref_lapse)}}
+
+def constant_coeff_hyperviscosity(ne, config):
+  ne_30_full_radius_coeff = 1e15
+  small_planet_correction_factor = config["radius_earth"] / 6371e3
+  # note: this power accounts for scrunched elements at corner points
+  uniform_res_hypervis_scaling = 1.0 / jnp.log10(2.0)
+  nu_base = ne_30_full_radius_coeff * small_planet_correction_factor * (30.0/ne)**uniform_res_hypervis_scaling
+  return nu_base
+
+
+def tensor_hyperviscosity(biggest_gridpoint_dx, hypervis_scaling, npt, config):
+    ne_30_full_radius_coeff = 1e15
+    small_planet_correction_factor = config["radius_earth"] / 6371e3
+    uniform_res_hypervis_scaling = 1.0 / jnp.log10(2.0)
+    nu_min = ne_30_full_radius_coeff * small_planet_correction_factor* (biggest_gridpoint_dx)**uniform_res_hypervis_scaling
+    radius_earth = config["radius_earth"]
+    nu_tensor = nu_min*(2.0*radius_earth/((npt-1.0)*biggest_gridpoint_dx))**hypervis_scaling/(radius_earth**4)
+    return nu_tensor

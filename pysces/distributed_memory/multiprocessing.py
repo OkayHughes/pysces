@@ -348,9 +348,8 @@ def exchange_buffers_jax(buffer):
   Raises
   ------
   Error
-    Any error that can be raised by the following two functions:
-    * `mpi_comm.Isendrecv_replace`
-    * `MPI.Request.Waitall`
+    Any error that can be raised by:
+      * mpi4jax.sendrecv
 
   """
   for source_proc_idx in buffer.keys():
@@ -363,10 +362,10 @@ def exchange_buffers_jax(buffer):
   return buffer
 
 
-def exchange_buffers_jax_copy(buffer):
+def exchange_buffers_jax_unwrap(buffer):
   """
   Exchange Spectral Element grid non-processor-local redundant DOFS
-  between processes using the Message Passing Interface.
+  between processes using mpi4py with device-host copying.
 
   **This function is the only function in the entire codebase
   that will hang indefinitely in the event of, e.g., hardware failures
@@ -831,3 +830,50 @@ def global_sum(summand):
                             MPI.SUM)
   MPI.Request.Wait(req)
   return recv.item()
+
+def global_max(arg):
+  """
+  Compute the global maximum of a processor-local quantity.
+
+  Parameters
+  ----------
+  arg : float
+    Processor-local part of the quantity over which reduction is
+    performed.
+
+  Returns
+  -------
+  integral : float
+    Global max of quantity.
+  """
+  send = np.array(arg)
+  recv = np.copy(send)
+  req = mpi_comm.Iallreduce(np.array(send),
+                            recv,
+                            MPI.MAX)
+  MPI.Request.Wait(req)
+  return recv.item()
+
+def global_min(arg):
+  """
+  Compute the global minimum of a processor-local quantity.
+
+  Parameters
+  ----------
+  arg : float
+    Processor-local part of the quantity over which reduction is
+    performed.
+
+  Returns
+  -------
+  integral : float
+    Global min of quantity.
+  """
+  send = np.array(arg)
+  recv = np.copy(send)
+  req = mpi_comm.Iallreduce(np.array(send),
+                            recv,
+                            MPI.MIN)
+  MPI.Request.Wait(req)
+  return recv.item()
+

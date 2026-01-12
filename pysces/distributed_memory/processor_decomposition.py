@@ -65,26 +65,29 @@ def hilbert_curve(n_subdiv):
 
 def get_face_idx_pos(lat, lon):
   """
-  [Description]
+  Calculate which face of the cubed sphere contain
+  points given in spherical coordinates.
 
   Parameters
   ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
+  lat: Array[tuple[Any], Float]
+      Latitude of points
+  lon: Array[tuple[Any], Float]
+      Longitude of points
+
+  Notes
+  -----
+  See mesh_definitions.py for explanation of face conventions.
 
   Returns
   -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
+  face_mask: Array[tuple[Any], Int]
+      Which of TOP_FACE, BOTTOM_FACE, FRONT_FACE,
+      BACK_FACE, LEFT_FACE, RIGHT_FACE each point lies on
+  x: Array[tuple[Any], Int]
+    Horizontal coordinates on cubed sphere face, [-1, 1]
+  y: Array[tuple[Any], Int]
+    Vertical coordinates on cubed sphere face, [-1, 1]
   """
   # assumes lon \in [0, 2*np.pi]
   lat[lat > np.pi / 2.0 - 1e-4] = np.pi / 2.0 - 1e-4
