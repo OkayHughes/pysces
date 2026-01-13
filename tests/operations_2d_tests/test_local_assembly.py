@@ -3,11 +3,11 @@ from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
-from pysces.operations_2d.assembly import (project_scalar_for,
+from pysces.operations_2d.local_assembly import (project_scalar_for,
                                            project_scalar_wrapper,
                                            project_scalar_sparse,
                                            project_scalar)
-from pysces.operations_2d.se_grid import init_assembly_matrix
+from pysces.operations_2d.local_assembly import init_assembly_matrix
 from ..context import test_npts
 
 
@@ -28,7 +28,7 @@ def test_projection():
                                                vert_redundancy,
                                                npt,
                                                wrapped=False)
-      vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vert_redundancy"])
+      vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vertex_redundancy"])
       fn = np.zeros_like(grid["physical_coords"][:, :, :, 0])
       for face_idx in range(grid["physical_coords"].shape[0]):
         for i_idx in range(npt):
@@ -59,7 +59,7 @@ def test_projection_equiv():
                                                         npt, wrapped=use_wrapper)
       fn = device_wrapper(np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0]))
       assert (np.allclose(project_scalar(fn, grid_wrapped, dims), fn))
-      ones = np.ones_like(grid["met_det"])
+      ones = np.ones_like(grid["metric_determinant"])
       ones_out = project_scalar(device_wrapper(ones), grid_wrapped, dims)
       assert (np.allclose(np.asarray(ones_out), ones))
       ones_out_for = project_scalar_for(np.asarray(ones), grid)

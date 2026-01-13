@@ -1,7 +1,7 @@
 
 from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.operations_2d.operators import inner_prod
+from pysces.operations_2d.operators import inner_product
 from pysces.models_3d.operators_3d import (sphere_divergence_3d,
                                            sphere_gradient_3d,
                                            sphere_vorticity_3d,
@@ -39,12 +39,12 @@ def test_vector_identites():
   vort = sphere_vorticity_3d(grad, grid, config)
   div = sphere_divergence_3d(v_3d, grid, config)
   for k_idx in range(nlev):
-    iprod_vort = inner_prod(vort[:, :, :, k_idx], vort[:, :, :, k_idx], grid)
+    iprod_vort = inner_product(vort[:, :, :, k_idx], vort[:, :, :, k_idx], grid)
     assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
 
-    discrete_divergence_thm = (inner_prod(v_3d[:, :, :, k_idx, 0], grad[:, :, :, k_idx, 0], grid) +
-                               inner_prod(v_3d[:, :, :, k_idx, 1], grad[:, :, :, k_idx, 1], grid) -
-                               inner_prod(fn_3d[:, :, :, k_idx], div[:, :, :, k_idx], grid))
+    discrete_divergence_thm = (inner_product(v_3d[:, :, :, k_idx, 0], grad[:, :, :, k_idx, 0], grid) +
+                               inner_product(v_3d[:, :, :, k_idx, 1], grad[:, :, :, k_idx, 1], grid) -
+                               inner_product(fn_3d[:, :, :, k_idx], div[:, :, :, k_idx], grid))
     assert (jnp.allclose(discrete_divergence_thm, jnp.zeros_like(discrete_divergence_thm), atol=eps))
 
 
@@ -70,10 +70,10 @@ def test_divergence():
   div = project_scalar_3d(sphere_divergence_3d(vec_3d, grid, config), grid, dims)
   vort = project_scalar_3d(sphere_vorticity_3d(vec_3d, grid, config), grid, dims)
   for lev_idx in range(nlev):
-    assert (inner_prod(div_analytic - div[:, :, :, lev_idx],
-                       div_analytic - div[:, :, :, lev_idx], grid) < 1e-5)
-    assert (inner_prod(vort_analytic - vort[:, :, :, lev_idx],
-                       vort_analytic - vort[:, :, :, lev_idx], grid) < 1e-5)
+    assert (inner_product(div_analytic - div[:, :, :, lev_idx],
+                          div_analytic - div[:, :, :, lev_idx], grid) < 1e-5)
+    assert (inner_product(vort_analytic - vort[:, :, :, lev_idx],
+                          vort_analytic - vort[:, :, :, lev_idx], grid) < 1e-5)
 
 
 def test_analytic_soln():
@@ -109,8 +109,8 @@ def test_vector_laplacian():
 
   lap_diff = laplace_v_wk + 2 * vec_3d
   for lev_idx in range(nlev):
-    assert ((inner_prod(lap_diff[:, :, :, lev_idx, 0], lap_diff[:, :, :, lev_idx, 0], grid) +
-             inner_prod(lap_diff[:, :, :, lev_idx, 1], lap_diff[:, :, :, lev_idx, 1], grid)) < 1e-5)
+    assert ((inner_product(lap_diff[:, :, :, lev_idx, 0], lap_diff[:, :, :, lev_idx, 0], grid) +
+             inner_product(lap_diff[:, :, :, lev_idx, 1], lap_diff[:, :, :, lev_idx, 1], grid)) < 1e-5)
   vec = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0])**2,
                    jnp.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
   vec_3d = threedify(vec, nlev, axis=-2)
@@ -121,5 +121,5 @@ def test_vector_laplacian():
   # hack to negate pole point
   lap_diff *= np.cos(grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis, np.newaxis]**2
   for lev_idx in range(nlev):
-    assert ((inner_prod(lap_diff[:, :, :, lev_idx, 0], lap_diff[:, :, :, lev_idx, 0], grid) +
-             inner_prod(lap_diff[:, :, :, lev_idx, 1], lap_diff[:, :, :, lev_idx, 1], grid)) < 1e-5)
+    assert ((inner_product(lap_diff[:, :, :, lev_idx, 0], lap_diff[:, :, :, lev_idx, 0], grid) +
+             inner_product(lap_diff[:, :, :, lev_idx, 1], lap_diff[:, :, :, lev_idx, 1], grid)) < 1e-5)

@@ -46,21 +46,3 @@ def init_config(Rgas=287.0,
           "p0": device_wrapper(p0),
           "reference_profiles": {"T_ref": device_wrapper(T_ref),
                                  "T_ref_lapse": device_wrapper(T_ref_lapse)}}
-
-def constant_coeff_hyperviscosity(ne, config):
-  ne_30_full_radius_coeff = 1e15
-  small_planet_correction_factor = config["radius_earth"] / 6371e3
-  # note: this power accounts for scrunched elements at corner points
-  uniform_res_hypervis_scaling = 1.0 / jnp.log10(2.0)
-  nu_base = ne_30_full_radius_coeff * small_planet_correction_factor * (30.0/ne)**uniform_res_hypervis_scaling
-  return nu_base
-
-
-def tensor_hyperviscosity(biggest_gridpoint_dx, hypervis_scaling, npt, config):
-    ne_30_full_radius_coeff = 1e15
-    small_planet_correction_factor = config["radius_earth"] / 6371e3
-    uniform_res_hypervis_scaling = 1.0 / jnp.log10(2.0)
-    nu_min = ne_30_full_radius_coeff * small_planet_correction_factor* (biggest_gridpoint_dx)**uniform_res_hypervis_scaling
-    radius_earth = config["radius_earth"]
-    nu_tensor = nu_min*(2.0*radius_earth/((npt-1.0)*biggest_gridpoint_dx))**hypervis_scaling/(radius_earth**4)
-    return nu_tensor

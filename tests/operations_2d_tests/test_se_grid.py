@@ -86,7 +86,7 @@ def test_vert_red_triage():
                                           npt,
                                           wrapped=False)
         decomp = get_decomp(dims["num_elem"], nproc)
-        vert_redundancy_gll = vert_red_flat_to_hierarchy(grid["vert_redundancy"])
+        vert_redundancy_gll = vert_red_flat_to_hierarchy(grid["vertex_redundancy"])
         vert_redundancy_check = {}
         for face_idx in vert_redundancy_gll.keys():
           for (i_idx, j_idx) in vert_redundancy_gll[face_idx].keys():
@@ -101,7 +101,7 @@ def test_vert_red_triage():
         vert_sends = []
         vert_recvs = []
         for proc_idx in range(nproc):
-          vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(grid["vert_redundancy"],
+          vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(grid["vertex_redundancy"],
                                                                                         proc_idx,
                                                                                         decomp)
           vert_red_local = vert_red_flat_to_hierarchy(vert_red_local)
@@ -146,7 +146,7 @@ def test_vert_red_triage():
 def test_assembly_init():
   se_grid, dims = init_test_grid()
   npt = dims["npt"]
-  assert np.allclose(np.sum(se_grid["met_det"] *
+  assert np.allclose(np.sum(se_grid["metric_determinant"] *
                             (se_grid["gll_weights"][np.newaxis, :, np.newaxis] *
                              se_grid["gll_weights"][np.newaxis, np.newaxis, :])), 8.0)
   nproc = 2
@@ -160,9 +160,9 @@ def test_assembly_init():
   vert_red_total = flip_triple(se_grid["assembly_triple"])
   ct = len(vert_red_total)
   for proc_idx in range(nproc):
-    vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(se_grid["vert_redundancy"],
+    vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(se_grid["vertex_redundancy"],
                                                                                proc_idx, decomp)
-    metdet = subset_var(se_grid["met_det"], proc_idx, decomp, wrapped=False)
+    metdet = subset_var(se_grid["metric_determinant"], proc_idx, decomp, wrapped=False)
     assembly_triple = init_assembly_local(metdet.shape[0], npt, vert_red_local)
     ct -= len(flip_triple(assembly_triple))
     triples_send, triples_receive = init_assembly_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
@@ -192,24 +192,24 @@ def test_triples_order():
         dims = []
         for proc_idx in range(nproc):
           grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                   grid_total["jacobian"],
-                                                   grid_total["jacobian_inv"],
-                                                   grid_total["physical_coords_to_cartesian"],
-                                                   grid_total["recip_met_det"],
-                                                   grid_total["met_det"],
-                                                   grid_total["mass_mat"],
-                                                   grid_total["mass_matrix_inv"],
-                                                   grid_total["vert_redundancy"],
+                                                   grid_total["contra_to_physical"],
+                                                   grid_total["physical_to_contra"],
+                                                   grid_total["physical_to_cartesian"],
+                                                   grid_total["recip_metric_determinant"],
+                                                   grid_total["metric_determinant"],
+                                                   grid_total["mass_matrix"],
+                                                   grid_total["mass_matrix_denominator"],
+                                                   grid_total["vertex_redundancy"],
                                                    proc_idx, decomp, wrapped=True)
           grid_nowrapper, _ = create_spectral_element_grid(grid_total["physical_coords"],
-                                                           grid_total["jacobian"],
-                                                           grid_total["jacobian_inv"],
-                                                           grid_total["physical_coords_to_cartesian"],
-                                                           grid_total["recip_met_det"],
-                                                           grid_total["met_det"],
-                                                           grid_total["mass_mat"],
-                                                           grid_total["mass_matrix_inv"],
-                                                           grid_total["vert_redundancy"],
+                                                           grid_total["contra_to_physical"],
+                                                           grid_total["physical_to_contra"],
+                                                           grid_total["physical_to_cartesian"],
+                                                           grid_total["recip_metric_determinant"],
+                                                           grid_total["metric_determinant"],
+                                                           grid_total["mass_matrix"],
+                                                           grid_total["mass_matrix_denominator"],
+                                                           grid_total["vertex_redundancy"],
                                                            proc_idx, decomp, wrapped=False)
           grids.append(grid)
           grids_nowrapper.append(grid_nowrapper)
@@ -218,8 +218,8 @@ def test_triples_order():
           # check that triples and vert redundancy structs are identical
           local_triples_send = grids[local_proc_idx]["triples_send"]
           local_triples_recv = grids[local_proc_idx]["triples_receive"]
-          local_vert_red_send = grids_nowrapper[local_proc_idx]["vert_redundancy_send"]
-          local_vert_red_recv = grids_nowrapper[local_proc_idx]["vert_redundancy_receive"]
+          local_vert_red_send = grids_nowrapper[local_proc_idx]["vertex_redundancy_send"]
+          local_vert_red_recv = grids_nowrapper[local_proc_idx]["vertex_redundancy_receive"]
           local_coords = grids[local_proc_idx]["physical_coords"]
           for remote_proc_idx in local_triples_send.keys():
             assert remote_proc_idx in local_triples_recv.keys()

@@ -28,6 +28,6 @@ def test_metric():
       ny = nx + 1
       physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt)
       grid, dims = generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt)
-      assert (np.allclose(jnp.sum(grid["met_det"] *
+      assert (np.allclose(jnp.sum(grid["metric_determinant"] *
                                   (grid["gll_weights"][np.newaxis, :, np.newaxis] *
                                    grid["gll_weights"][np.newaxis, np.newaxis, :])), 4.0))

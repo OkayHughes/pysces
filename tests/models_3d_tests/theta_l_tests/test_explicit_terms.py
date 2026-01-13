@@ -8,7 +8,7 @@ from pysces.config import jnp, device_wrapper, np
 from pysces.models_3d.constants import init_config
 from pysces.models_3d.theta_l.explicit_terms import calc_energy_quantities
 from pysces.operations_2d.operators import inner_prod
-from pysces.operations_2d.assembly import project_scalar
+from pysces.operations_2d.local_assembly import project_scalar
 
 
 def test_notopo():

@@ -7,7 +7,7 @@ from pysces.shallow_water_models.williamson_init import (get_williamson_steady_c
 from pysces.shallow_water_models.galewsky_init import get_galewsky_config, galewsky_wind, galewsky_hs, galewsky_h
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.operations_2d.operators import inner_prod, sphere_vorticity
-from pysces.operations_2d.assembly import project_scalar
+from pysces.operations_2d.local_assembly import project_scalar
 from ..context import get_figdir, test_division_factor
 from os import makedirs
 from os.path import join

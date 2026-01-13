@@ -1,10 +1,12 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.distributed_memory.multiprocessing import (project_scalar_for_stub,
-                                                       assemble_scalar_for_pack, assemble_scalar_for_unpack,
-                                                       exchange_buffers_stub, extract_fields_triple, extract_fields_for,
-                                                       accumulate_fields_for, accumulate_fields_triple,
-                                                       project_scalar_for_mpi, project_scalar_triple_stub,
-                                                       project_scalar_triple_mpi)
+from pysces.distributed_memory._test_infra import (project_scalar_for_stub,
+                                                   assemble_scalar_for_pack, assemble_scalar_for_unpack,
+                                                   extract_fields_for,
+                                                   accumulate_fields_for,
+                                                   project_scalar_for_mpi)
+from pysces.distributed_memory.global_operations import (_exchange_buffers_stub, exchange_buffers)
+from pysces.distributed_memory.global_assembly import (extract_fields, accumulate_fields, _project_scalar_stub,
+                                                       project_scalar_global)
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.se_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
@@ -21,7 +23,7 @@ def test_unordered_assembly_for_stub():
       for nproc in range(1, 6):
         print(f"dividing nx {nx} grid among {nproc} processors")
         grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
-        vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vert_redundancy"])
+        vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vertex_redundancy"])
         decomp = get_decomp(dim_total["num_elem"], nproc)
         grids = []
         dims = []
@@ -44,14 +46,14 @@ def test_unordered_assembly_for_stub():
             pairs[pair_key] = pair_set.copy()
         for proc_idx in range(nproc):
           grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                   grid_total["jacobian"],
-                                                   grid_total["jacobian_inv"],
-                                                   grid_total["physical_coords_to_cartesian"],
-                                                   grid_total["recip_met_det"],
-                                                   grid_total["met_det"],
-                                                   grid_total["mass_mat"],
-                                                   grid_total["mass_matrix_inv"],
-                                                   grid_total["vert_redundancy"],
+                                                   grid_total["contra_to_physical"],
+                                                   grid_total["physical_to_contra"],
+                                                   grid_total["physical_to_cartesian"],
+                                                   grid_total["recip_metric_determinant"],
+                                                   grid_total["metric_determinant"],
+                                                   grid_total["mass_matrix"],
+                                                   grid_total["mass_matrix_denominator"],
+                                                   grid_total["vertex_redundancy"],
                                                    proc_idx, decomp, wrapped=False)
           grids.append(grid)
           dims.append(dim)
@@ -107,7 +109,7 @@ def test_unordered_assembly_triple_stub():
         total_elems = 0
         pairs = {}
         proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-        vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vert_redundancy"])
+        vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vertex_redundancy"])
         for target_face_idx in vert_redundancy.keys():
           for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
             pair_key = (proc_ids[target_face_idx],
@@ -123,14 +125,14 @@ def test_unordered_assembly_triple_stub():
             pairs[pair_key] = pair_set.copy()
         for proc_idx in range(nproc):
           grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                   grid_total["jacobian"],
-                                                   grid_total["jacobian_inv"],
-                                                   grid_total["physical_coords_to_cartesian"],
-                                                   grid_total["recip_met_det"],
-                                                   grid_total["met_det"],
-                                                   grid_total["mass_mat"],
-                                                   grid_total["mass_matrix_inv"],
-                                                   grid_total["vert_redundancy"],
+                                                   grid_total["contra_to_physical"],
+                                                   grid_total["physical_to_contra"],
+                                                   grid_total["physical_to_cartesian"],
+                                                   grid_total["recip_metric_determinant"],
+                                                   grid_total["metric_determinant"],
+                                                   grid_total["mass_matrix"],
+                                                   grid_total["mass_matrix_denominator"],
+                                                   grid_total["vertex_redundancy"],
                                                    proc_idx, decomp, wrapped=use_wrapper)
           grids.append(grid)
           dims.append(dim)
@@ -153,7 +155,7 @@ def test_unordered_assembly_triple_stub():
           for source_proc_idx in range(len(fs)):
             fs[source_proc_idx][0] = device_wrapper(fs[source_proc_idx][0])
           fs_ref = [[np.copy(f[0])] for f in fs]
-          fs_out = project_scalar_triple_stub(fs, grids, dims)
+          fs_out = _project_scalar_stub(fs, grids, dims)
           for (f, f_new) in zip(fs_ref, fs_out):
             assert (np.allclose(f[0], device_unwrapper(f_new[0])))
 
@@ -169,7 +171,7 @@ def test_unordered_assembly_triple_stub():
           for proc_idx in range(nproc):
             fs_ref[proc_idx].append(device_wrapper(fs_tmp[proc_idx][0]))
             fs[proc_idx].append(device_wrapper(fs_tmp[proc_idx][0]))
-        fs_out = project_scalar_triple_stub(fs, grids, dims)
+        fs_out = _project_scalar_stub(fs, grids, dims)
         for (f, f_new) in zip(fs_ref, fs_out):
           for (f_pair, f_new_pair) in zip(f, f_new):
             assert (np.allclose(device_unwrapper(f_pair), device_unwrapper(f_new_pair)))
@@ -204,14 +206,14 @@ def test_stub_exchange():
 
   for proc_idx in range(nproc):
     grid, dim = create_spectral_element_grid(se_grid["physical_coords"],
-                                             se_grid["jacobian"],
-                                             se_grid["jacobian_inv"],
-                                             se_grid["physical_coords_to_cartesian"],
-                                             se_grid["recip_met_det"],
-                                             se_grid["met_det"],
-                                             se_grid["mass_mat"],
-                                             se_grid["mass_matrix_inv"],
-                                             se_grid["vert_redundancy"],
+                                             se_grid["contra_to_physical"],
+                                             se_grid["physical_to_contra"],
+                                             se_grid["physical_to_cartesian"],
+                                             se_grid["recip_metric_determinant"],
+                                             se_grid["metric_determinant"],
+                                             se_grid["mass_matrix"],
+                                             se_grid["mass_matrix_denominator"],
+                                             se_grid["vertex_redundancy"],
                                              proc_idx,
                                              decomp,
                                              wrapped=False)
@@ -235,7 +237,7 @@ def test_stub_exchange():
     buffers = []
     for (f, grid) in zip(fs, grids):
       buffers.append(assemble_scalar_for_pack(f, grid))
-    buffers = exchange_buffers_stub(buffers)
+    buffers = _exchange_buffers_stub(buffers)
     fs_out = []
     for (f, grid, buffer) in zip(fs, grids, buffers):
       fs_out.append(assemble_scalar_for_unpack(f, buffer, grid))
@@ -281,7 +283,7 @@ def test_extract_fields_triples():
             nlev = 2
             pairs = {}
             proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-            vert_redundancy = vert_red_flat_to_hierarchy(grid_total_nowrapper["vert_redundancy"])
+            vert_redundancy = vert_red_flat_to_hierarchy(grid_total_nowrapper["vertex_redundancy"])
             for target_face_idx in vert_redundancy.keys():
               for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
                 pair_key = (proc_ids[target_face_idx],
@@ -297,24 +299,24 @@ def test_extract_fields_triples():
                 pairs[pair_key] = pair_set.copy()
             for proc_idx in range(nproc):
               grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                       grid_total_nowrapper["jacobian"],
-                                                       grid_total_nowrapper["jacobian_inv"],
-                                                       grid_total_nowrapper["physical_coords_to_cartesian"],
-                                                       grid_total_nowrapper["recip_met_det"],
-                                                       grid_total_nowrapper["met_det"],
-                                                       grid_total_nowrapper["mass_mat"],
-                                                       grid_total_nowrapper["mass_matrix_inv"],
-                                                       grid_total_nowrapper["vert_redundancy"],
+                                                       grid_total_nowrapper["contra_to_physical"],
+                                                       grid_total_nowrapper["physical_to_contra"],
+                                                       grid_total_nowrapper["physical_to_cartesian"],
+                                                       grid_total_nowrapper["recip_metric_determinant"],
+                                                       grid_total_nowrapper["metric_determinant"],
+                                                       grid_total_nowrapper["mass_matrix"],
+                                                       grid_total_nowrapper["mass_matrix_denominator"],
+                                                       grid_total_nowrapper["vertex_redundancy"],
                                                        proc_idx, decomp, wrapped=use_wrapper)
               grid_nodevice, _ = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                              grid_total_nowrapper["jacobian"],
-                                                              grid_total_nowrapper["jacobian_inv"],
-                                                              grid_total_nowrapper["physical_coords_to_cartesian"],
-                                                              grid_total_nowrapper["recip_met_det"],
-                                                              grid_total_nowrapper["met_det"],
-                                                              grid_total_nowrapper["mass_mat"],
-                                                              grid_total_nowrapper["mass_matrix_inv"],
-                                                              grid_total_nowrapper["vert_redundancy"],
+                                                              grid_total_nowrapper["contra_to_physical"],
+                                                              grid_total_nowrapper["physical_to_contra"],
+                                                              grid_total_nowrapper["physical_to_cartesian"],
+                                                              grid_total_nowrapper["recip_metric_determinant"],
+                                                              grid_total_nowrapper["metric_determinant"],
+                                                              grid_total_nowrapper["mass_matrix"],
+                                                              grid_total_nowrapper["mass_matrix_denominator"],
+                                                              grid_total_nowrapper["vertex_redundancy"],
                                                               proc_idx, decomp, wrapped=False)
               grids.append(grid)
               grids_nodevice.append(grid_nodevice)
@@ -332,9 +334,9 @@ def test_extract_fields_triples():
             buffers_for = []
             buffers_device = []
             for (f, f_device, grid, grid_nodevice, dim) in zip(fs, fs_device, grids, grids_nodevice, dims):
-              buffers_for.append(extract_fields_for(f, grid_nodevice["vert_redundancy_send"]))
+              buffers_for.append(extract_fields_for(f, grid_nodevice["vertex_redundancy_send"]))
               buffer_for = buffers_for[-1]
-              buffers_device.append(extract_fields_triple(f_device, grid["triples_send"]))
+              buffers_device.append(extract_fields(f_device, grid["triples_send"]))
               buffer_device = buffers_device[-1]
               for proc_idx in buffer_for.keys():
                 assert proc_idx in buffer_device.keys()
@@ -342,8 +344,8 @@ def test_extract_fields_triples():
                 for k_idx in range(len(buffer_for[proc_idx])):
                   assert buffer_for[proc_idx][k_idx].shape == buffer_device[proc_idx][k_idx].shape
                   assert np.allclose(buffer_for[proc_idx][k_idx], device_unwrapper(buffer_device[proc_idx][k_idx]))
-            buffers_for = exchange_buffers_stub(buffers_for)
-            buffers_device = exchange_buffers_stub(buffers_device)
+            buffers_for = _exchange_buffers_stub(buffers_for)
+            buffers_device = _exchange_buffers_stub(buffers_device)
             for (f, f_device, grid, grid_nowrapper, dim, buffer_for, buffer_device) in zip(fs,
                                                                                            fs_device,
                                                                                            grids,
@@ -357,8 +359,8 @@ def test_extract_fields_triples():
                                      device_unwrapper(buffer_device[remote_idx][field_idx]))
                   assert np.allclose(f[field_idx],
                                      device_unwrapper(f_device[field_idx]))
-              fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nowrapper["vert_redundancy_receive"])
-              fijk_fields_triple = accumulate_fields_triple(f_device, buffer_device, grid["triples_receive"], dim)
+              fijk_fields_for = accumulate_fields_for(f, buffer_for, grid_nowrapper["vertex_redundancy_receive"])
+              fijk_fields_triple = accumulate_fields(f_device, buffer_device, grid["triples_receive"], dim)
               assert len(fijk_fields_for) == len(fijk_fields_triple)
               for field_idx in range(len(fijk_fields_for)):
                 assert np.allclose(f[field_idx], device_unwrapper(f_device[field_idx]))
@@ -379,7 +381,7 @@ def test_mpi_exchange_for():
       total_elems = 0
       pairs = {}
       proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-      vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vert_redundancy"])
+      vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vertex_redundancy"])
       for target_face_idx in vert_redundancy.keys():
         for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
           pair_key = (proc_ids[target_face_idx],
@@ -395,14 +397,14 @@ def test_mpi_exchange_for():
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
         grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                 grid_total["jacobian"],
-                                                 grid_total["jacobian_inv"],
-                                                 grid_total["physical_coords_to_cartesian"],
-                                                 grid_total["recip_met_det"],
-                                                 grid_total["met_det"],
-                                                 grid_total["mass_mat"],
-                                                 grid_total["mass_matrix_inv"],
-                                                 grid_total["vert_redundancy"],
+                                                 grid_total["contra_to_physical"],
+                                                 grid_total["physical_to_contra"],
+                                                 grid_total["physical_to_cartesian"],
+                                                 grid_total["recip_metric_determinant"],
+                                                 grid_total["metric_determinant"],
+                                                 grid_total["mass_matrix"],
+                                                 grid_total["mass_matrix_denominator"],
+                                                 grid_total["vertex_redundancy"],
                                                  proc_idx, decomp, wrapped=False)
         grids.append(grid)
         dims.append(dim)
@@ -479,7 +481,7 @@ def test_mpi_exchange_triple():
       total_elems = 0
       pairs = {}
       proc_ids = elem_idx_global_to_proc_idx(np.arange(dim_total["num_elem"]), decomp)
-      vert_redundancy = vert_red_flat_to_hierarchy(grid_total_nowrapper["vert_redundancy"])
+      vert_redundancy = vert_red_flat_to_hierarchy(grid_total_nowrapper["vertex_redundancy"])
       for target_face_idx in vert_redundancy.keys():
         for (target_i, target_j) in vert_redundancy[target_face_idx].keys():
           pair_key = (proc_ids[target_face_idx],
@@ -495,14 +497,14 @@ def test_mpi_exchange_triple():
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
         grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                 grid_total_nowrapper["jacobian"],
-                                                 grid_total_nowrapper["jacobian_inv"],
-                                                 grid_total_nowrapper["physical_coords_to_cartesian"],
-                                                 grid_total_nowrapper["recip_met_det"],
-                                                 grid_total_nowrapper["met_det"],
-                                                 grid_total_nowrapper["mass_mat"],
-                                                 grid_total_nowrapper["mass_matrix_inv"],
-                                                 grid_total_nowrapper["vert_redundancy"],
+                                                 grid_total_nowrapper["contra_to_physical"],
+                                                 grid_total_nowrapper["physical_to_contra"],
+                                                 grid_total_nowrapper["physical_to_cartesian"],
+                                                 grid_total_nowrapper["recip_metric_determinant"],
+                                                 grid_total_nowrapper["metric_determinant"],
+                                                 grid_total_nowrapper["mass_matrix"],
+                                                 grid_total_nowrapper["mass_matrix_denominator"],
+                                                 grid_total_nowrapper["vertex_redundancy"],
                                                  proc_idx, decomp, wrapped=use_wrapper)
         grids.append(grid)
         dims.append(dim)
@@ -534,8 +536,8 @@ def test_mpi_exchange_triple():
         for source_proc_idx in range(len(fs)):
           fs[source_proc_idx][0] = device_wrapper(fs[source_proc_idx][0])
         fs_ref = [[np.copy(f[0])] for f in fs]
-        fs_out = project_scalar_triple_stub(fs, grids, dims)
-        f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)[0]
+        fs_out = _project_scalar_stub(fs, grids, dims)
+        f_out = project_scalar_global(fs[local_proc_idx], grid_local, dim_local)[0]
         assert (np.allclose(fs_ref[local_proc_idx][0], device_unwrapper(fs_out[local_proc_idx][0])))
         assert (np.allclose(fs_ref[local_proc_idx][0], device_unwrapper(f_out)))
 
@@ -551,8 +553,8 @@ def test_mpi_exchange_triple():
         for proc_idx in range(nproc):
           fs_ref[proc_idx].append(np.copy(fs_tmp[proc_idx][0]))
           fs[proc_idx].append(device_wrapper(fs_tmp[proc_idx][0]))
-      fs_out = project_scalar_triple_stub(fs, grids, dims)
-      f_out = project_scalar_triple_mpi(fs[local_proc_idx], grid_local, dim_local)
+      fs_out = _project_scalar_stub(fs, grids, dims)
+      f_out = project_scalar_global(fs[local_proc_idx], grid_local, dim_local)
       for (f_pair, f_new_pair) in zip(fs_out[local_proc_idx], f_out):
         assert (np.allclose(f_pair, f_new_pair))
       num_fields = 20
@@ -561,7 +563,7 @@ def test_mpi_exchange_triple():
         f_rand = rand_f()
         for proc_idx in range(nproc):
           fs_rand[proc_idx].append(device_wrapper(f_rand[proc_idx][0]))
-      fs_stub_out = project_scalar_triple_stub(fs_rand, grids, dims)
-      f_out = project_scalar_triple_mpi(fs_rand[local_proc_idx], grid_local, dim_local)
+      fs_stub_out = _project_scalar_stub(fs_rand, grids, dims)
+      f_out = project_scalar_global(fs_rand[local_proc_idx], grid_local, dim_local)
       for (f_stub, f_mpi) in zip(fs_stub_out[local_proc_idx], f_out):
         assert (np.allclose(f_stub, f_mpi))

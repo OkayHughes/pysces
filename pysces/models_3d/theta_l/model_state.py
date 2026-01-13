@@ -1,5 +1,5 @@
 from ...config import jnp, jit, np, flip, vmap_1d_apply
-from ...operations_2d.assembly import project_scalar, project_scalar_for
+from ...operations_2d.local_assembly import project_scalar, project_scalar_for
 from ...distributed_memory.multiprocessing import project_scalar_triple_mpi
 from ...operations_2d.operators import sphere_gradient
 from ..vertical_remap import zerroukat_remap

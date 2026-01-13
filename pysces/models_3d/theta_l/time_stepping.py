@@ -2,18 +2,11 @@ from ...config import jit, jnp, DEBUG
 from .model_state import wrap_model_struct, project_model_state
 from .explicit_terms import explicit_tendency, correct_state
 from .theta_hyperviscosity import hypervis_terms, sponge_layer
-from ..hyperviscosity import get_global_grid_defomation_metrics
+from ...operations_2d.se_grid import get_cfl
+from ...time_step import time_step_options, stability_info
 from functools import partial
 from enum import Enum
 from frozendict import frozendict
-
-time_step_options = Enum('time_step', [("Euler", 1),
-                                       ("RK3_5STAGE", 2),
-                                       ("RK2", 3)])
-
-stability_info = {time_step_options.RK2: 2.0,
-                  time_step_options.Euler: 2.0,
-                  time_step_options.RK3_5STAGE: 3.87}
 
 @jit
 def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
@@ -254,61 +247,14 @@ def ullrich_5stage(state_in, dt, h_grid, v_grid, config, dims, hydrostatic=True,
   return final_state
 
 
-def get_cfl(h_grid, v_grid, physics_config, diffusion_config, dims, sphere=True):
-  #
-  # estimate various CFL limits
-  # Credit: This is basically copy-pasted from CAM-SE/HOMME
+def get_cfl_theta(h_grid, physics_config, diffusion_config, dims, sphere=True):
+  cfl_info, grid_info = get_cfl(h_grid, physics_config["radius_earth"], diffusion_config, dims, sphere=sphere)
+  max_norm_jac_inv = grid_info["max_norm_jac_inv"]
 
-  # Courtesy of Paul Ullrich, Jared Whitehead
-  lambda_max = {3: 1.5,
-                4: 2.74,
-                5: 4.18,
-                6: 5.86,
-                7: 7.79,
-                8: 10.0}
-
-  lambda_vis = {3: 12.0,
-                4: 30.0,
-                5: 91.6742,
-                6: 190.117,
-                7: 374.7788,
-                8: 652.3015}
-
-  npt = dims["npt"]
-  scale_inv = 1.0/physics_config["radius_earth"] if sphere else 1.0
-
-  assert npt in lambda_max.keys() and npt in lambda_vis.keys(), "Stability characteristics not calculated for {npt}"
-
-  minimum_gauss_weight = jnp.min(h_grid["gll_weights"])
-
-  hypervis_scaling = h_grid["hypervis_scaling"]
-
-  max_norm_jac_inv, max_min_dx, min_min_dx = get_global_grid_defomation_metrics(h_grid, dims)
-
-  # tensorHV.  New eigenvalues are the eigenvalues of the tensor V
-  # formulas here must match what is in cube_mod.F90
-  # for tensorHV, we scale out the rearth dependency
-  lam = max_norm_jac_inv**2
-
-  norm_jac_inv_hvis_tensor = (lambda_vis**2) * (max_norm_jac_inv**4) * (lam**(-hypervis_scaling/2.0))
-
-  norm_jac_inv_hvis_const = (lambda_vis**2) * (1.0 / physics_config["radius_earth"] * max_norm_jac_inv)**4
-  norm_jac_inv_hvis = norm_jac_inv_hvis_tensor if "tensor_hypervis" in diffusion_config.keys() else norm_jac_inv_hvis_const
-  rkssp_euler_stability = minimum_gauss_weight / (120.0 * max_norm_jac_inv * scale_inv)
-  rk2_tracer = 1.0 / (120.0 * max_norm_jac_inv * lambda_max * scale_inv)
-  gravit_wave_stability = 1.0 / (342.0 * max_norm_jac_inv * lambda_max * scale_inv)
-  hypervis_stability_dpi = 1.0 / (diffusion_config["nu_dpi"] * norm_jac_inv_hvis)
-  hypervis_stability_vort = 1.0 / (diffusion_config["nu"] * norm_jac_inv_hvis)
-  hypervis_stability_div = 1.0 / (diffusion_config["nu_div"] * norm_jac_inv_hvis)
   nu_top_max = jnp.max(diffusion_config["nu_ramp"]) * diffusion_config["nu_top"]
-  sponge_layer_stab = 1.0 / (nu_top_max*((scale_inv*max_norm_jac_inv)**2)*lambda_vis)
-  return {"dt_rkssp_euler": rkssp_euler_stability,
-          "dt_rk2_tracer": rk2_tracer,
-          "dt_gravity_wave": gravit_wave_stability,
-          "dt_hypervis_scalar": hypervis_stability_dpi,
-          "dt_hypervis_vort": hypervis_stability_vort,
-          "dt_hypervis_div": hypervis_stability_div,
-          "dt_sponge_layer": sponge_layer_stab}
+  sponge_layer_stab = 1.0 / (nu_top_max*((grid_info["scale_inv"]*max_norm_jac_inv)**2)*grid_info["lambda_vis"])
+  cfl_info["dt_sponge_layer"] = sponge_layer_stab
+  return cfl_info
 
 
 def get_timestep_config(dt_coupling,
@@ -323,8 +269,9 @@ def get_timestep_config(dt_coupling,
                         tracer_steps_per_coupling_interval=-1,
                         dyn_steps_per_tracer=-1,
                         hypervis_steps_per_dyn=-1,
-                        sponge_steps_per_dyn=-1):
-  cfl_info = get_cfl(h_grid, v_grid, physics_config, diffusion_config)
+                        sponge_steps_per_dyn=-1,
+                        sphere=True):
+  cfl_info = get_cfl_theta(h_grid, v_grid, physics_config, diffusion_config, sphere=sphere)
   tracer_S = stability_info[tracer_tstep_type]
   hypervisc_S = stability_info[hypervis_tstep_type]
   dynamics_S = stability_info[dynamics_tstep_type]

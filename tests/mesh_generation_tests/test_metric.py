@@ -31,6 +31,6 @@ def test_gen_mass_mat():
                                         face_position_2d,
                                         vert_redundancy,
                                         npt, wrapped=False)
-      assert (np.allclose(np.sum(grid["met_det"] *
+      assert (np.allclose(np.sum(grid["metric_determinant"] *
                                  (grid["gll_weights"][np.newaxis, :, np.newaxis] *
                                   grid["gll_weights"][np.newaxis, np.newaxis, :])), 4 * np.pi))

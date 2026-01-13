@@ -1,8 +1,8 @@
-from ..config import vmap_1d_apply, jit, jnp, device_wrapper
+from ..config import vmap_1d_apply, jit, jnp, device_wrapper, np
 from ..operations_2d.operators import sphere_vec_laplacian_wk, sphere_laplacian_wk
 from .constants import constant_coeff_hyperviscosity, tensor_hyperviscosity
-from ..operations_2d.se_grid import get_grid_deformation_metrics
-from ..distributed_memory.multiprocessing import global_max, global_min
+from ..operations_2d.se_grid import get_global_grid_deformation_metrics
+from ..distributed_memory.global_operations import global_max, global_min
 from functools import partial
 
 @jit
@@ -68,14 +68,6 @@ def vector_harmonic_3d(vector, h_grid, config, nu_div_factor):
   return del2
 
 
-def get_global_grid_defomation_metrics(h_grid, dims):
-  L2_jac_inv, dx_short, dx_long = get_grid_deformation_metrics(h_grid, dims["npt"])
-  max_norm_jac_inv = global_max(jnp.max(L2_jac_inv))
-  max_min_dx = global_max(jnp.max(dx_short))
-  min_min_dx = global_min(jnp.min(dx_short))
-  return max_norm_jac_inv, max_min_dx, min_min_dx
-
-
 @partial(jit, static_argnames=["n_sponge"])
 def get_nu_ramp(v_grid, n_sponge):
   """
@@ -134,7 +126,7 @@ def init_hypervis_config_tensor(h_grid, v_grid, dims, config,
                                 n_sponge=5):
   nu_ramp = get_nu_ramp(v_grid, n_sponge)
   radius_earth = config["radius_earth"]
-  _, max_min_dx, _ = get_global_grid_defomation_metrics(h_grid, dims)
+  _, max_min_dx, _ = get_global_grid_deformation_metrics(h_grid, dims)
   nu_tens = tensor_hyperviscosity(radius_earth * max_min_dx,
                                   h_grid["hypervis_scaling"],
                                   dims["npt"],

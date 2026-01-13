@@ -1,6 +1,6 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.operations_2d.operators import sphere_gradient
-from pysces.operations_2d.assembly import project_scalar
+from pysces.operations_2d.local_assembly import project_scalar
 from .mass_coordinate_grids import cam30
 from pysces.models_3d.mass_coordinate import (create_vertical_grid,
                                               mass_from_coordinate_interface)
