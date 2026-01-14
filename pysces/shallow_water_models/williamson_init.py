@@ -8,7 +8,7 @@ def get_williamson_steady_config(model_config):
   config["alpha"] = model_config["alpha"]
   config["gravity"] = model_config["gravity"]
   config["radius_earth"] = model_config["radius_earth"]
-  config["earth_period"] = model_config["earth_period"]
+  config["angular_freq_earth"] = model_config["angular_freq_earth"]
   return config
 
 
@@ -24,7 +24,7 @@ def williamson_tc2_h(lat, lon, config):
   h += config["h0"]
   second_factor = (-jnp.cos(lon) * jnp.cos(lat) * jnp.sin(config["alpha"]) +
                    jnp.sin(lat) * jnp.cos(config["alpha"]))**2
-  h -= (config["radius_earth"] * config["earth_period"] *
+  h -= (config["radius_earth"] * config["angular_freq_earth"] *
         config["u0"] + config["u0"]**2 / 2.0) / config["gravity"] * second_factor
   return h
 

@@ -26,7 +26,6 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapp
   return var_out
 
 
-
 def create_spectral_element_grid(latlon,
                                  gll_to_sphere_jacobian,
                                  gll_to_sphere_jacobian_inv,
@@ -119,7 +118,7 @@ def create_spectral_element_grid(latlon,
 
 
 def get_grid_deformation_metrics(grid, npt):
-  eigs, _ = jnp.linalg.eigh(grid["met_inv"])
+  eigs, _ = jnp.linalg.eigh(grid["metric_inverse"])
   max_svd = jnp.sqrt(jnp.max(eigs, axis=-1))
   min_svd =  jnp.sqrt(jnp.min(eigs, axis=-1))
   dx_short = 1.0 / (max_svd*0.5*(npt-1))
@@ -131,8 +130,8 @@ def get_global_grid_deformation_metrics(h_grid, dims):
   L2_jac_inv, dx_short, dx_long = get_grid_deformation_metrics(h_grid, dims["npt"])
   max_norm_jac_inv = global_max(jnp.max(L2_jac_inv))
   max_min_dx = global_max(jnp.max(dx_short))
-  min_min_dx = global_min(jnp.min(dx_short))
-  return max_norm_jac_inv, max_min_dx, min_min_dx
+  min_max_dx = global_min(jnp.min(dx_long))
+  return max_norm_jac_inv, max_min_dx, min_max_dx
 
 
 def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
@@ -141,14 +140,14 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
   # Credit: This is basically copy-pasted from CAM-SE/HOMME
 
   # Courtesy of Paul Ullrich, Jared Whitehead
-  lambda_max = {3: 1.5,
+  lambda_maxs = {3: 1.5,
                 4: 2.74,
                 5: 4.18,
                 6: 5.86,
                 7: 7.79,
                 8: 10.0}
 
-  lambda_vis = {3: 12.0,
+  lambda_viss = {3: 12.0,
                 4: 30.0,
                 5: 91.6742,
                 6: 190.117,
@@ -158,8 +157,9 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
   npt = dims["npt"]
   scale_inv = 1.0/radius_earth if sphere else 1.0
 
-  assert npt in lambda_max.keys() and npt in lambda_vis.keys(), "Stability characteristics not calculated for {npt}"
-
+  assert npt in lambda_maxs.keys() and npt in lambda_viss.keys(), "Stability characteristics not calculated for {npt}"
+  lambda_max = lambda_maxs[npt]
+  lambda_vis = lambda_viss[npt]
   minimum_gauss_weight = jnp.min(h_grid["gll_weights"])
 
   hypervis_scaling = h_grid["hypervis_scaling"]
@@ -175,12 +175,14 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
 
   norm_jac_inv_hvis_const = (lambda_vis**2) * (1.0 / radius_earth * max_norm_jac_inv)**4
   norm_jac_inv_hvis = norm_jac_inv_hvis_tensor if "tensor_hypervis" in diffusion_config.keys() else norm_jac_inv_hvis_const
+
+  nu_div_fact = 1.0 if "tensor_hypervis" in diffusion_config.keys() else diffusion_config["nu_div_factor"]
   rkssp_euler_stability = minimum_gauss_weight / (120.0 * max_norm_jac_inv * scale_inv)
   rk2_tracer = 1.0 / (120.0 * max_norm_jac_inv * lambda_max * scale_inv)
   gravit_wave_stability = 1.0 / (342.0 * max_norm_jac_inv * lambda_max * scale_inv)
   hypervis_stability_dpi = 1.0 / (diffusion_config["nu_dpi"] * norm_jac_inv_hvis)
   hypervis_stability_vort = 1.0 / (diffusion_config["nu"] * norm_jac_inv_hvis)
-  hypervis_stability_div = 1.0 / (diffusion_config["nu_div"] * norm_jac_inv_hvis)
+  hypervis_stability_div = 1.0 / (nu_div_fact * diffusion_config["nu"] * norm_jac_inv_hvis)
   return ({"dt_rkssp_euler": rkssp_euler_stability,
            "dt_rk2_tracer": rk2_tracer,
            "dt_gravity_wave": gravit_wave_stability,
@@ -210,7 +212,7 @@ def postprocess_grid(grid, dims):
     right_col = jnp.stack((upper_right_out, lower_right_out), axis=-1)
     return jnp.stack((left_col, right_col), axis=-1)
   tensor_cont = project_matrix(grid["viscosity_tensor"])
-  tensor_bilinear = jnp.zeros_like(tensor_cont)
+  tensor_bilinear = device_unwrapper(jnp.zeros_like(tensor_cont))
   for i_idx in range(npt):
     for j_idx in range(npt):
         beta = spectral["gll_points"][i_idx]
@@ -224,6 +226,5 @@ def postprocess_grid(grid, dims):
                                                           v2,
                                                           v3, alpha, beta)
 
-  grid["viscosity_tensor"] = tensor_bilinear
-  print(tensor_bilinear.shape)
+  grid["viscosity_tensor"] = device_wrapper(tensor_bilinear)
   return grid

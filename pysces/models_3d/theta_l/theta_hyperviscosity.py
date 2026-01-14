@@ -1,7 +1,7 @@
 from ...config import jnp, jit, np, device_wrapper
 from ..utils_3d import get_delta, interface_to_model
 from .model_state import wrap_model_struct, project_model_state
-from .eqn_of_state import get_balanced_phi
+from .thermodynamics import get_balanced_phi
 from ..mass_coordinate import mass_from_coordinate_interface
 from functools import partial
 from ..hyperviscosity import scalar_harmonic_3d, vector_harmonic_3d

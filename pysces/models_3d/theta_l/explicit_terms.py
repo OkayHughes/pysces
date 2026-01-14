@@ -1,7 +1,7 @@
 from ...config import jnp, jit, np, device_wrapper
 from ..utils_3d import vel_model_to_interface, model_to_interface, interface_to_model, interface_to_model_vec
 from ..utils_3d import z_from_phi, g_from_z, g_from_phi, sphere_dot
-from .eqn_of_state import get_mu, get_balanced_phi, get_p_mid
+from .thermodynamics import get_mu, get_balanced_phi, get_p_mid
 from ..operators_3d import sphere_gradient_3d, sphere_vorticity_3d, sphere_divergence_3d
 from .model_state import wrap_model_struct
 from .model_state import project_scalar_3d

@@ -1,6 +1,7 @@
 from ..config import np, jnp
 
-def constant_coeff_hyperviscosity(ne, radius_earth=1.0):
+
+def quasi_uniform_hypervisc_coeff(ne, radius_earth=1.0):
   ne_30_full_radius_coeff = 1e15
   small_planet_correction_factor = radius_earth / 6371e3
   # note: this power accounts for scrunched elements at corner points
@@ -9,13 +10,16 @@ def constant_coeff_hyperviscosity(ne, radius_earth=1.0):
   return nu_base
 
 
-def tensor_hyperviscosity(biggest_gridpoint_dx, hypervis_scaling, npt, radius_earth=1.0):
-    ne_30_full_radius_coeff = 1e15
+def variable_resolution_hypervisc_coeff(smallest_gridpoint_dx, hypervis_scaling, npt, radius_earth=1.0):
+    smallest_gridpoint_dx *= radius_earth
+    ne30_elem_length = 110000.0
     small_planet_correction_factor = radius_earth / 6371e3
     uniform_res_hypervis_scaling = 1.0 / np.log10(2.0)
-    nu_min = ne_30_full_radius_coeff * small_planet_correction_factor* (biggest_gridpoint_dx)**uniform_res_hypervis_scaling
-    nu_tensor = nu_min*(2.0*radius_earth/((npt-1.0)*biggest_gridpoint_dx))**hypervis_scaling/(radius_earth**4)
+    ne_30_full_radius_coeff = 1e15 * small_planet_correction_factor * (smallest_gridpoint_dx / ne30_elem_length)**uniform_res_hypervis_scaling
+    nu_min = ne_30_full_radius_coeff * (2.0*radius_earth/((npt-1.0)*smallest_gridpoint_dx))**(hypervis_scaling)
+    nu_tensor = nu_min /(radius_earth**4)
     return nu_tensor
+
 
 def init_hypervis_tensor(met_inv, jacobian, hypervis_scaling=3.2):
   """
@@ -32,7 +36,8 @@ def init_hypervis_tensor(met_inv, jacobian, hypervis_scaling=3.2):
       The jacobian matrix that takes covariant/contravariant vectors on the 
       reference element to spherical coordinates.
   hypervis_scaling: `Float`, default=3.2
-      Power to use in resolution-dependent hyperviscosity 
+      Power to use in resolution-dependent hyperviscosity
+
   Notes
   -----
   * We assume here that tensor hyperviscosity is applied as 
@@ -44,9 +49,7 @@ def init_hypervis_tensor(met_inv, jacobian, hypervis_scaling=3.2):
   is to heavily damp unresolvable grid-scale flow features
   without artificially damping resolved flow.
   On a quasi-uniform grid, hyperviscosity can be applied as ν_const ∆^2 f (note that 
-  this laplacian is applied on the unit sphere). Empirical experiments show that
-  ν_const = 1e15(ne30/neXX)^(3.2) is a good
-  choice of a spatio-temporally homogeneous hyperdiffusion constant.
+  this laplacian is applied on the unit sphere).
   Using non-uniform grids introduces two complications. Firstly,
   some grid cells should have much smaller area than others,
   because this is the point of using variable-resolution modeling. 

@@ -2,7 +2,7 @@ from pysces.config import np, use_wrapper, device_wrapper, device_unwrapper
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
-from pysces.models_3d.theta_l.model_state import project_scalar_3d, project_scalar_3d_for
+from pysces.models_3d.theta_l.model_state import project_scalar_3d, _project_scalar_3d_for
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 
 
@@ -52,4 +52,4 @@ def test_project_equiv_3d_rand():
   for _ in range(20):
     fn_rand = np.random.uniform(size=(*grid["physical_coords"][:, :, :, 1].shape, nlev))
     assert (np.allclose(device_unwrapper(project_scalar_3d(device_wrapper(fn_rand), grid_wrapped, dims_wrapped)),
-                        project_scalar_3d_for(fn_rand, grid, dims)))
+                        _project_scalar_3d_for(fn_rand, grid, dims)))

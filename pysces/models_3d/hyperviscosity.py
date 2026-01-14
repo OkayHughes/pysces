@@ -111,13 +111,16 @@ def init_hypervis_config_const(ne, config,
   nu_phi = nu_base if nu_phi < 0 else nu_phi
   nu_dpi = nu_base if nu_dpi < 0 else nu_dpi
   nu_ramp = get_nu_ramp(v_grid, n_sponge)
+  
   diffusion_config = {"constant_hypervis": 1.0,
                       "nu": device_wrapper(nu),
                       "nu_phi": device_wrapper(nu_phi),
                       "nu_dpi": device_wrapper(nu_dpi),
-                      "nu_div_factor": device_wrapper(nu_div_factor),
-                      "nu_top": device_wrapper(nu_top),
-                      "nu_ramp": device_wrapper(nu_ramp)}
+                      "nu_div_factor": device_wrapper(nu_div_factor)}
+  if n_sponge > 0:
+    diffusion_config["sponge_layer"] = 1.0
+    diffusion_config["nu_top"] = device_wrapper(nu_top)
+    diffusion_config["nu_ramp"] = device_wrapper(nu_ramp)
   return diffusion_config
 
 def init_hypervis_config_tensor(h_grid, v_grid, dims, config,
@@ -135,8 +138,9 @@ def init_hypervis_config_tensor(h_grid, v_grid, dims, config,
   diffusion_config = {"tensor_hypervis": 1.0,
                       "nu": nu,
                       "nu_phi": nu,
-                      "nu_dpi": nu,
-                      "nu_div_factor": device_wrapper(1.0),
-                      "nu_top": device_wrapper(nu_top),
-                      "nu_ramp": device_wrapper(nu_ramp)}
+                      "nu_dpi": nu}
+  if n_sponge > 0:
+    diffusion_config["sponge_layer"] = 1.0
+    diffusion_config["nu_top"] = device_wrapper(nu_top)
+    diffusion_config["nu_ramp"] = device_wrapper(nu_ramp)
   return diffusion_config

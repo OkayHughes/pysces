@@ -6,7 +6,7 @@ from pysces.config import jnp
 from ..mass_coordinate_grids import vertical_grid_finite_diff
 from pysces.models_3d.utils_3d import interface_to_model
 from pysces.models_3d.mass_coordinate import create_vertical_grid
-from pysces.models_3d.theta_l.eqn_of_state import get_mu, get_p_mid, get_balanced_phi
+from pysces.models_3d.theta_l.thermodynamics import get_mu, get_p_mid, get_balanced_phi
 from ..test_init import get_umjs_state
 
 

@@ -1,10 +1,10 @@
 from ...config import jnp, jit, np, flip, vmap_1d_apply
 from ...operations_2d.local_assembly import project_scalar, project_scalar_for
-from ...distributed_memory.multiprocessing import project_scalar_triple_mpi
-from ...operations_2d.operators import sphere_gradient
+from ...distributed_memory.global_assembly import project_scalar_global
+from ...operations_2d.operators import manifold_gradient
 from ..vertical_remap import zerroukat_remap
 from ..mass_coordinate import dmass_from_coordinate, mass_from_coordinate_midlev
-from .eqn_of_state import get_balanced_phi, get_p_mid
+from .thermodynamics import get_balanced_phi, get_p_mid
 from ..utils_3d import get_delta, get_surface_sum, g_from_phi
 from functools import partial
 
@@ -97,9 +97,9 @@ def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, co
   KeyError
       when a key error
   """
-  grad_phi_surf_discont = sphere_gradient(phi_surf, h_grid, a=config["radius_earth"])
-  grad_phi_surf = jnp.stack((project_scalar(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
-                             project_scalar(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)), axis=-1)
+  grad_phi_surf_discont = manifold_gradient(phi_surf, h_grid, a=config["radius_earth"])
+  grad_phi_surf = jnp.stack((project_scalar_global(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
+                             project_scalar_global(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)), axis=-1)
   state = {"u": u,
            "vtheta_dpi": vtheta_dpi,
            "dpi": dpi,
@@ -111,48 +111,50 @@ def init_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i, w_i, h_grid, dims, co
   return state
 
 
-def init_tracer_struct(Q):
-  return {"Q": Q}
+def init_tracer_struct(thermodynamic_tracers, other_tracers):
+  return {"thermodynamic_tracers": thermodynamic_tracers,
+          "tracers": other_tracers}
 
 # TODO 12/23/25: add wrapper functions that apply
 # summation, and project_scalar so model interface remains identical.
 # also: refactor into separate file, since these are non-jittable
 
 
-@partial(jit, static_argnames=["dims", "scaled"])
-def project_scalar_3d(variable, h_grid, dims, scaled=True):
-  """
-  [Description]
-
-  Parameters
-  ----------
-  [first] : array_like
-      the 1st param name `first`
-  second :
-      the 2nd param
-  third : {'value', 'other'}, optional
-      the 3rd param, by default 'value'
-
-  Returns
-  -------
-  string
-      a value in a string
-
-  Raises
-  ------
-  KeyError
-      when a key error
-  """
-  def project_onlyarg(vec):
-    return project_scalar(vec, h_grid, dims, scaled=scaled)
-  return vmap_1d_apply(project_onlyarg, variable, -1, -1)
-
 # @partial(jit, static_argnames=["dims", "scaled"])
 # def project_scalar_3d(variable, h_grid, dims, scaled=True):
-#   return project_scalar_triple_mpi([variable], h_grid, dims, scaled=scaled, two_d=False)[0]
+#   """
+#   [Description]
+
+#   Parameters
+#   ----------
+#   [first] : array_like
+#       the 1st param name `first`
+#   second :
+#       the 2nd param
+#   third : {'value', 'other'}, optional
+#       the 3rd param, by default 'value'
+
+#   Returns
+#   -------
+#   string
+#       a value in a string
+
+#   Raises
+#   ------
+#   KeyError
+#       when a key error
+#   """
+#   def project_onlyarg(vec):
+#     return project_scalar(vec, h_grid, dims, scaled=scaled)
+#   return vmap_1d_apply(project_onlyarg, variable, -1, -1)
 
 
-def project_scalar_3d_for(variable, h_grid, dims, scaled=True):
+@partial(jit, static_argnames=["dims", "scaled"])
+def project_scalar_3d(variable, h_grid, dims, scaled=True):
+  return project_scalar_global([variable], h_grid, dims, scaled=scaled, two_d=False)[0]
+
+
+def _project_scalar_3d_for(variable, h_grid, dims, scaled=True):
   levs = []
   for lev_idx in range(variable.shape[-1]):
     levs.append(project_scalar_for(variable[:, :, :, lev_idx], h_grid))

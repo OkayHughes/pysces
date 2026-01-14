@@ -2,6 +2,7 @@ from ...config import jnp, is_main_proc
 from .theta_hyperviscosity import get_ref_states
 from .time_stepping import advance_euler, advance_euler_hypervis, ullrich_5stage, advance_euler_sponge
 from .model_state import remap_state
+from ...distributed_memory.global_operations import global_sum
 from sys import stdout
 
 
@@ -35,7 +36,8 @@ def check_nan(state):
 
 
 def simulate_theta(end_time, ne_min, state_in,
-                   h_grid, v_grid, config,
+                   h_grid, v_grid, physics_config,
+                   diffusion_config, timestep_config,
                    dims, hydrostatic=True, deep=False,
                    diffusion=False, step_type="euler", rsplit=3, hvsplit=3, sponge_split=0, n_sponge=5):
   """
@@ -62,7 +64,7 @@ def simulate_theta(end_time, ne_min, state_in,
   """
   dt = 250.0 * (30.0 / ne_min)  # todo: automatically calculate CFL from sw dispersion relation
   state_n = state_in
-  ref_states = get_ref_states(state_in["phi_surf"], v_grid, config)
+  ref_states = get_ref_states(state_in["phi_surf"], v_grid, physics_config)
   t = 0.0
   times = jnp.arange(0.0, end_time, dt)
   k = 0
@@ -71,10 +73,10 @@ def simulate_theta(end_time, ne_min, state_in,
       print(f"{k/len(times-1)*100}%")
       stdout.flush()
     if step_type == "euler":
-      state_tmp = advance_euler(state_n, dt, h_grid, v_grid, config, dims, hydrostatic=hydrostatic, deep=False)
+      state_tmp = advance_euler(state_n, dt, h_grid, v_grid, physics_config, dims, hydrostatic=hydrostatic, deep=False)
       state_np1 = state_tmp
     elif step_type == "ull5":
-      state_tmp = ullrich_5stage(state_n, dt, h_grid, v_grid, config, dims, hydrostatic=hydrostatic, deep=False)
+      state_tmp = ullrich_5stage(state_n, dt, h_grid, v_grid, physics_config, dims, hydrostatic=hydrostatic, deep=False)
       state_np1 = state_tmp
     else:
       return state_n
@@ -86,7 +88,8 @@ def simulate_theta(end_time, ne_min, state_in,
         state_np1 = advance_euler_sponge(state_np1, dt, h_grid, v_grid, config, dims,
                                          n_subcycle_sponge=sponge_split, n_sponge=n_sponge,
                                          hydrostatic=hydrostatic)
-    assert not check_nan(state_np1)
+    is_nan = int(check_nan(state_np1))
+    assert not global_sum(is_nan) > 0
     if k % rsplit == 0:
       state_np1 = remap_state(state_np1, v_grid, config, len(v_grid["hybrid_b_m"]), hydrostatic=hydrostatic, deep=deep)
     state_n, state_np1 = state_np1, state_n

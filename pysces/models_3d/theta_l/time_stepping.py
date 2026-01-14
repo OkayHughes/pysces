@@ -178,7 +178,7 @@ def advance_euler_sponge(state_in, dt, h_grid, v_grid, config, dims, n_subcycle_
   state_out = state_in
   for _ in range(n_subcycle_sponge):
     state_out = sponge_layer(state_out,
-                             .001 * dt / float(n_subcycle_sponge),
+                             dt / float(n_subcycle_sponge),
                              h_grid,
                              v_grid,
                              config,
@@ -271,7 +271,7 @@ def get_timestep_config(dt_coupling,
                         hypervis_steps_per_dyn=-1,
                         sponge_steps_per_dyn=-1,
                         sphere=True):
-  cfl_info = get_cfl_theta(h_grid, v_grid, physics_config, diffusion_config, sphere=sphere)
+  cfl_info = get_cfl_theta(h_grid, physics_config, diffusion_config, sphere=sphere)
   tracer_S = stability_info[tracer_tstep_type]
   hypervisc_S = stability_info[hypervis_tstep_type]
   dynamics_S = stability_info[dynamics_tstep_type]

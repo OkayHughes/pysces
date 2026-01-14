@@ -14,7 +14,7 @@ def get_galewsky_config(model_config):
   config["phi1"] = np.pi / 2 - config["phi0"]
   config["e_norm"] = np.exp(-4 / (config["phi1"] - config["phi0"])**2)
   config["radius_earth"] = model_config["radius_earth"]
-  config["earth_period"] = model_config["earth_period"]
+  config["angular_freq_earth"] = model_config["angular_freq_earth"]
   config["h0"] = 1e4
   config["hat_h"] = 120.0
   config["pert_alpha"] = 1.0 / 3.0
@@ -45,7 +45,7 @@ def galewsky_h(lat, lon, config):
   phi_quad = quad_amount.reshape([*lat.shape, 1]) * config["pts"].reshape((*[1 for _ in lat.shape],
                                                                            config["deg"])) - np.pi / 2
   u_quad = galewsky_u(phi_quad, config)
-  f = 2.0 * config["earth_period"] * jnp.sin(phi_quad)
+  f = 2.0 * config["angular_freq_earth"] * jnp.sin(phi_quad)
   integrand = config["radius_earth"] * u_quad * (f + jnp.tan(phi_quad) / config["radius_earth"] * u_quad)
   h = config["h0"] - 1.0 / config["gravity"] * jnp.sum(integrand * weights_quad, axis=-1)
   h_prime = (config["hat_h"] * jnp.cos(lat) * jnp.exp(-(lon / config["pert_alpha"])**2) *

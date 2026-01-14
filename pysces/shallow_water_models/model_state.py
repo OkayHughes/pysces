@@ -1,5 +1,5 @@
 from ..config import jit, jnp
-from ..distributed_memory.multiprocessing import project_scalar_triple_mpi
+from ..distributed_memory.global_assembly import project_scalar_global
 from functools import partial
 
 
@@ -32,7 +32,7 @@ def create_state_struct(u, h, hs):
 
 
 @partial(jit, static_argnames=["dims"])
-def project_state(state, grid, dims):
+def project_state(state, grid, dims, scaled=True):
   """
   [Description]
 
@@ -55,8 +55,8 @@ def project_state(state, grid, dims):
   KeyError
       when a key error
   """
-  u, v, h = project_scalar_triple_mpi([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]],
-                                      grid, dims, two_d=True)
+  u, v, h = project_scalar_global([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]],
+                                  grid, dims, two_d=True, scaled=scaled)
   return create_state_struct(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 

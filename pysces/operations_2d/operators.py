@@ -124,7 +124,7 @@ def manifold_laplacian(f, grid, a=1.0):
   return manifold_divergence(grad, grid, a=a)
 
 
-@jit
+@partial(jit, static_argnames=["apply_tensor"])
 def manifold_laplacian_weak(f, grid, a=1.0, apply_tensor=False):
   """
   Calculate the element-local weak spherical laplacian of f.

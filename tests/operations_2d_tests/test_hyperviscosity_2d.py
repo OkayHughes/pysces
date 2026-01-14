@@ -19,6 +19,7 @@ def test_hypervisc_tensor():
         visc_tensor_operational, _ = init_hypervis_tensor(grid["metric_inverse"], grid["contra_to_physical"])
         assert np.allclose(visc_tensor_for, visc_tensor_operational)
 
+
 def test_hypervisc_tensor_algebraic():
   nx = 31
   npt = 4

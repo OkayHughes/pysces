@@ -1,5 +1,5 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.distributed_memory._test_infra import (project_scalar_for_stub,
+from tests.distributed_memory_tests.reference_global_assembly import (project_scalar_for_stub,
                                                    assemble_scalar_for_pack, assemble_scalar_for_unpack,
                                                    extract_fields_for,
                                                    accumulate_fields_for,
