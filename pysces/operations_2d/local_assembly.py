@@ -3,9 +3,11 @@ from ..distributed_memory.processor_decomposition import global_to_local, elem_i
 from scipy.sparse import coo_array
 from functools import partial
 
+
 def project_scalar_for(f, grid, *args):
   """
-  Project a potentially discontinuous scalar onto the continuous subspace using a for loop, assuming all data is processor-local.
+  Project a potentially discontinuous scalar onto the continuous
+  subspace using a for loop, assuming all data is processor-local.
 
   *This is used for testing. Do not use in performance code*
 
@@ -24,7 +26,7 @@ def project_scalar_for(f, grid, *args):
   Returns
   -------
   f_cont
-      The globally continous scalar closest in norm to f. 
+      The globally continous scalar closest in norm to f.
   """
   # assumes that values from remote processors have already been accumulated
   metdet = grid["metric_determinant"]
@@ -46,7 +48,8 @@ def project_scalar_for(f, grid, *args):
 def project_scalar_sparse(f, grid, matrix, *args, scaled=True):
 
   """
-  Project a potentially discontinuous scalar onto the continuous subspace using a sparse matrix, assuming all data is processor-local.
+  Project a potentially discontinuous scalar onto the continuous
+  subspace using a sparse matrix, assuming all data is processor-local.
 
   *This is used for testing. Do not use in performance code*
 
@@ -65,14 +68,14 @@ def project_scalar_sparse(f, grid, matrix, *args, scaled=True):
   the resulting values are already scaled by the mass matrix.
   * In an ideal world, even performance device code would use a
   version of code that treats assembly, or Direct Stiffness Summation,
-  as the application of a linear projection operator. 
+  as the application of a linear projection operator.
   However, support for sparse matrices in automatic differentiation libraries
-  is bizarrely spotty.
-    
+  is bizarrely *ahem* sparse.
+
   Returns
   -------
   f_cont
-      The globally continous scalar closest in norm to f. 
+      The globally continous scalar closest in norm to f.
   """
   if scaled:
     vals_scaled = f * grid["mass_matrix"]
@@ -132,7 +135,7 @@ def project_scalar_wrapper(f, grid, dims, scaled=True):
   Returns
   -------
   f_cont
-      The globally continous scalar closest in norm to f. 
+      The globally continous scalar closest in norm to f.
   """
   (data, rows, cols) = grid["assembly_triple"]
 

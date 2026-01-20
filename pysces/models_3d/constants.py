@@ -1,17 +1,25 @@
-from ..config import device_wrapper, jnp
+from ..config import device_wrapper
+from .model_info import models
+
+moisture_species_info = {"water_vapor": {"cp": 0.0,
+                                         "Rgas": 0.0}}
+
+dry_air_species_info = {"N2": {"Rgas": 0.0,
+                               "cp": 0.0},
+                        "O2": {"Rgas": 0.0,
+                               "cp": 0.0},
+                        "CO2": {"Rgas": 0.0,
+                                "Cp": 0.0}}
 
 
-def init_config(Rgas=287.0,
-                radius_earth=-1,
-                period_earth=7.292e-5,
-                gravity=9.81,
-                p0=1e5,
-                cp=1005.0,
-                Rvap=461.50,
-                ne=30,
-
-                T_ref=288.0,
-                T_ref_lapse=0.0065):
+def init_physics_config(model,
+                        Rgas=287.0,
+                        radius_earth=6371e3,
+                        period_earth=7.292e-5,
+                        gravity=9.81,
+                        p0=1e5,
+                        cp=1005.0,
+                        Rvap=461.50):
   """
   [Description]
 
@@ -34,15 +42,16 @@ def init_config(Rgas=287.0,
   KeyError
       when a key error
   """
-  radius_earth_base = 6371e3
-  if radius_earth < 0:
-    radius_earth = radius_earth_base
-  return {"Rgas": device_wrapper(Rgas),
-          "Rvap": device_wrapper(Rvap),
-          "cp": device_wrapper(cp),
-          "gravity": device_wrapper(gravity),
-          "radius_earth": device_wrapper(radius_earth),
-          "period_earth": device_wrapper(period_earth),
-          "p0": device_wrapper(p0),
-          "reference_profiles": {"T_ref": device_wrapper(T_ref),
-                                 "T_ref_lapse": device_wrapper(T_ref_lapse)}}
+
+  physics_config = {"gravity": device_wrapper(gravity),
+                    "radius_earth": device_wrapper(radius_earth),
+                    "period_earth": device_wrapper(period_earth),
+                    "p0": device_wrapper(p0)}
+  if model == models.cam_se_upper_atmosphere:
+    # todo: find good defaults from CAM infrastructure
+    pass
+  else:
+    physics_config["Rgas"] = device_wrapper(Rgas)
+    physics_config["cp"] = device_wrapper(cp)
+    physics_config["Rvap"] = device_wrapper(Rvap)
+  return physics_config

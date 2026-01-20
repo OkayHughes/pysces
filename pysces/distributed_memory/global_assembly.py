@@ -1,7 +1,7 @@
 from ..config import (np, jnp,
                       use_wrapper, wrapper_type, jit,
                       take_along_axis, mpi_rank)
-from .global_operations import exchange_buffers, exchange_buffers, _exchange_buffers_stub
+from .global_communication import exchange_buffers, _exchange_buffers_stub
 from functools import partial
 
 
@@ -129,7 +129,7 @@ def accumulate_fields(fijk_fields, buffers, triples_receive, dims):
                                         buffers[remote_proc_idx][field_idx],
                                         rows, dims)
   return fijk_fields
- 
+
 
 @jit
 def assemble_scalar_pack(fs_local, grid):
@@ -253,10 +253,10 @@ def _project_scalar_stub(fs_global, grids, dims):
   for fs_local, grid, dim in zip(fs_global, grids, dims):
     data_scaled.append([f * grid["mass_matrix"] for f in fs_local])
     buffers.append(assemble_scalar_pack([(f * grid["mass_matrix"])[:, :, :, np.newaxis]
-                                                for f in fs_local], grid))
+                                         for f in fs_local], grid))
     local_buffers.append(extract_fields([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1))
-                                                for f in fs_local],
-                                               {mpi_rank: grid["assembly_triple"]})[mpi_rank])
+                                         for f in fs_local],
+                                        {mpi_rank: grid["assembly_triple"]})[mpi_rank])
 
   fs_out = []
   for (fs_local, grid, dim, buffer_list) in zip(data_scaled, grids, dims, local_buffers):
@@ -269,9 +269,9 @@ def _project_scalar_stub(fs_global, grids, dims):
   for proc_idx in range(len(fs_out)):
     fs_out[proc_idx] = [f.squeeze() * grids[proc_idx]["mass_matrix_denominator"]
                         for f in assemble_scalar_unpack(fs_out[proc_idx],
-                                                               buffers[proc_idx],
-                                                               grids[proc_idx],
-                                                               dims[proc_idx])]
+                                                        buffers[proc_idx],
+                                                        grids[proc_idx],
+                                                        dims[proc_idx])]
 
   return fs_out
 
@@ -330,9 +330,9 @@ def project_scalar_global(fs_in, grid, dim, scaled=True, two_d=True):
   for f, local_buf in zip(fs, local_buffer):
       fs_out.append(sum_into(f * scale, local_buf, grid["assembly_triple"][1], dim))
   fs = [f * grid["mass_matrix_denominator"][:, :, :, np.newaxis] for f in assemble_scalar_unpack(fs_out,
-                                                                                         buffer,
-                                                                                         grid,
-                                                                                         dim)]
+                                                                                                 buffer,
+                                                                                                 grid,
+                                                                                                 dim)]
   if two_d:
     fs = [f.squeeze() for f in fs]
   return fs

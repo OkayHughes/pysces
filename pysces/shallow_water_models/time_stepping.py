@@ -129,11 +129,12 @@ def get_timestep_config(dt_coupling,
   dt_hypervis_scalar = cfl_info["dt_hypervis_scalar"]
   dt_hypervis_vort = cfl_info["dt_hypervis_vort"]
   dt_hypervis_div = cfl_info["dt_hypervis_div"]
-  
+
   # determine n_split
   max_dt_dynamics = dynamics_S * dt_rkssp_stability
   dynamics_subcycle = max(int(dt_coupling / max_dt_dynamics) + 1, dyn_steps_per_coupling)
   dt_dynamics = dt_coupling / dynamics_subcycle
+
   # determine hv_split
   max_dt_hypervis_scalar = hypervisc_S * dt_hypervis_scalar
   max_dt_hypervis_vort = hypervisc_S * dt_hypervis_vort
@@ -144,6 +145,7 @@ def get_timestep_config(dt_coupling,
                          max_dt_hypervis_div])
   hypervisc_subcycle = max(int(dt_dynamics / max_dt_hypervis) + 1, hypervis_steps_per_dyn)
   dt_hypervis = dt_dynamics / hypervisc_subcycle
+
   if DEBUG:
     print("CFL estimates:")
     # print(f"SSP preservation (120m/s) RKSSP euler step dt  < S * {rkssp_euler_stability}s")

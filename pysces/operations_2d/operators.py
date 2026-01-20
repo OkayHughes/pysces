@@ -3,7 +3,7 @@ from functools import partial
 
 
 @jit
-def manifold_gradient(f, grid, a=1.0):
+def horizontal_gradient(f, grid, a=1.0):
   """
   Calculate the element-local gradient of f in spherical coordinates.
 
@@ -33,7 +33,7 @@ def manifold_gradient(f, grid, a=1.0):
 
 
 @jit
-def manifold_divergence(u, grid, a=1.0):
+def horizontal_divergence(u, grid, a=1.0):
   """
   Calculate the element-local spherical divergence of a physical vector.
 
@@ -65,7 +65,7 @@ def manifold_divergence(u, grid, a=1.0):
 
 
 @jit
-def manifold_vorticity(u, grid, a=1.0):
+def horizontal_vorticity(u, grid, a=1.0):
   """
   Calculate the element-local spherical vorticity of a physical vector.
 
@@ -97,7 +97,7 @@ def manifold_vorticity(u, grid, a=1.0):
 
 
 @jit
-def manifold_laplacian(f, grid, a=1.0):
+def horizontal_laplacian(f, grid, a=1.0):
   """
   Calculate the element-local spherical laplacian of f.
 
@@ -120,12 +120,12 @@ def manifold_laplacian(f, grid, a=1.0):
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
   """
-  grad = manifold_gradient(f, grid, a=a)
-  return manifold_divergence(grad, grid, a=a)
+  grad = horizontal_gradient(f, grid, a=a)
+  return horizontal_divergence(grad, grid, a=a)
 
 
 @partial(jit, static_argnames=["apply_tensor"])
-def manifold_laplacian_weak(f, grid, a=1.0, apply_tensor=False):
+def horizontal_weak_laplacian(f, grid, a=1.0, apply_tensor=False):
   """
   Calculate the element-local weak spherical laplacian of f.
 
@@ -155,14 +155,14 @@ def manifold_laplacian_weak(f, grid, a=1.0, apply_tensor=False):
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
   """
-  grad = manifold_gradient(f, grid, a=a)
+  grad = horizontal_gradient(f, grid, a=a)
   if apply_tensor:
     grad = jnp.einsum("fijs,fijts->fijt", grad, grid["viscosity_tensor"]) * a**4
-  return manifold_divergence_weak(grad, grid, a=a)
+  return horizontal_weak_divergence(grad, grid, a=a)
 
 
 @jit
-def manifold_gradient_weak_covariant(s, grid, a=1.0):
+def horizontal_weak_gradient_covariant(s, grid, a=1.0):
   """
   Calculate the element-local weak gradient of s in spherical coordinates
   using covariant test functions.
@@ -217,7 +217,7 @@ def manifold_gradient_weak_covariant(s, grid, a=1.0):
 
 
 @jit
-def manifold_curl_weak_covariant(s, grid, a=1.0):
+def horizontal_weak_curl_covariant(s, grid, a=1.0):
   """
   Calculates weak horizontal spherical curl of the vector s𝐤 using covariant test functions.
 
@@ -249,7 +249,7 @@ def manifold_curl_weak_covariant(s, grid, a=1.0):
 
 
 @partial(jit, static_argnames=["damp"])
-def manifold_vector_laplacian_weak(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
+def horizontal_weak_vector_laplacian(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
   """
   Calculate the element-local weak spherical vector laplacian of a physical vector field u.
 
@@ -279,9 +279,9 @@ def manifold_vector_laplacian_weak(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
   """
-  div = manifold_divergence(u, grid, a=a) * nu_div_fact
-  vor = manifold_vorticity(u, grid, a=a)
-  laplacian = manifold_gradient_weak_covariant(div, grid, a=a) - manifold_curl_weak_covariant(vor, grid, a=a)
+  div = horizontal_divergence(u, grid, a=a) * nu_div_fact
+  vor = horizontal_vorticity(u, grid, a=a)
+  laplacian = horizontal_weak_gradient_covariant(div, grid, a=a) - horizontal_weak_curl_covariant(vor, grid, a=a)
   gll_weights = grid["gll_weights"]
   if damp:
     out = laplacian + jnp.stack((2 * (gll_weights[np.newaxis, :, np.newaxis] *
@@ -296,7 +296,7 @@ def manifold_vector_laplacian_weak(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
 
 
 @jit
-def manifold_divergence_weak(u, grid, a=1.0):
+def horizontal_weak_divergence(u, grid, a=1.0):
   """
   Calculates weak spherical horizontal divergence of the vector u, given in spherical coordinates.
 
@@ -429,11 +429,11 @@ def inner_product(f, g, grid):
 
   Notes
   -----
-  * By inner product, we mean the inner product of functions induced by global quadrature, namely 
+  * By inner product, we mean the inner product of functions induced by global quadrature, namely
  〈f, g〉 = ∫f, g dA for real functions.
   * To calculate the inner product with distributed memory parallelism (e.g., MPI),
   simply call multiprocessing.global_sum on the result of `inner_product`.
-  * To calculate the inner product of two vectors in physical coordinates, use 
+  * To calculate the inner product of two vectors in physical coordinates, use
   inner_prod(u0[..., 0], u1[..., 0], grid) + inner_prod(u0[..., 1], u1[..., 1]).
   * The induced norm is simply `jnp.sqrt(inner_prod(f, f, grid))` (unless using distributed memory).
   One typically uses `se_grid.create_spectral_element_grid` to create

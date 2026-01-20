@@ -104,6 +104,7 @@ def exchange_buffers_jax(buffer):
                                                         recvtag=k_idx)
   return buffer
 
+
 def exchange_buffers_jax_unwrap(buffer):
   """
   Exchange Spectral Element grid non-processor-local redundant DOFS
@@ -190,6 +191,7 @@ def global_sum(summand):
   MPI.Request.Wait(req)
   return recv.item()
 
+
 def global_max(arg):
   """
   Compute the global maximum of a processor-local quantity.
@@ -212,6 +214,7 @@ def global_max(arg):
                             MPI.MAX)
   MPI.Request.Wait(req)
   return recv.item()
+
 
 def global_min(arg):
   """

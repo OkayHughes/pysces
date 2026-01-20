@@ -1,10 +1,10 @@
 from ..config import partial, jit, vmap_1d_apply
-from ..operations_2d.operators import manifold_divergence, manifold_vorticity
-from ..operations_2d.operators import manifold_gradient, manifold_laplacian_weak, manifold_vector_laplacian_weak
+from ..operations_2d.operators import horizontal_divergence, horizontal_vorticity
+from ..operations_2d.operators import horizontal_gradient, horizontal_weak_laplacian, horizontal_weak_vector_laplacian
 
 
 @jit
-def sphere_divergence_3d(vector, h_grid, config):
+def horizontal_divergence_3d(vector, h_grid, physics_config):
   """
   [Description]
 
@@ -27,12 +27,12 @@ def sphere_divergence_3d(vector, h_grid, config):
   KeyError
       when a key error
   """
-  sph_op = partial(manifold_divergence, grid=h_grid, a=config["radius_earth"])
+  sph_op = partial(horizontal_divergence, grid=h_grid, a=physics_config["radius_earth"])
   return vmap_1d_apply(sph_op, vector, -2, -1)
 
 
 @jit
-def sphere_vorticity_3d(vector, h_grid, config):
+def horizontal_vorticity_3d(vector, h_grid, physics_config):
   """
   [Description]
 
@@ -55,12 +55,12 @@ def sphere_vorticity_3d(vector, h_grid, config):
   KeyError
       when a key error
   """
-  sph_op = partial(manifold_vorticity, grid=h_grid, a=config["radius_earth"])
+  sph_op = partial(horizontal_vorticity, grid=h_grid, a=physics_config["radius_earth"])
   return vmap_1d_apply(sph_op, vector, -2, -1)
 
 
 @jit
-def sphere_laplacian_wk_3d(scalar, h_grid, config):
+def horizontal_weak_laplacian_3d(scalar, h_grid, physics_config):
   """
   [Description]
 
@@ -83,12 +83,12 @@ def sphere_laplacian_wk_3d(scalar, h_grid, config):
   KeyError
       when a key error
   """
-  sph_op = partial(manifold_laplacian_weak, grid=h_grid, a=config["radius_earth"])
+  sph_op = partial(horizontal_weak_laplacian, grid=h_grid, a=physics_config["radius_earth"])
   return vmap_1d_apply(sph_op, scalar, -1, -1)
 
 
 @jit
-def sphere_vec_laplacian_wk_3d(vector, h_grid, config):
+def horizontal_weak_vector_laplacian_3d(vector, h_grid, physics_config):
   """
   [Description]
 
@@ -111,12 +111,12 @@ def sphere_vec_laplacian_wk_3d(vector, h_grid, config):
   KeyError
       when a key error
   """
-  sph_op = partial(manifold_vector_laplacian_weak, grid=h_grid, a=config["radius_earth"])
+  sph_op = partial(horizontal_weak_vector_laplacian, grid=h_grid, a=physics_config["radius_earth"])
   return vmap_1d_apply(sph_op, vector, -2, -2)
 
 
 @jit
-def sphere_gradient_3d(scalar, h_grid, config):
+def horizontal_gradient_3d(scalar, h_grid, physics_config):
   """
   [Description]
 
@@ -139,5 +139,5 @@ def sphere_gradient_3d(scalar, h_grid, config):
   KeyError
       when a key error
   """
-  sph_op = partial(manifold_gradient, grid=h_grid, a=config["radius_earth"])
+  sph_op = partial(horizontal_gradient, grid=h_grid, a=physics_config["radius_earth"])
   return vmap_1d_apply(sph_op, scalar, -1, -2)

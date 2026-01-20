@@ -1,10 +1,9 @@
 from ..config import np, device_wrapper, use_wrapper, device_unwrapper, jnp
-from scipy.sparse import coo_array
 from frozendict import frozendict
 from .local_assembly import triage_vert_redundancy_flat, init_assembly_global, init_assembly_local
 from ..mesh_generation.coordinate_utils import bilinear
 from ..distributed_memory.global_assembly import project_scalar_global
-from ..distributed_memory.global_operations import global_max, global_min
+from ..distributed_memory.global_communication import global_max, global_min
 from .tensor_hyperviscosity import init_hypervis_tensor
 from ..spectral import init_spectral
 
@@ -120,9 +119,9 @@ def create_spectral_element_grid(latlon,
 def get_grid_deformation_metrics(grid, npt):
   eigs, _ = jnp.linalg.eigh(grid["metric_inverse"])
   max_svd = jnp.sqrt(jnp.max(eigs, axis=-1))
-  min_svd =  jnp.sqrt(jnp.min(eigs, axis=-1))
-  dx_short = 1.0 / (max_svd*0.5*(npt-1))
-  dx_long  = 1.0 / (min_svd*0.5*(npt-1))
+  min_svd = jnp.sqrt(jnp.min(eigs, axis=-1))
+  dx_short = 1.0 / (max_svd * 0.5 * (npt - 1))
+  dx_long = 1.0 / (min_svd * 0.5 * (npt - 1))
   return max_svd, dx_short, dx_long
 
 
@@ -141,21 +140,21 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
 
   # Courtesy of Paul Ullrich, Jared Whitehead
   lambda_maxs = {3: 1.5,
-                4: 2.74,
-                5: 4.18,
-                6: 5.86,
-                7: 7.79,
-                8: 10.0}
+                 4: 2.74,
+                 5: 4.18,
+                 6: 5.86,
+                 7: 7.79,
+                 8: 10.0}
 
   lambda_viss = {3: 12.0,
-                4: 30.0,
-                5: 91.6742,
-                6: 190.117,
-                7: 374.7788,
-                8: 652.3015}
+                 4: 30.0,
+                 5: 91.6742,
+                 6: 190.117,
+                 7: 374.7788,
+                 8: 652.3015}
 
   npt = dims["npt"]
-  scale_inv = 1.0/radius_earth if sphere else 1.0
+  scale_inv = 1.0 / radius_earth if sphere else 1.0
 
   assert npt in lambda_maxs.keys() and npt in lambda_viss.keys(), "Stability characteristics not calculated for {npt}"
   lambda_max = lambda_maxs[npt]
@@ -171,10 +170,13 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
   # for tensorHV, we scale out the rearth dependency
   lam = max_norm_jac_inv**2
 
-  norm_jac_inv_hvis_tensor = (lambda_vis**2) * (max_norm_jac_inv**4) * (lam**(-hypervis_scaling/2.0))
+  norm_jac_inv_hvis_tensor = (lambda_vis**2) * (max_norm_jac_inv**4) * (lam**(-hypervis_scaling / 2.0))
 
   norm_jac_inv_hvis_const = (lambda_vis**2) * (1.0 / radius_earth * max_norm_jac_inv)**4
-  norm_jac_inv_hvis = norm_jac_inv_hvis_tensor if "tensor_hypervis" in diffusion_config.keys() else norm_jac_inv_hvis_const
+  if "tensor_hypervis" in diffusion_config.keys():
+    norm_jac_inv_hvis = norm_jac_inv_hvis_tensor
+  else:
+    norm_jac_inv_hvis = norm_jac_inv_hvis_const
 
   nu_div_fact = 1.0 if "tensor_hypervis" in diffusion_config.keys() else diffusion_config["nu_div_factor"]
   rkssp_euler_stability = minimum_gauss_weight / (120.0 * max_norm_jac_inv * scale_inv)
@@ -199,6 +201,7 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
 def postprocess_grid(grid, dims):
   npt = dims["npt"]
   spectral = init_spectral(npt)
+
   def project_matrix(matrix):
     upper_left = matrix[:, :, :, 0, 0]
     upper_right = matrix[:, :, :, 0, 1]
@@ -211,16 +214,17 @@ def postprocess_grid(grid, dims):
     left_col = jnp.stack((upper_left_out, lower_left_out), axis=-1)
     right_col = jnp.stack((upper_right_out, lower_right_out), axis=-1)
     return jnp.stack((left_col, right_col), axis=-1)
+
   tensor_cont = project_matrix(grid["viscosity_tensor"])
-  tensor_bilinear = device_unwrapper(jnp.zeros_like(tensor_cont))
+  tensor_bilinear = np.zeros_like(tensor_cont)
   for i_idx in range(npt):
     for j_idx in range(npt):
         beta = spectral["gll_points"][i_idx]
         alpha = spectral["gll_points"][j_idx]
         v0 = tensor_cont[:, 0, 0, :, :]
-        v1 = tensor_cont[:, 0, npt-1, :, :]
-        v2 = tensor_cont[:, npt-1, 0, :, :]
-        v3 = tensor_cont[:, npt-1, npt-1, :, :]
+        v1 = tensor_cont[:, 0, npt - 1, :, :]
+        v2 = tensor_cont[:, npt - 1, 0, :, :]
+        v3 = tensor_cont[:, npt - 1, npt - 1, :, :]
         tensor_bilinear[:, i_idx, j_idx, :, :] = bilinear(v0,
                                                           v1,
                                                           v2,

@@ -3,7 +3,7 @@ from functools import partial
 
 
 @partial(jit, static_argnames=["num_lev", "filter", "tiny", "qmax"])
-def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1e-12, qmax=1e24):
+def zerroukat_remap(tracer_mass, d_mass_model, d_mass_reference, num_lev, filter=False, tiny=1e-12, qmax=1e24):
   """
   [Description]
 
@@ -27,12 +27,12 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
       when a key error
   """
   # assumes
-  pi_int_reference = jnp.concatenate((jnp.zeros_like(dpi_reference[:, :, :, 0:1]),
-                                      jnp.cumsum(dpi_reference, axis=-1)), axis=-1)
-  pi_int_model = jnp.concatenate((jnp.zeros_like(dpi_model[:, :, :, 0:1]),
-                                  jnp.cumsum(dpi_model, axis=-1)), axis=-1)
-  values_model = jnp.concatenate((jnp.zeros_like(Qdp[:, :, :, 0:1, :]),
-                                 jnp.cumsum(Qdp, axis=-2)), axis=-2)
+  pi_int_reference = jnp.concatenate((jnp.zeros_like(d_mass_reference[:, :, :, 0:1]),
+                                      jnp.cumsum(d_mass_reference, axis=-1)), axis=-1)
+  pi_int_model = jnp.concatenate((jnp.zeros_like(d_mass_model[:, :, :, 0:1]),
+                                  jnp.cumsum(d_mass_model, axis=-1)), axis=-1)
+  values_model = jnp.concatenate((jnp.zeros_like(tracer_mass[:, :, :, 0:1, :]),
+                                 jnp.cumsum(tracer_mass, axis=-2)), axis=-2)
   # binary search
   # idxs is model to reference
   idxs = jnp.zeros_like(pi_int_reference[:, :, :, 1:-1], dtype=jnp.float32)
@@ -68,7 +68,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
 
   h = 1 / zhdp
 
-  zarg = Qdp * h[:, :, :, :, np.newaxis]
+  zarg = tracer_mass * h[:, :, :, :, np.newaxis]
   brc = device_wrapper(jnp.ones((1, 1, 1, 1, Qdp.shape[4])))
   diag_top = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc
   diag_mid = 2.0 * (h[:, :, :, 1:, np.newaxis] + h[:, :, :, :-1, np.newaxis]) * brc
@@ -248,7 +248,7 @@ def zerroukat_remap(Qdp, dpi_model, dpi_reference, num_lev, filter=False, tiny=1
     za2 = 3.0 * rhs[:, :, :, :-1, :] + 3.0 * rhs[:, :, :, 1:, :] - 6 * zarg
 
   zhdp_mapped = take_along_axis(zhdp, idxs[:, :, :, 1:], -1)[:, :, :, :, np.newaxis]
-  zv1 = jnp.zeros_like(Qdp[:, :, :, 0, :])
+  zv1 = jnp.zeros_like(tracer_mass[:, :, :, 0, :])
   zv_mapped = take_along_axis(values_model[:, :, :, :-1, :], idxs[:, :, :, 1:, np.newaxis], -2)
   za0_mapped = take_along_axis(za0[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)
   za1_mapped = take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)

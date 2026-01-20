@@ -415,7 +415,6 @@ def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
                                                          (spectrals["gll_weights"][local_i] *
                                                           spectrals["gll_weights"][local_j]))
 
-
   inv_mass_mat = 1.0 / mass_mat
   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
@@ -426,5 +425,3 @@ def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
                                       rmetdet, metdet, mass_mat,
                                       inv_mass_mat, vert_red_flat,
                                       proc_idx, decomp, wrapped=wrapped)
-
-  

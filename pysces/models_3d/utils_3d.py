@@ -1,9 +1,9 @@
 from ..config import jnp, jit, np, flip
 from functools import partial
-
+from .model_info import deep_atmosphere_models
 
 @jit
-def vel_model_to_interface(field_model, dpi, dpi_i):
+def vel_model_to_interface(field_model, d_mass, d_mass_int):
   """
   [Description]
 
@@ -26,8 +26,8 @@ def vel_model_to_interface(field_model, dpi, dpi_i):
   KeyError
       when a key error
   """
-  mid_levels = (dpi[:, :, :, :-1, np.newaxis] * field_model[:, :, :, :-1, :] +
-                dpi[:, :, :, 1:, np.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * dpi_i[:, :, :, 1:-1, np.newaxis])
+  mid_levels = (d_mass[:, :, :, :-1, np.newaxis] * field_model[:, :, :, :-1, :] +
+                d_mass[:, :, :, 1:, np.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * d_mass_int[:, :, :, 1:-1, np.newaxis])
   return jnp.concatenate((field_model[:, :, :, 0:1, :],
                           mid_levels,
                           field_model[:, :, :, -1:, :]), axis=-2)
@@ -175,8 +175,8 @@ def get_surface_sum(dfield_model, val_surf):
                           val_surf[:, :, :, np.newaxis]), axis=-1)
 
 
-@partial(jit, static_argnames=["deep"])
-def z_from_phi(phi, config, deep=False):
+@partial(jit, static_argnames=["model"])
+def z_from_phi(phi, config, model):
   """
   [Description]
 
@@ -201,7 +201,7 @@ def z_from_phi(phi, config, deep=False):
   """
   gravity = config["gravity"]
   radius_earth = config["radius_earth"]
-  if deep:
+  if model in deep_atmosphere_models:
     b = (2 * phi * radius_earth - gravity * radius_earth**2)
     z = -2 * phi * radius_earth**2 / (b - jnp.sqrt(b**2 - 4 * phi**2 * radius_earth**2))
   else:
@@ -209,8 +209,8 @@ def z_from_phi(phi, config, deep=False):
   return z
 
 
-@partial(jit, static_argnames=["deep"])
-def g_from_z(z, config, deep=False):
+@partial(jit, static_argnames=["model"])
+def g_from_z(z, config, model):
   """
   [Description]
 
@@ -234,7 +234,7 @@ def g_from_z(z, config, deep=False):
       when a key error
   """
   radius_earth = config["radius_earth"]
-  if deep:
+  if model in deep_atmosphere_models:
     g = config["gravity"] * (radius_earth /
                              (z + radius_earth))**2
   else:
@@ -242,8 +242,8 @@ def g_from_z(z, config, deep=False):
   return g
 
 
-@partial(jit, static_argnames=["deep"])
-def g_from_phi(phi, config, deep=False):
+@partial(jit, static_argnames=["model"])
+def g_from_phi(phi, config, model):
   """
   [Description]
 
@@ -266,12 +266,12 @@ def g_from_phi(phi, config, deep=False):
   KeyError
       when a key error
   """
-  z = z_from_phi(phi, config, deep=deep)
-  return g_from_z(z, config, deep=deep)
+  z = z_from_phi(phi, config, model)
+  return g_from_z(z, config, model)
 
 
-@partial(jit, static_argnames=["deep"])
-def r_hat_from_phi(phi, config, deep=False):
+@partial(jit, static_argnames=["model"])
+def r_hat_from_phi(phi, config, model):
   """
   [Description]
 
@@ -295,8 +295,8 @@ def r_hat_from_phi(phi, config, deep=False):
       when a key error
   """
   radius_earth = config["radius_earth"]
-  if deep:
-    r_hat = (z_from_phi(phi, config, deep=deep) + radius_earth) / radius_earth
+  if model in deep_atmosphere_models:
+    r_hat = (z_from_phi(phi, config, model) + radius_earth) / radius_earth
   else:
     r_hat = jnp.ones_like(phi)
   return r_hat

@@ -1,8 +1,11 @@
-from ...config import jnp, device_wrapper
-from .model_state import init_model_struct, init_tracer_struct
-from ..utils_3d import get_delta
-from ..mass_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_interface
+from ..config import jnp, device_wrapper
+from .homme.homme_state import init_model_struct, init_tracer_struct
+from .utils_3d import get_delta
+from .mass_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_interface
+from .model_info import hydrostatic_models
 
+# Todo: fix pressure/mass distinction in this file
+assert False
 
 def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
   """
@@ -46,9 +49,9 @@ def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
   return z_guesses
 
 
-def init_model_pressure(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func,
-                        h_grid, v_grid, config, dims,
-                        hydrostatic=True, w_func=lambda lat, lon, z: 0.0, eps=1e-8):
+def init_model_moist_pressure(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func,
+                              h_grid, v_grid, config, dims,
+                              model, w_func=lambda lat, lon, z: 0.0, eps=1e-8):
   """
   [Description]
 
@@ -78,21 +81,21 @@ def init_model_pressure(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func,
   p_int = mass_from_coordinate_interface(pi_surf, v_grid)
   z_mid = z_from_p_monotonic(p_mid, p_func, eps=eps)
   phi_surf = z_surf * config["gravity"]
-  if not hydrostatic:
+  if model not in hydrostatic_models:
     z_int = z_from_p_monotonic(p_int, p_func, eps=eps)
     w_i = w_func(lat, lon, z_int)
     phi_i = z_int * config["gravity"]
   else:
     w_i = 0.0
     phi_i = 0.0
-  dpi = get_delta(p_int)
-  vtheta = Tv_func(lat, lon, z_mid) * (config["p0"] / p_mid)**(config["Rgas"] / config["cp"])
-  vtheta_dpi = vtheta * dpi
+  d_mass = get_delta(p_int)
+  theta_v = Tv_func(lat, lon, z_mid) * (config["p0"] / p_mid)**(config["Rgas"] / config["cp"])
+  theta_v_d_mass = theta_v * d_mass
   u = u_func(lat, lon, z_mid)
   v = v_func(lat, lon, z_mid)
   initial_state = init_model_struct(device_wrapper(jnp.stack((u, v), axis=-1)),
-                                    device_wrapper(vtheta_dpi),
-                                    device_wrapper(dpi),
+                                    device_wrapper(theta_v_d_mass),
+                                    device_wrapper(d_mass),
                                     device_wrapper(phi_surf),
                                     device_wrapper(phi_i),
                                     device_wrapper(w_i),

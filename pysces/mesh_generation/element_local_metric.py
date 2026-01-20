@@ -63,7 +63,13 @@ def create_quasi_uniform_grid_elem_local(nx, npt, wrapped=use_wrapper, proc_idx=
                                wrapped=wrapped, proc_idx=proc_idx)
 
 
-def create_mobius_like_grid_elem_local(nx, npt, axis_dilation=None, orthogonal_transform=None, offset=None, wrapped=use_wrapper, proc_idx=None, rotate=True):
+def create_mobius_like_grid_elem_local(nx, npt,
+                                       axis_dilation=None,
+                                       orthogonal_transform=None,
+                                       offset=None,
+                                       wrapped=use_wrapper,
+                                       proc_idx=None,
+                                       rotate=True):
   if axis_dilation is None:
     axis_dilation = np.ones((3,))
   if orthogonal_transform is None:
@@ -83,9 +89,12 @@ def create_mobius_like_grid_elem_local(nx, npt, axis_dilation=None, orthogonal_t
   # Apply mapping x' = Q diag(s) x + c, then map x'' = x'/||x'||
   cart_corners = unit_sphere_to_cart(latlon_corners)
   inverse_image_of_offset = np.einsum("c,dc,c->d", offset, orthogonal_transform, 1.0 / axis_dilation)
-  assert np.allclose(np.dot(orthogonal_transform, orthogonal_transform.T), np.eye(3)), "Rotation matrix is not orthogonal"
-  assert np.linalg.norm(inverse_image_of_offset) < 1.0, ("Mapping maps unit sphere to set that does not contain origin.\n"
-                                                         "The resulting transformation will be C0, but not bijective")
+  assert np.allclose(np.dot(orthogonal_transform,
+                            orthogonal_transform.T),
+                     np.eye(3)), "Rotation matrix is not orthogonal"
+  message = ("Mapping maps unit sphere to set that does not contain origin.\n"
+             "The resulting transformation will be C0, but not bijective")
+  assert np.linalg.norm(inverse_image_of_offset) < 1.0, message
 
   cart_corners = np.einsum("fvc,dc,c->fvd", cart_corners, orthogonal_transform, axis_dilation)
   cart_corners += offset[np.newaxis, np.newaxis, :]
@@ -94,7 +103,7 @@ def create_mobius_like_grid_elem_local(nx, npt, axis_dilation=None, orthogonal_t
 
   gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian = gen_metric_terms_elem_local(latlon_corners,
                                                                                           npt,
-                                                                                          rotate=False)
+                                                                                          rotate=rotate)
 
   return generate_metric_terms(gll_latlon, gll_to_cart_jacobian, cart_to_sphere_jacobian, cube_redundancy, npt,
                                wrapped=wrapped, proc_idx=proc_idx)

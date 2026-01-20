@@ -1,7 +1,8 @@
 from ..config import jit, np
+from .model_info import moist_mixing_ratio_models
 
 
-def create_vertical_grid(hybrid_a_i, hybrid_b_i, p0):
+def create_vertical_grid(hybrid_a_i, hybrid_b_i, reference_surface_mass, model):
   """
   [Description]
 
@@ -24,11 +25,15 @@ def create_vertical_grid(hybrid_a_i, hybrid_b_i, p0):
   KeyError
       when a key error
   """
-  v_grid = {"reference_pressure": p0,
+  v_grid = {"reference_surface_mass": reference_surface_mass,
             "hybrid_a_i": hybrid_a_i,
             "hybrid_b_i": hybrid_b_i}
   v_grid["hybrid_a_m"] = 0.5 * (hybrid_a_i[1:] + hybrid_a_i[:-1])
   v_grid["hybrid_b_m"] = 0.5 * (hybrid_b_i[1:] + hybrid_b_i[:-1])
+  if model in moist_mixing_ratio_models:
+    v_grid["moist"] = 1.0
+  else:
+    v_grid["dry"] = 1.0
   return v_grid
 
 
@@ -56,12 +61,12 @@ def mass_from_coordinate_midlev(ps, v_grid):
   KeyError
       when a key error
   """
-  return (v_grid["reference_pressure"] * v_grid["hybrid_a_m"][np.newaxis, np.newaxis, np.newaxis, :] +
+  return (v_grid["reference_mass"] * v_grid["hybrid_a_m"][np.newaxis, np.newaxis, np.newaxis, :] +
           v_grid["hybrid_b_m"][np.newaxis, np.newaxis, np.newaxis, :] * ps[:, :, :, np.newaxis])
 
 
 @jit
-def dmass_from_coordinate(ps, v_grid):
+def d_mass_from_coordinate(ps, v_grid):
   """
   [Description]
 
@@ -88,7 +93,7 @@ def dmass_from_coordinate(ps, v_grid):
         v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :-1])
   db = (v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, 1:] -
         v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, :-1])
-  return (v_grid["reference_pressure"] * da +
+  return (v_grid["reference_mass"] * da +
           db * ps[:, :, :, np.newaxis])
 
 
@@ -116,5 +121,5 @@ def mass_from_coordinate_interface(ps, v_grid):
   KeyError
       when a key error
   """
-  return (v_grid["reference_pressure"] * v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :] +
+  return (v_grid["reference_mass"] * v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :] +
           v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, :] * ps[:, :, :, np.newaxis])
