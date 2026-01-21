@@ -4,7 +4,7 @@ from ...context import get_figdir, test_division_factor
 from pysces.config import device_unwrapper, jnp, np
 from pysces.models_3d.constants import init_config
 from pysces.models_3d.initialization.umjs14 import get_umjs_config
-from pysces.models_3d.theta_l.run_model import simulate_theta
+from pysces.models_3d.run_model import simulate_theta
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.models_3d.mass_coordinate import create_vertical_grid
 
@@ -28,8 +28,8 @@ def test_theta_steady_state():
                                deep=False,
                                diffusion=diffusion,
                                step_type="ull5")
-    ps = v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"] + jnp.sum(end_state["dpi"], axis=-1)
-    ps_begin = v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"] + jnp.sum(model_state["dpi"], axis=-1)
+    ps = v_grid["hybrid_a_i"][0] * v_grid["reference_surface_mass"] + jnp.sum(end_state["d_mass"], axis=-1)
+    ps_begin = v_grid["hybrid_a_i"][0] * v_grid["reference_surface_mass"] + jnp.sum(model_state["d_mass"], axis=-1)
     import matplotlib.pyplot as plt
     figdir = get_figdir()
     plt.figure()
@@ -59,9 +59,9 @@ def test_theta_steady_state():
     plt.figure()
     plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
                     device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                    device_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
+                    device_unwrapper(end_state["theta_v_d_mass"][:, :, :, 12] / end_state["d_mass"][:, :, :, 12]).flatten())
     plt.colorbar()
-    plt.savefig(f"{figdir}/vtheta_end_hv_{diffusion}.pdf")
+    plt.savefig(f"{figdir}/theta_v_end_hv_{diffusion}.pdf")
     if not diffusion:
       assert(jnp.max(jnp.abs(end_state["u"][:, :, :, :, 1])) < 0.2)
     else:
@@ -89,7 +89,7 @@ def test_theta_baro_wave():
                              diffusion=False,
                              step_type="ull5",
                              sponge_split=3)
-  ps = v_grid["hybrid_a_i"][0] * v_grid["reference_pressure"] + jnp.sum(end_state["dpi"], axis=-1)
+  ps = v_grid["hybrid_a_i"][0] * v_grid["reference_mass"] + jnp.sum(end_state["d_mass"], axis=-1)
   import matplotlib.pyplot as plt
   figdir = get_figdir()
   plt.figure()
@@ -113,6 +113,6 @@ def test_theta_baro_wave():
   plt.figure()
   plt.tricontourf(device_unwrapper(h_grid["physical_coords"][:, :, :, 1]).flatten(),
                   device_unwrapper(h_grid["physical_coords"][:, :, :, 0]).flatten(),
-                  device_unwrapper(end_state["vtheta_dpi"][:, :, :, 12] / end_state["dpi"][:, :, :, 12]).flatten())
+                  device_unwrapper(end_state["theta_v_d_mass"][:, :, :, 12] / end_state["d_mass"][:, :, :, 12]).flatten())
   plt.colorbar()
-  plt.savefig(f"{figdir}/vtheta_end_bw.pdf")
+  plt.savefig(f"{figdir}/theta_v_end_bw.pdf")

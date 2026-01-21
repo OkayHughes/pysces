@@ -182,7 +182,7 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
   rkssp_euler_stability = minimum_gauss_weight / (120.0 * max_norm_jac_inv * scale_inv)
   rk2_tracer = 1.0 / (120.0 * max_norm_jac_inv * lambda_max * scale_inv)
   gravit_wave_stability = 1.0 / (342.0 * max_norm_jac_inv * lambda_max * scale_inv)
-  hypervis_stability_dpi = 1.0 / (diffusion_config["nu_dpi"] * norm_jac_inv_hvis)
+  hypervis_stability_dpi = 1.0 / (diffusion_config["nu_d_mass"] * norm_jac_inv_hvis)
   hypervis_stability_vort = 1.0 / (diffusion_config["nu"] * norm_jac_inv_hvis)
   hypervis_stability_div = 1.0 / (nu_div_fact * diffusion_config["nu"] * norm_jac_inv_hvis)
   return ({"dt_rkssp_euler": rkssp_euler_stability,

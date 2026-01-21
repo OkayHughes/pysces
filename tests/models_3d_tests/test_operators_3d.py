@@ -2,11 +2,11 @@
 from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.operations_2d.operators import inner_product
-from pysces.models_3d.operators_3d import (sphere_divergence_3d,
-                                           sphere_gradient_3d,
-                                           sphere_vorticity_3d,
-                                           sphere_vec_laplacian_wk_3d)
-from pysces.models_3d.theta_l.model_state import project_scalar_3d
+from pysces.models_3d.operators_3d import (horizontal_divergence_3d,
+                                           horizontal_gradient_3d,
+                                           horizontal_vorticity_3d,
+                                           horizontal_weak_vector_laplacian_3d)
+from pysces.models_3d.model_state import project_scalar_3d
 
 
 def threedify(field, nlev, axis=-1):
@@ -35,9 +35,9 @@ def test_vector_identites():
                 jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
   v_3d = threedify(device_wrapper(v), nlev, axis=-2)
 
-  grad = sphere_gradient_3d(fn_3d, grid, config)
-  vort = sphere_vorticity_3d(grad, grid, config)
-  div = sphere_divergence_3d(v_3d, grid, config)
+  grad = horizontal_gradient_3d(fn_3d, grid, config)
+  vort = horizontal_vorticity_3d(grad, grid, config)
+  div = horizontal_divergence_3d(v_3d, grid, config)
   for k_idx in range(nlev):
     iprod_vort = inner_product(vort[:, :, :, k_idx], vort[:, :, :, k_idx], grid)
     assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
@@ -67,8 +67,8 @@ def test_divergence():
 
   div_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3)
-  div = project_scalar_3d(sphere_divergence_3d(vec_3d, grid, config), grid, dims)
-  vort = project_scalar_3d(sphere_vorticity_3d(vec_3d, grid, config), grid, dims)
+  div = project_scalar_3d(horizontal_divergence_3d(vec_3d, grid, config), grid, dims)
+  vort = project_scalar_3d(horizontal_vorticity_3d(vec_3d, grid, config), grid, dims)
   for lev_idx in range(nlev):
     assert (inner_product(div_analytic - div[:, :, :, lev_idx],
                           div_analytic - div[:, :, :, lev_idx], grid) < 1e-5)
@@ -85,7 +85,7 @@ def test_analytic_soln():
 
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   fn_3d = threedify(device_wrapper(fn), nlev)
-  grad_f_numerical = sphere_gradient_3d(fn_3d, grid, config)
+  grad_f_numerical = horizontal_gradient_3d(fn_3d, grid, config)
 
   sph_grad_lat = -jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.sin(grid["physical_coords"][:, :, :, 0])
   sph_grad_lon = -jnp.sin(grid["physical_coords"][:, :, :, 1])
@@ -103,7 +103,7 @@ def test_vector_laplacian():
                    jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
   config = {"radius_earth": 1.0}
   vec_3d = threedify(vec, nlev, axis=-2)
-  laplace_v_wk = sphere_vec_laplacian_wk_3d(vec_3d, grid, config)
+  laplace_v_wk = horizontal_weak_vector_laplacian_3d(vec_3d, grid, config)
   laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
                             project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
 
@@ -114,7 +114,7 @@ def test_vector_laplacian():
   vec = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0])**2,
                    jnp.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
   vec_3d = threedify(vec, nlev, axis=-2)
-  laplace_v_wk = sphere_vec_laplacian_wk_3d(vec_3d, grid, config)
+  laplace_v_wk = horizontal_weak_vector_laplacian_3d(vec_3d, grid, config)
   laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
                             project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
   lap_diff = laplace_v_wk + 3 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis, np.newaxis]

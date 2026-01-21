@@ -6,7 +6,7 @@ from ..mass_coordinate_grids import cam30
 from pysces.models_3d.utils_3d import g_from_phi
 from pysces.models_3d.mass_coordinate import create_vertical_grid
 from ..test_init import get_umjs_state
-from pysces.models_3d.theta_l.model_state import remap_state
+from pysces.models_3d.homme.homme_state import remap_state
 
 
 def test_remap_state():
@@ -30,8 +30,8 @@ def test_remap_state():
     model_state_remapped = remap_state(model_state, v_grid, model_config, len(v_grid["hybrid_a_m"]),
                                        hydrostatic=False, deep=False)
 
-    for field in ["u", "vtheta_dpi",
-                  "dpi", "phi_surf",
+    for field in ["u", "theta_v_d_mass",
+                  "d_mass", "phi_surf",
                   "grad_phi_surf", "phi_i",
                   "w_i"]:
       assert(jnp.max(jnp.abs(model_state[field] - model_state_remapped[field])) < 1e-5)

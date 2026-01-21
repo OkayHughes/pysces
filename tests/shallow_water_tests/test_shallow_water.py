@@ -11,7 +11,7 @@ from pysces.shallow_water_models.williamson_init import (get_williamson_steady_c
 from pysces.shallow_water_models.galewsky_init import get_galewsky_config, galewsky_wind, galewsky_hs, galewsky_h
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.mesh_generation.element_local_metric import create_mobius_like_grid_elem_local
-from pysces.operations_2d.operators import inner_product, manifold_vorticity
+from pysces.operations_2d.operators import inner_product, horizontal_vorticity
 from pysces.operations_2d.local_assembly import project_scalar
 from ..context import get_figdir, test_division_factor, plot_grid
 from os import makedirs
@@ -90,7 +90,7 @@ def test_galewsky():
   test_config = get_galewsky_config(physics_config)
 
   dt = 300
-  T = (144 * 3600) / 1# test_division_factor
+  T = (144 * 3600) / test_division_factor
   u_init = device_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0],
                                         grid["physical_coords"][:, :, :, 1],
                                         test_config))
@@ -119,7 +119,7 @@ def test_galewsky():
     lon = device_unwrapper(grid["physical_coords"][:, :, :, 1])
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     levels = np.arange(-10 + 1e-4, 101, 10)
-    vort = project_scalar(manifold_vorticity(final_state["u"], grid, a=physics_config["radius_earth"]), grid, dims)
+    vort = project_scalar(horizontal_vorticity(final_state["u"], grid, a=physics_config["radius_earth"]), grid, dims)
     plt.figure()
     plt.title(f"U at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),

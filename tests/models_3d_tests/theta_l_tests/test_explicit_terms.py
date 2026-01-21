@@ -1,13 +1,13 @@
 from ..test_init import get_umjs_state
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from ..mass_coordinate_grids import cam30
-from pysces.models_3d.theta_l.model_state import project_model_state
+from pysces.models_3d.homme.homme_state import project_model_state
 from pysces.models_3d.mass_coordinate import create_vertical_grid
 from pysces.models_3d.initialization.umjs14 import get_umjs_config
 from pysces.config import jnp, device_wrapper, np
 from pysces.models_3d.constants import init_config
-from pysces.models_3d.theta_l.explicit_terms import calc_energy_quantities
-from pysces.operations_2d.operators import inner_prod
+from pysces.models_3d.homme.explicit_terms import calc_energy_quantities
+from pysces.operations_2d.operators import inner_product
 from pysces.operations_2d.local_assembly import project_scalar
 
 
@@ -33,9 +33,9 @@ def test_notopo():
     pairs, empirical_tendencies = calc_energy_quantities(model_state, h_grid, v_grid, model_config, dims)
 
     def compare_quantities(a, b, label):
-      a_int = inner_prod(project_scalar(a, h_grid, dims), jnp.ones_like(a), h_grid)
-      b_int = inner_prod(project_scalar(b, h_grid, dims), jnp.ones_like(b), h_grid)
-      c_int = inner_prod(project_scalar(a + b, h_grid, dims), jnp.ones_like(a), h_grid)
+      a_int = inner_product(project_scalar(a, h_grid, dims), jnp.ones_like(a), h_grid)
+      b_int = inner_product(project_scalar(b, h_grid, dims), jnp.ones_like(b), h_grid)
+      c_int = inner_product(project_scalar(a + b, h_grid, dims), jnp.ones_like(a), h_grid)
       print(f"pair {label}: a_int: {a_int}, b_int: {b_int}, sum: {c_int}")
       assert (np.abs(c_int) < 1e-8)
     for pair_name in ["ke_ke_1",
@@ -50,10 +50,10 @@ def test_notopo():
                       "ke_ie_2",
                       "ke_ie_3"]:
       compare_quantities(*pairs[pair_name], pair_name)
-    total_energy_change = inner_prod(project_scalar(empirical_tendencies["ke"] +
-                                                    empirical_tendencies["ie"] +
-                                                    empirical_tendencies["pe"], h_grid, dims),
-                                     jnp.ones_like(empirical_tendencies["ke"]),
-                                     h_grid)
+    total_energy_change = inner_product(project_scalar(empirical_tendencies["ke"] +
+                                                       empirical_tendencies["ie"] +
+                                                       empirical_tendencies["pe"], h_grid, dims),
+                                        jnp.ones_like(empirical_tendencies["ke"]),
+                                        h_grid)
     print(f"total energy change: {total_energy_change}")
     assert (np.abs(total_energy_change))

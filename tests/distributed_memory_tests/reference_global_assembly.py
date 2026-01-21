@@ -1,5 +1,5 @@
 from ...pysces.config import np
-from ...pysces.distributed_memory.global_operations import _exchange_buffers_stub, exchange_buffers
+from ...pysces.distributed_memory.global_communication import _exchange_buffers_stub, exchange_buffers
 
 def summation_local_for(f, grid, *args):
   """

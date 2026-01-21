@@ -6,7 +6,7 @@ from pysces.config import jnp
 from ..mass_coordinate_grids import vertical_grid_finite_diff
 from pysces.models_3d.utils_3d import interface_to_model
 from pysces.models_3d.mass_coordinate import create_vertical_grid
-from pysces.models_3d.theta_l.thermodynamics import get_mu, get_p_mid, get_balanced_phi
+from pysces.models_3d.homme.thermodynamics import get_mu, get_p_mid, get_balanced_phi
 from ..test_init import get_umjs_state
 
 
@@ -29,13 +29,13 @@ def test_eos_hydro():
                       model_config)
     phi_i = get_balanced_phi(model_state["phi_surf"],
                              p_mid,
-                             model_state["vtheta_dpi"], model_config)
+                             model_state["theta_v_d_mass"], model_config)
 
     z_i = phi_i / model_config['gravity']
     z_mid = interface_to_model(z_i)
 
     p_model, exner, r_hat_i, mu = get_mu(model_state, phi_i, v_grid, model_config, hydrostatic=False)
-    Tv = (model_state["vtheta_dpi"] / model_state["dpi"]) * exner
+    Tv = (model_state["theta_v_d_mass"] / model_state["d_mass"]) * exner
     assert (jnp.max(jnp.abs(p_model - p_mid)) < 1e-8)
     assert (jnp.max(jnp.abs(p_model - p_mid)) < 1e-8)
     p_int_state, t_int_state = evaluate_pressure_temperature(z_mid, lat, test_config)
@@ -71,7 +71,7 @@ def test_eos_nonhydro():
     p_model, exner, r_hat_i, mu = get_mu(model_state, phi_i, v_grid, model_config, hydrostatic=False)
     p_int_state, t_int_state = evaluate_pressure_temperature(z_mid, lat, test_config)
     p_mid_state, t_mid_state = evaluate_pressure_temperature(z_mid, lat, test_config)
-    Tv = (model_state["vtheta_dpi"] / model_state["dpi"]) * exner
+    Tv = (model_state["theta_v_d_mass"] / model_state["d_mass"]) * exner
     print((mu - 1)[0, 0, 0, :])
     assert (jnp.max(jnp.abs(p_model - p_mid) / p_model) < .01)
     assert (jnp.max(jnp.abs(p_model - p_mid) / p_model) < .01)

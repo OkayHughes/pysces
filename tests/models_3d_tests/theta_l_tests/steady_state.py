@@ -1,12 +1,12 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.models_3d.mass_coordinate import create_vertical_grid
-from pysces.models_3d.theta_l.model_state import get_p_mid
+from pysces.models_3d.homme.homme_state import get_p_mid
 from pysces.models_3d.constants import init_config
 from pysces.models_3d.initialization.umjs14 import get_umjs_config
-from pysces.models_3d.theta_l.model_state import project_model_state, wrap_model_struct
-from pysces.models_3d.theta_l.time_stepping import advance_euler
+from pysces.models_3d.homme.homme_state import project_model_state, wrap_model_struct
+from pysces.models_3d.homme.time_stepping import advance_euler
 from pysces.operations_2d.operators import inner_prod
-from pysces.models_3d.theta_l.time_stepping import rfold_state
+from pysces.models_3d.homme.time_stepping import rfold_state
 from pysces.config import device_wrapper, device_unwrapper, jnp, np, wrapper_type, jit
 from ..test_init import get_umjs_state
 from ..mass_coordinate_grids import cam30

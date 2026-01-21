@@ -38,6 +38,7 @@ def sum_simple_tracers(state1, state2, fold_coeff1, fold_coeff2):
     state_out[tracer_name] = fold_coeff1 * state1[tracer_name] + fold_coeff2 * state2[tracer_name]
   return state_out
 
+
 def advance_simple_tracers(tracer_states, coeffs, model):
   if model in variable_kappa_models:
     raise NotImplementedError("I'm still working on dry air tracers")
@@ -60,6 +61,7 @@ def advance_simple_tracers(tracer_states, coeffs, model):
                                             coeffs[coeff_idx])
 
   return wrap_tracer_struct(moisture_species, passiveish_tracers)
+
 
 @jit
 def wrap_tracer_avg_struct(avg_u, avg_d_mass, avg_d_mass_dissip):
@@ -90,7 +92,7 @@ def wrap_tracer_avg_struct(avg_u, avg_d_mass, avg_d_mass_dissip):
           "avg_d_mass_dissip": avg_d_mass_dissip}
 
 
-@jit
+@partial(jit, static_argnames="model")
 def wrap_dynamics_struct(u, thermodynamic_variable, d_mass, model, phi_i=None, w_i=None):
   """
   [Description]
@@ -150,8 +152,8 @@ def wrap_static_forcing(phi_surf, grad_phi_surf, coriolis_param, nontrad_corioli
 
 def init_static_forcing(phi_surf, h_grid, physics_config, dims, model, f_plane_center=jnp.pi/4.0):
   grad_phi_surf_discont = horizontal_gradient(phi_surf, h_grid, a=physics_config["radius_earth"])
-  grad_phi_surf = jnp.stack((project_scalar_global(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
-                             project_scalar_global(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)), axis=-1)
+  grad_phi_surf = jnp.stack([project_scalar_global([grad_phi_surf_discont[:, :, :, 0]], h_grid, dims)[0],
+                             project_scalar_global([grad_phi_surf_discont[:, :, :, 1]], h_grid, dims)[0]], axis=-1)
   if model in f_plane_models:
     coriolis_param = 2.0 * physics_config["period_earth"] * jnp.sin(f_plane_center) * jnp.ones_like(h_grid["physical_coords"][:, :, :, 0])
   else:
@@ -235,7 +237,6 @@ def surface_mass_from_state(state_in, v_grid):
       when a key error
   """
   return jnp.sum(state_in["d_mass"], axis=-1) + v_grid["hybrid_a_i"][0] * v_grid["reference_surface_mass"]
-
 
 
 
@@ -390,3 +391,5 @@ def advance_dynamics(states, coeffs, model):
                                1.0,
                                coeffs[coeff_idx], model)
   return state_out
+
+

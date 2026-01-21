@@ -19,7 +19,8 @@ def init_physics_config(model,
                         gravity=9.81,
                         p0=1e5,
                         cp=1005.0,
-                        Rvap=461.50):
+                        Rvap=461.50,
+                        epsilon=18.01/28.966):
   """
   [Description]
 
@@ -46,7 +47,8 @@ def init_physics_config(model,
   physics_config = {"gravity": device_wrapper(gravity),
                     "radius_earth": device_wrapper(radius_earth),
                     "period_earth": device_wrapper(period_earth),
-                    "p0": device_wrapper(p0)}
+                    "p0": device_wrapper(p0),
+                    "epsilon": epsilon}
   if model == models.cam_se_upper_atmosphere:
     # todo: find good defaults from CAM infrastructure
     pass

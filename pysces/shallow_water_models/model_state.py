@@ -31,7 +31,7 @@ def create_state_struct(u, h, hs):
           "hs": hs}
 
 
-@partial(jit, static_argnames=["dims"])
+@partial(jit, static_argnames=["dims", "scaled"])
 def project_state(state, grid, dims, scaled=True):
   """
   [Description]

@@ -35,7 +35,8 @@ hydrostatic_models = (models.cam_se,
                       models.homme_hydrostatic,
                       models.homme_hydrostatic_f_plane)
 
-deep_atmosphere_models = (models.homme_nonhydrostatic_deep)
+
+deep_atmosphere_models = (models.homme_nonhydrostatic_deep,)
 
 moist_mixing_ratio_models = (models.homme_hydrostatic,
                              models.homme_nonhydrostatic,

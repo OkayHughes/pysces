@@ -1,10 +1,11 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_elem_local, create_mobius_like_grid_elem_local
+from pysces.mesh_generation.element_local_metric import (create_quasi_uniform_grid_elem_local,
+                                                         create_mobius_like_grid_elem_local)
 from pysces.operations_2d.se_grid import init_hypervis_tensor, postprocess_grid
-from pysces.operations_2d.operators import manifold_laplacian_weak, inner_product
+from pysces.operations_2d.operators import horizontal_weak_laplacian
 from pysces.operations_2d.local_assembly import project_scalar
 from pysces.config import np, jnp, device_unwrapper, device_wrapper
-from ..context import test_npts, get_figdir
+from ..context import test_npts
 from .tensor_hypervis_ref import tensor_hypervis_ref
 from scipy.special import sph_harm_y
 
@@ -43,10 +44,10 @@ def test_hyperviscosity_sphere_harmonics_uniform():
   radius_earth = 6371e3
   npt = 4
   nu_const = 1e15
-  nu_tensor = 2*3.4e-8
+  nu_tensor = 2 * 3.4e-8
   hv_scaling = 3.2
   grid, dims = create_quasi_uniform_grid_elem_local(nx, npt)
-  #grid = postprocess_grid(grid, dims)
+  # grid = postprocess_grid(grid, dims)
 
   # need to check nu_tensor = 3.4e-8 with tensor HV leads to identical scaling as nu_const = 1e15 on ne30 grid
   # evaluate that hv_conversion = ( (np-1)*dx_unit_sphere / 2 )^{hv_scaling} * rearth^4
@@ -57,15 +58,16 @@ def test_hyperviscosity_sphere_harmonics_uniform():
   lon = grid["physical_coords"][:, :, :, 1]
   m = 5
   l = 10
-  Ymn = jnp.real(device_wrapper(sph_harm_y(l, m, lat + np.pi/2.0, lon)))
-  laplace_Ymn_discont = manifold_laplacian_weak(Ymn, grid, a=radius_earth)
+  Ymn = jnp.real(device_wrapper(sph_harm_y(l, m, lat + np.pi / 2.0, lon)))
+  laplace_Ymn_discont = horizontal_weak_laplacian(Ymn, grid, a=radius_earth)
   laplace_Ymn = project_scalar(laplace_Ymn_discont, grid, dims, scaled=False)
   # check that we can resolve our spherical harmonic.
-  diff = device_unwrapper(laplace_Ymn) - device_unwrapper(-l * (l+1) *  Ymn)
+  diff = device_unwrapper(laplace_Ymn) + device_unwrapper(-l * (l + 1) / radius_earth**4 * Ymn)
+  assert np.max(np.abs(diff)) < .05
 
-  biharmonic_Ymn_discont = manifold_laplacian_weak(-l * (l+1) *  Ymn, grid, a=radius_earth)
+  biharmonic_Ymn_discont = horizontal_weak_laplacian(-l * (l + 1) * Ymn, grid, a=radius_earth)
   biharmonic_Ymn = project_scalar(biharmonic_Ymn_discont, grid, dims, scaled=False)
-  norm_const = (l * (l+1))**2
+  norm_const = (l * (l + 1))**2
   evals, evecs = np.linalg.eigh(grid["metric_inverse"])
   visc_tensor, _ = init_hypervis_tensor(grid["metric_inverse"], grid["contra_to_physical"], hypervis_scaling=hv_scaling)
   shucked_tensor = np.einsum("fijsr,fijmr->fijsm", visc_tensor, grid["physical_to_contra"])
@@ -74,8 +76,8 @@ def test_hyperviscosity_sphere_harmonics_uniform():
   shucked_tensor = np.einsum("fijnm,fijnc->fijmc", shucked_tensor, evecs)
   shucked_tensor = np.einsum("fijmc,fijmd->fijdc", shucked_tensor, evecs)
 
-  lamStar1 = shucked_tensor[:, :, :, 0, 0]/evals[:, :, :, 0]
-  lamStar2 = shucked_tensor[:, :, :, 1, 1]/evals[:, :, :, 1]
+  lamStar1 = shucked_tensor[:, :, :, 0, 0] / evals[:, :, :, 0]
+  lamStar2 = shucked_tensor[:, :, :, 1, 1] / evals[:, :, :, 1]
   # todo: reconstruct hv_conversion so this is actually a test.
 
   hv_conversion = np.sqrt(evals[:, :, :, 0])**(-hv_scaling) * radius_earth**4
@@ -85,7 +87,7 @@ def test_hyperviscosity_sphere_harmonics_uniform():
   hv_conversion_2 = lamStar2 * radius_earth**4
   assert np.allclose(hv_conversion, hv_conversion_2)
 
-  biharmonic_Ymn_discont_tensor = manifold_laplacian_weak(-l * (l+1) *  Ymn, grid, a=1.0, apply_tensor=True)
+  biharmonic_Ymn_discont_tensor = horizontal_weak_laplacian(-l * (l + 1) *  Ymn, grid, a=1.0, apply_tensor=True)
   biharmonic_Ymn_tensor = project_scalar(biharmonic_Ymn_discont_tensor, grid, dims, scaled=False)
 
   maybe_equivalent_scaling = (nu_tensor * hv_conversion) * biharmonic_Ymn/norm_const
@@ -127,12 +129,12 @@ def test_hyperviscosity_sphere_harmonics_mobius():
     m = 5
     l = 10
     Ymn = jnp.real(device_wrapper(sph_harm_y(l, m, lat + np.pi/2.0, lon)))
-    laplace_Ymn_discont = manifold_laplacian_weak(Ymn, grid, a=radius_earth)
+    laplace_Ymn_discont = horizontal_weak_laplacian(Ymn, grid, a=radius_earth)
     laplace_Ymn = project_scalar(laplace_Ymn_discont, grid, dims, scaled=False)
     # check that we can resolve our spherical harmonic.
     diff = device_unwrapper(laplace_Ymn) - device_unwrapper(-l * (l+1) *  Ymn)
 
-    biharmonic_Ymn_discont = manifold_laplacian_weak(-l * (l+1) *  Ymn, grid, a=radius_earth)
+    biharmonic_Ymn_discont = horizontal_weak_laplacian(-l * (l+1) *  Ymn, grid, a=radius_earth)
     biharmonic_Ymn = project_scalar(biharmonic_Ymn_discont, grid, dims, scaled=False)
     norm_const = (l * (l+1))**2
     evals, evecs = np.linalg.eigh(grid["metric_inverse"])
@@ -147,7 +149,7 @@ def test_hyperviscosity_sphere_harmonics_mobius():
 
     import matplotlib.pyplot as plt
 
-    biharmonic_Ymn_discont_tensor = manifold_laplacian_weak(-l * (l+1) *  Ymn, grid, a=radius_earth, apply_tensor=True)
+    biharmonic_Ymn_discont_tensor = horizontal_weak_laplacian(-l * (l+1) *  Ymn, grid, a=radius_earth, apply_tensor=True)
     biharmonic_Ymn_tensor = project_scalar(biharmonic_Ymn_discont_tensor, grid, dims, scaled=False)
     reference_scaling = nu_const * biharmonic_Ymn/norm_const
     reference_scaling_tensor = nu_tensor * biharmonic_Ymn_tensor/norm_const / variable_resolution_coefficient
@@ -180,5 +182,5 @@ def test_hyperviscosity_stability():
   for m in range(5):
     for l in range(90, 95):
       Ymn = jnp.real(device_wrapper(sph_harm_y(l, m, lat + np.pi/2.0, lon)))
-      laplace_Ymn_discont = manifold_laplacian_weak(Ymn, grid, a=radius_earth)
+      laplace_Ymn_discont = horizontal_weak_laplacian(Ymn, grid, a=radius_earth)
       laplace_Ymn = project_scalar(laplace_Ymn_discont, grid, dims)

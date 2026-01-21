@@ -61,7 +61,7 @@ def mass_from_coordinate_midlev(ps, v_grid):
   KeyError
       when a key error
   """
-  return (v_grid["reference_mass"] * v_grid["hybrid_a_m"][np.newaxis, np.newaxis, np.newaxis, :] +
+  return (v_grid["reference_surface_mass"] * v_grid["hybrid_a_m"][np.newaxis, np.newaxis, np.newaxis, :] +
           v_grid["hybrid_b_m"][np.newaxis, np.newaxis, np.newaxis, :] * ps[:, :, :, np.newaxis])
 
 
@@ -93,7 +93,7 @@ def d_mass_from_coordinate(ps, v_grid):
         v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :-1])
   db = (v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, 1:] -
         v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, :-1])
-  return (v_grid["reference_mass"] * da +
+  return (v_grid["reference_surface_mass"] * da +
           db * ps[:, :, :, np.newaxis])
 
 
@@ -121,5 +121,5 @@ def mass_from_coordinate_interface(ps, v_grid):
   KeyError
       when a key error
   """
-  return (v_grid["reference_mass"] * v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :] +
+  return (v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :] +
           v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, :] * ps[:, :, :, np.newaxis])

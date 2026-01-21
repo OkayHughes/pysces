@@ -69,7 +69,7 @@ def zerroukat_remap(tracer_mass, d_mass_model, d_mass_reference, num_lev, filter
   h = 1 / zhdp
 
   zarg = tracer_mass * h[:, :, :, :, np.newaxis]
-  brc = device_wrapper(jnp.ones((1, 1, 1, 1, Qdp.shape[4])))
+  brc = device_wrapper(jnp.ones((1, 1, 1, 1, tracer_mass.shape[4])))
   diag_top = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc
   diag_mid = 2.0 * (h[:, :, :, 1:, np.newaxis] + h[:, :, :, :-1, np.newaxis]) * brc
   diag_bottom = 2.0 * jnp.ones_like(zarg[:, :, :, 0:1, :]) * brc
@@ -254,7 +254,7 @@ def zerroukat_remap(tracer_mass, d_mass_model, d_mass_reference, num_lev, filter
   za1_mapped = take_along_axis(za1[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)
   za2_mapped = take_along_axis(za2[:, :, :, :, :], idxs[:, :, :, 1:, np.newaxis], -2)
 
-  Qdp_out = []
+  tracer_mass_out = []
   for k_idx in range(num_lev):
     zv2 = zv_mapped[:, :, :, k_idx, :] + (za0_mapped[:, :, :, k_idx, :] *
                                           zgam[:, :, :, k_idx + 1, np.newaxis] +
@@ -263,6 +263,6 @@ def zerroukat_remap(tracer_mass, d_mass_model, d_mass_reference, num_lev, filter
                                           za2_mapped[:, :, :, k_idx, :] / 3.0 *
                                           zgam[:, :, :, k_idx + 1, np.newaxis]**3
                                           ) * zhdp_mapped[:, :, :, k_idx, :]
-    Qdp_out.append(zv2 - zv1)
+    tracer_mass_out.append(zv2 - zv1)
     zv1 = zv2
-  return jnp.stack(Qdp_out, axis=-2)
+  return jnp.stack(tracer_mass_out, axis=-2)

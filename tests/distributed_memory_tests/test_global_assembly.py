@@ -4,7 +4,7 @@ from tests.distributed_memory_tests.reference_global_assembly import (project_sc
                                                    extract_fields_for,
                                                    accumulate_fields_for,
                                                    project_scalar_for_mpi)
-from pysces.distributed_memory.global_operations import (_exchange_buffers_stub, exchange_buffers)
+from pysces.distributed_memory.global_communication import (_exchange_buffers_stub, exchange_buffers)
 from pysces.distributed_memory.global_assembly import (extract_fields, accumulate_fields, _project_scalar_stub,
                                                        project_scalar_global)
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy

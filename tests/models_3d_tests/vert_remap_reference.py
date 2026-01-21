@@ -56,8 +56,8 @@ def for_loop_remap(Qdp, dp1, dp2, filter=False):
                 break  # possible jank
           if np.any(zkr == 99):
             print(f"Qdp: {Qdp}")
-            print(f"dpi_model: {dp1}")
-            print(f"dpi_ref: {dp2}")
+            print(f"d_mass_model: {dp1}")
+            print(f"d_mass_ref: {dp2}")
             print(np.cumsum(dp1, axis=-1))
             print(np.cumsum(dp2, axis=-1))
             print(zkr)

@@ -1,21 +1,22 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.operations_2d.operators import sphere_gradient
+from pysces.operations_2d.operators import horizontal_gradient
 from pysces.operations_2d.local_assembly import project_scalar
 from .mass_coordinate_grids import cam30
 from pysces.models_3d.mass_coordinate import (create_vertical_grid,
                                               mass_from_coordinate_interface)
-from pysces.models_3d.theta_l.init_model import z_from_p_monotonic, init_model_pressure
-from pysces.models_3d.constants import init_config
+from pysces.models_3d.init_model import z_from_p_monotonic_moist, init_model_pressure
+from pysces.models_3d.constants import init_physics_config
 from pysces.models_3d.utils_3d import get_delta
 from pysces.config import jnp, device_wrapper
 from pysces.models_3d.initialization.umjs14 import (get_umjs_config,
                                                     evaluate_surface_state,
                                                     evaluate_pressure_temperature,
                                                     evaluate_state)
+from pysces.models_3d.model_info import models
 
 
 def get_umjs_state(h_grid, v_grid,
-                   model_config, test_config, dims,
+                   model_config, test_config, dims, model,
                    deep=False, mountain=False, hydrostatic=True, eps=1e-10, pert_type="none"):
   lat = h_grid["physical_coords"][:, :, :, 0]
 
@@ -23,7 +24,7 @@ def get_umjs_state(h_grid, v_grid,
     return evaluate_surface_state(lat, lon, test_config, deep=deep, mountain=mountain)
 
   def Q_func(lat, lon, z):
-    return jnp.zeros_like(lat)
+    return 1e-8 * jnp.ones_like(lat)
 
   def p_func(z):
     return evaluate_pressure_temperature(z, lat, test_config, deep=deep)[0]
@@ -43,7 +44,7 @@ def get_umjs_state(h_grid, v_grid,
     else:
       return jnp.zeros_like(z)
 
-  model_state, tracer_state = init_model_pressure(z_pi_surf_func,
+  model_state = init_model_pressure(z_pi_surf_func,
                                                   p_func,
                                                   Tv_func,
                                                   u_func,
@@ -52,14 +53,14 @@ def get_umjs_state(h_grid, v_grid,
                                                   h_grid, v_grid,
                                                   model_config,
                                                   dims,
+                                                  models.homme_hydrostatic,
                                                   w_func=w_func,
-                                                  hydrostatic=hydrostatic,
                                                   eps=eps)
-  return model_state, tracer_state
+  return model_state
 
 
 def test_z_p_func():
-  config = init_config()
+  config = init_physics_config(models.homme_hydrostatic)
   pressures = device_wrapper(jnp.linspace(config["p0"], 100, 10))
   T0 = 300
 
@@ -70,7 +71,7 @@ def test_z_p_func():
   def z_given_p(p):
     return -T0 * config["Rgas"] / config["gravity"] * jnp.log(p / config["p0"])
 
-  heights = z_from_p_monotonic(pressures, p_given_z, eps=1e-10, z_top=80e3)
+  heights = z_from_p_monotonic_moist(pressures, p_given_z, eps=1e-10, z_top=80e3)
   assert (jnp.max(jnp.abs(heights - z_given_p(pressures)) / pressures) < 1e-5)
 
 
@@ -80,21 +81,22 @@ def test_init():
   h_grid, dims = create_quasi_uniform_grid(nx, npt)
   v_grid = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
-                                cam30["p0"])
+                                cam30["p0"],
+                                models.homme_hydrostatic)
   lat = h_grid["physical_coords"][:, :, :, 0]
   lon = h_grid["physical_coords"][:, :, :, 1]
   for mountain in [False, True]:
-    model_config = init_config()
+    model_config = init_physics_config(models.homme_hydrostatic)
     test_config = get_umjs_config(model_config=model_config)
-    model_state, _ = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, mountain=mountain)
+    model_state = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, models.homme_hydrostatic, mountain=mountain)
     z_surf, ps = evaluate_surface_state(lat, lon, test_config, mountain=mountain)
     phi_surf = model_config["gravity"] * z_surf
-    grad_phi_surf = sphere_gradient(phi_surf,
-                                    h_grid, a=model_config["radius_earth"])
+    grad_phi_surf = horizontal_gradient(phi_surf,
+                                         h_grid, a=model_config["radius_earth"])
     grad_phi_surf_cont = jnp.stack((project_scalar(grad_phi_surf[:, :, :, 0], h_grid, dims),
                                     project_scalar(grad_phi_surf[:, :, :, 1], h_grid, dims)), axis=-1)
     p_int = mass_from_coordinate_interface(ps, v_grid)
-    dpi = get_delta(p_int)
-    assert (jnp.allclose(dpi, model_state["dpi"]))
-    assert (jnp.allclose(phi_surf, model_state["phi_surf"]))
-    assert (jnp.allclose(grad_phi_surf_cont, model_state["grad_phi_surf"]))
+    d_mass = get_delta(p_int)
+    assert (jnp.allclose(d_mass, model_state["dynamics"]["d_mass"]))
+    assert (jnp.allclose(phi_surf, model_state["static_forcing"]["phi_surf"]))
+    assert (jnp.allclose(grad_phi_surf_cont, model_state["static_forcing"]["grad_phi_surf"]))

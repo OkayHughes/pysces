@@ -2,9 +2,15 @@ from pysces.config import np, use_wrapper, device_wrapper, device_unwrapper
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
-from pysces.models_3d.theta_l.model_state import project_scalar_3d, _project_scalar_3d_for
+from pysces.models_3d.model_state import project_scalar_3d
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
+from pysces.operations_2d.local_assembly import project_scalar_for
 
+def _project_scalar_3d_for(variable, h_grid, dims, scaled=True):
+  levs = []
+  for lev_idx in range(variable.shape[-1]):
+    levs.append(project_scalar_for(variable[:, :, :, lev_idx], h_grid))
+  return np.stack(levs, axis=-1)
 
 def test_project_3d():
   npt = 4
@@ -24,7 +30,7 @@ def test_project_3d():
                                            vert_redundancy,
                                            npt,
                                            wrapped=False)
-  vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vert_redundancy"])
+  vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vertex_redundancy"])
   fn = np.zeros((*grid["physical_coords"].shape[:-1], nlev))
   for lev_idx in range(nlev):
     for face_idx in range(grid["physical_coords"].shape[0]):
