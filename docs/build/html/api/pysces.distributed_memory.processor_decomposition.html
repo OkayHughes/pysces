@@ -134,31 +134,31 @@ be a better way to do this.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="pysces.distributed_memory.processor_decomposition.get_face_idx_pos">
 <span class="sig-prename descclassname"><span class="pre">pysces.distributed_memory.processor_decomposition.</span></span><span class="sig-name descname"><span class="pre">get_face_idx_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.distributed_memory.processor_decomposition.get_face_idx_pos" title="Link to this definition">¶</a></dt>
-<dd><p>[Description]</p>
+<dd><p>Calculate which face of the cubed sphere contain
+points given in spherical coordinates.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>[first]</strong><span class="classifier">array_like</span></dt><dd><p>the 1st param name <cite>first</cite></p>
+<dt><strong>lat: Array[tuple[Any], Float]</strong></dt><dd><p>Latitude of points</p>
 </dd>
-<dt><strong>second</strong></dt><dd><p>the 2nd param</p>
-</dd>
-<dt><strong>third</strong><span class="classifier">{‘value’, ‘other’}, optional</span></dt><dd><p>the 3rd param, by default ‘value’</p>
+<dt><strong>lon: Array[tuple[Any], Float]</strong></dt><dd><p>Longitude of points</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>string</dt><dd><p>a value in a string</p>
+<dt>face_mask: Array[tuple[Any], Int]</dt><dd><p>Which of TOP_FACE, BOTTOM_FACE, FRONT_FACE,
+BACK_FACE, LEFT_FACE, RIGHT_FACE each point lies on</p>
+</dd>
+<dt>x: Array[tuple[Any], Int]</dt><dd><p>Horizontal coordinates on cubed sphere face, [-1, 1]</p>
+</dd>
+<dt>y: Array[tuple[Any], Int]</dt><dd><p>Vertical coordinates on cubed sphere face, [-1, 1]</p>
 </dd>
 </dl>
 </dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>KeyError</dt><dd><p>when a key error</p>
-</dd>
 </dl>
-</dd>
-</dl>
+<p class="rubric">Notes</p>
+<p>See mesh_definitions.py for explanation of face conventions.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -313,6 +313,7 @@ be a better way to do this.</p>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
 </ul>
 
 <div class="relations">

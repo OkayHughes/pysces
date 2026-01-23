@@ -17,3 +17,4 @@ To use `pysces`, first install it using pip
 .. code-block:: console
 
    $ uv add pysces
+

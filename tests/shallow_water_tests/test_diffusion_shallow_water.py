@@ -7,7 +7,7 @@ from pysces.shallow_water_models.run_shallow_water import simulate_sw
 from pysces.shallow_water_models.galewsky_init import get_galewsky_config, galewsky_wind, galewsky_hs, galewsky_h
 from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_elem_local
 from pysces.operations_2d.operators import inner_product
-from pysces.operations_2d.se_grid import postprocess_grid
+from pysces.horizontal_grid import postprocess_grid
 from pysces.operations_2d.local_assembly import project_scalar
 from ..context import get_figdir, test_division_factor
 from os import makedirs

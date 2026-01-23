@@ -8,7 +8,7 @@ from pysces.distributed_memory.global_communication import (_exchange_buffers_st
 from pysces.distributed_memory.global_assembly import (extract_fields, accumulate_fields, _project_scalar_stub,
                                                        project_scalar_global)
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
-from pysces.operations_2d.se_grid import create_spectral_element_grid
+from pysces.horizontal_grid import create_spectral_element_grid
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
 from pysces.config import device_unwrapper, np, use_wrapper, device_wrapper, mpi_size, mpi_rank

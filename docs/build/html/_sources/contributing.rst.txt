@@ -1,0 +1,59 @@
+.. asdf
+Contributing
+============
+
+Coding Style
+------------
+
+The coding style in this codebase is somewhat odd in several ways. The code is designed 
+so that JAX, Pytorch and Numpy can be used to do array calculations by changing a few configuration variables.
+There are only a few functions that have code that branches based on which array provider is used. 
+JAX uses a functional programming paradigm that is very close to how typical Fortran code is written, but does not
+allow you to overwrite array memory after an array is initialized (`u[:, 0] = u_slice` will crash). However,
+if your code avoids this, JAX can just-in-time compile your Python function to be highly performant on CPU and GPU
+basically automatically. PyTorch's way of compiling code tends to work better on object-oriented code,
+which is rather unfamiliar to older generations of atmospheric modelers. **Consequently, this codebase is written
+to be performant in JAX**, which means that Numpy and PyTorch run slightly slower. Note: PyTorch and JAX will automatically
+do shared-memory parallelism on the CPU, so care must be taken when comparing runtimes. 
+
+How do we make an accessible, maintainable, friendly dycore?
+-----------
+
+* **Untested code is incomplete code.**
+* **Undocumented code is incomplete code.**
+* **Write functions, not subroutines.** 
+  * Doing the equivalent of `intent(out)` in a codebase that is mostly pure functions
+is a bad idea. 
+  * It will cause JAX to crash if you compile your function.
+  Even if you aren't compiling your function, if will 
+  * Avoid modifying input arrays wherever possible unless it is clearly marked in the docstring.
+* Keep code flat, but use nested data
+* Write clean code first, then optimize. GPUs are sitting idle because models can't even run on them. 
+Programmer time is expensive, profiling is cheap. 
+* Data structures should avoid containing physically inconsistent data 
+  * If data can be used wrong, it will be used wrong.
+  * Example: a dynamics state struct that contains tracer mixing ratios that are inconsistent with an intermediate value of mass coordinate `dpi`.
+  * Do calculations in external variables, then re-wrap your data structure with physically consistent data.
+* Functions returning intermediate quantities are not great. 
+  * These intermediate quantities should be calculated in a separate function and passed in as an argument.
+* Functions that return a single argument should be used like a 
+* Data structures should not contain data fields that are not called for in the configuration
+of the code you are using. 
+  * For example: if you are not using tensor hyperviscosity, you should not pass a diffusion configuration structure
+that could allow a tensor hypervisosity function to be called accidentally. 
+  * If you are running hydrostatic code, your dynamics state struct should not contain fields like vertical velocity that are prognostic.
+* Design code so that it is hard to separate tracer data from metadata (variable name, a field in the tracer struct, etc)
+that expresses whether it is a dry mixing ratio (kg of tracer / kg of dry air), a moist mixing ratio (kg of tracer / kg of moist air),
+or a mass quantity (kg of tracer per m^2 scaled by g).
+
+
+Dependencies
+------------
+
+Dependencies are extremely bad if they increase the chance that an external change to a dependency
+makes the model unusable unless someone puts time in to fix the code.  I want to design this code
+so that it can go with minimal maintaintenance for around two years and still have a decent chance of
+being installable in a few commands at the end of it. **If you want to add a dependency, you should
+implement a (potentially less performant) fallback that can be switched on if that dependency breaks**.
+On the other hand, if adding a (stable) dependency introduces a viable alternative to an existing dependency,
+this is a good thing. 

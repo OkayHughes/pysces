@@ -146,45 +146,6 @@ for a thorough review of cubed sphere geometry.</p>
 <p><cite>cube_to_sphere_jacobian</cite> is not C0 across cubed-sphere boundaries!</p>
 </dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="pysces.mesh_generation.equiangular_metric.generate_metric_terms">
-<span class="sig-prename descclassname"><span class="pre">pysces.mesh_generation.equiangular_metric.</span></span><span class="sig-name descname"><span class="pre">generate_metric_terms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gll_latlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gll_to_cube_jacobian</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cube_to_sphere_jacobian</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vert_redundancy_gll</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">npt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wrapped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proc_idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pysces.mesh_generation.equiangular_metric.generate_metric_terms" title="Link to this definition">¶</a></dt>
-<dd><p>Collate individual coordinate mappings into global SpectralElementGrid
-on an equiangular cubed sphere grid.</p>
-<dl class="field-list">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl>
-<dt><strong>gll_latlon: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda], Float]`</strong></dt><dd><p>Grid point positions in spherical coordinates.</p>
-</dd>
-<dt><strong>gll_to_cube_jacobian</strong><span class="classifier"><cite>Array[tuple[elem_idx, gll_idx, gll_idx, xy, ab]</cite></span></dt><dd><p>Jacobian of mapping from reference element onto cube faces.</p>
-</dd>
-<dt><strong>cube_to_sphere_jacobian: `Array[tuple[elem_idx, gll_idx, gll_idx, phi_lambda, xy]`</strong></dt><dd><p>Jacobian of mapping from cube face to sphere</p>
-</dd>
-<dt><strong>vert_redundancy_gll: `dict[elem_idx, dict[tuple[gll_idx, gll_idx], set[tuple(elem_idx, gll_idx, gll_idx)]]]`</strong></dt><dd><p>Gridpoint redundancy struct.</p>
-</dd>
-<dt><strong>npt: `int`</strong></dt><dd><p>Number of 1D gll points used in grid.</p>
-</dd>
-<dt><strong>wrapped: `bool`, default=use_wrapper</strong></dt><dd><p>Flag that determines whether returned grid
-will use accelerator framework arrays
-or numpy arrays.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>SpectralElementGrid</dt><dd><p>Global spectral element grid.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<ul class="simple">
-<li><p>See <cite>mesh.gen_gll_redundancy</cite> for a description of <cite>vert_redundancy_gll</cite></p></li>
-<li><p>See <cite>se_grid.create_spectral_element_grid</cite> for description of</p></li>
-</ul>
-<p>the grid data structure.</p>
-</dd></dl>
-
 </section>
 
 
@@ -215,6 +176,7 @@ or numpy arrays.</p>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
 </ul>
 
 <div class="relations">

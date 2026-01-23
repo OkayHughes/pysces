@@ -1,10 +1,10 @@
 from ..config import np, DEBUG, use_wrapper, mpi_size
 from ..distributed_memory.processor_decomposition import get_decomp
-from .coordinate_utils import bilinear, bilinear_jacobian
+from .bilinear_utils import bilinear, bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
-from ..operations_2d.se_grid import create_spectral_element_grid
-from .coordinate_utils import unit_sphere_to_cart_coords_jacobian
+from ..horizontal_grid import create_spectral_element_grid
+from .spherical_coord_utils import unit_sphere_to_cart_coords_jacobian
 
 
 def edge_to_vert(edge_id, is_forwards=FORWARDS):

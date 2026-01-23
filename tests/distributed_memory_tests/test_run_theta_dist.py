@@ -1,12 +1,12 @@
-from ..models_3d_tests.test_init import get_umjs_state
-from ..models_3d_tests.mass_coordinate_grids import cam30
+from ..dynamical_cores_tests.test_init import get_umjs_state
+from ..dynamical_cores_tests.mass_coordinate_grids import cam30
 from ..context import get_figdir, test_division_factor
 from pysces.config import device_unwrapper, jnp, np, mpi_rank
-from pysces.models_3d.constants import init_config
-from pysces.models_3d.initialization.umjs14 import get_umjs_config
-from pysces.models_3d.run_model import simulate_theta
+from pysces.dynamical_cores.physics_config import init_config
+from pysces.analytic_initialization.moist_baroclinic_wave import get_umjs_config
+from pysces.run_dycore import simulate_theta
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.models_3d.mass_coordinate import create_vertical_grid
+from pysces.dynamical_cores.mass_coordinate import create_vertical_grid
 
 
 def test_theta_steady_state():

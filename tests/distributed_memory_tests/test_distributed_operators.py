@@ -1,7 +1,7 @@
 from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper, mpi_rank, mpi_size
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.operations_2d.local_assembly import project_scalar
-from pysces.operations_2d.se_grid import subset_var
+from pysces.horizontal_grid import subset_var
 from pysces.operations_2d.operators import horizontal_gradient, horizontal_divergence, horizontal_vorticity, inner_product
 from pysces.mesh_generation.periodic_plane import create_uniform_grid
 from pysces.distributed_memory.global_assembly import project_scalar_global

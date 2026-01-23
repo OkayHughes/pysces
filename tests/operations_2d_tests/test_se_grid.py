@@ -3,7 +3,7 @@ from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
 from pysces.distributed_memory.processor_decomposition import get_decomp, local_to_global
-from pysces.operations_2d.se_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,
+from pysces.horizontal_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,
                                           init_assembly_local, create_spectral_element_grid,)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np

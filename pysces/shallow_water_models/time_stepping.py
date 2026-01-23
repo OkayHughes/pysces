@@ -3,7 +3,7 @@ from .explicit_terms import calc_rhs
 from .model_state import project_state, advance_state
 from .hyperviscosity import calc_hypervis_quasi_uniform, calc_hypervis_variable_resolution
 from ..time_step import time_step_options, stability_info
-from ..operations_2d.se_grid import get_cfl
+from ..horizontal_grid import get_cfl
 from frozendict import frozendict
 from functools import partial
 

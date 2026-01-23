@@ -1,7 +1,7 @@
 from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
 from pysces.mesh_generation.element_local_metric import (create_quasi_uniform_grid_elem_local,
                                                          create_mobius_like_grid_elem_local)
-from pysces.operations_2d.se_grid import init_hypervis_tensor, postprocess_grid
+from pysces.horizontal_grid import init_hypervis_tensor, postprocess_grid
 from pysces.operations_2d.operators import horizontal_weak_laplacian
 from pysces.operations_2d.local_assembly import project_scalar
 from pysces.config import np, jnp, device_unwrapper, device_wrapper

@@ -8,10 +8,10 @@ pysces documentation
 
 
 
-
-
 .. toctree::
    usage
+   contributing
+   inaccessible_jargon
    api/index
 
 .. autosummary::

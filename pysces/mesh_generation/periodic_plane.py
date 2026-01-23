@@ -1,7 +1,7 @@
 from ..config import np, use_wrapper, mpi_size
 from ..spectral import init_spectral
 from ..distributed_memory.processor_decomposition import get_decomp
-from ..operations_2d.se_grid import create_spectral_element_grid
+from ..horizontal_grid import create_spectral_element_grid
 from .mesh import vert_red_hierarchy_to_flat
 
 

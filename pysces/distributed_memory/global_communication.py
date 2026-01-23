@@ -12,10 +12,6 @@ def exchange_buffers_mpi(buffer):
   Exchange Spectral Element grid non-processor-local redundant DOFS
   between processes using the Message Passing Interface.
 
-  **This function is the only function in the entire codebase
-  that will hang indefinitely in the event of, e.g., hardware failures
-  on a remote processor, or other distributed-memory shenanigans.**
-
   Parameters
   ----------
   buffer: `dict[proc_idx, list[Array[tuple[point_idx, level_idx], Float]]]`

@@ -2,7 +2,7 @@ from ..config import use_wrapper, np
 from .mesh import gen_vert_redundancy, gen_gll_redundancy, mesh_to_cart_bilinear, generate_metric_terms
 from .equiangular_metric import gen_metric_terms_equiangular
 from .cubed_sphere import gen_cube_topo
-from .coordinate_utils import unit_sphere_to_cart, cart_to_unit_sphere_coords_jacobian, cart_to_unit_sphere
+from .spherical_coord_utils import unit_sphere_to_cart, cart_to_unit_sphere_coords_jacobian, cart_to_unit_sphere
 
 
 def gen_metric_terms_elem_local(latlon_corners, npt, rotate=False):

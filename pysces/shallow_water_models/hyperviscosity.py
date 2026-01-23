@@ -1,7 +1,7 @@
 from ..config import jit, jnp, device_wrapper
 from ..operations_2d.operators import horizontal_weak_vector_laplacian, horizontal_weak_laplacian
 from ..operations_2d.tensor_hyperviscosity import quasi_uniform_hypervisc_coeff, variable_resolution_hypervisc_coeff
-from ..operations_2d.se_grid import get_global_grid_deformation_metrics
+from ..horizontal_grid import get_global_grid_deformation_metrics
 from .model_state import project_state, create_state_struct
 from ..distributed_memory.global_assembly import project_scalar_global
 from functools import partial
