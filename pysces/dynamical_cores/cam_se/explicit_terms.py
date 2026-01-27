@@ -23,8 +23,8 @@ def init_common_variables(dynamics, static_forcing, moisture_species, dry_air_sp
   phi_surf = static_forcing["phi_surf"]
   coriolis_param = static_forcing["coriolis_param"]
 
-  R_dry = Rgas_dry_fn(dry_air_species, physics_config, model)
-  cp_dry = cp_dry_fn(dry_air_species, physics_config, model)
+  R_dry = Rgas_dry_fn(dry_air_species, physics_config)
+  cp_dry = cp_dry_fn(dry_air_species, physics_config)
   cp = cp_moist(moisture_species, cp_dry, physics_config)
   total_mixing_ratio = sum_species(moisture_species)
   virtual_temperature = virtual_temperature_fn(temperature, moisture_species, total_mixing_ratio, R_dry, physics_config)
@@ -34,10 +34,15 @@ def init_common_variables(dynamics, static_forcing, moisture_species, dry_air_sp
   p_int = interface_pressure(d_pressure, ptop)
   pressure_model_lev = midpoint_pressure(p_int)
   grad_pressure = horizontal_gradient_3d(pressure_model_lev, h_grid, physics_config)
-
   density_inv = R_dry * virtual_temperature / pressure_model_lev
+  phi = hydrostatic_geopotential(virtual_temperature,
+                                 d_pressure,
+                                 pressure_model_lev,
+                                 R_dry,
+                                 phi_surf)
   return {"u": u,
           "temperature": temperature,
+          "phi": phi,
           "d_mass": d_mass,
           "d_pressure": d_pressure,
           "virtual_temperature": virtual_temperature,
@@ -77,12 +82,8 @@ def d_mass_divergence_term(common_variables, h_grid, physics_config):
 def energy_gradient_term(common_variables, h_grid, physics_config):
   u = common_variables["u"]
   phi_surf = common_variables["phi_surf"]
+  phi = common_variables["phi"]
   kinetic_energy = sphere_dot(u, u) / 2.0 
-  phi = hydrostatic_geopotential(common_variables["virtual_temperature"],
-                                 common_variables["d_pressure"],
-                                 common_variables["pressure_midpoint"],
-                                 common_variables["R_dry"],
-                                 phi_surf)
   return -horizontal_gradient_3d(kinetic_energy[:, :, :] + phi, h_grid, physics_config)
 
 

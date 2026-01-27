@@ -311,9 +311,9 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type=pertu
   cos_lat = jnp.cos(lat)[:, :, :, np.newaxis]
   inttermU = ((r_hat * cos_lat)**(K - 1.0) -
               (r_hat * cos_lat)**(K + 1.0))
-  pressure, temp = evaluate_pressure_temperature(z, lat, config, deep=deep)
+  pressure, virtual_temperature = evaluate_pressure_temperature(z, lat, config, deep=deep)
   bigU = (config["gravity"] / config["radius_earth"] * K *
-          inttau2 * inttermU * temp)
+          inttau2 * inttermU * virtual_temperature)
 
   if deep:
     rcoslat = config["radius_earth"] * cos_lat
@@ -327,13 +327,10 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type=pertu
   if moist:
     p0 = config["p0"]
     eta = pressure / p0
-    q_vapor = config["moistq0"] * (jnp.exp(-(lat / config["moistqlat"])**4) *
-                                   jnp.exp((-(eta - 1.0) * p0 / config["moistqp"])**2))
-    Mvap = config["R_water_vapor"] / config["Rgas"] - 1.0
-    temp_v = temp / (1.0 + Mvap * q_vapor)
+    q_vapor = config["moistq0"] * (jnp.exp(-(lat[:, :, :, np.newaxis] / config["moistqlat"])**4) *
+                                   jnp.exp(-((eta - 1.0) * p0 / config["moistqp"])**2))
   else:
     q_vapor = jnp.zeros_like(z)
-    temp_v = temp
 
   # todo: handle pert
   if pert_type == perturbation_opts.exponential:
@@ -348,7 +345,7 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type=pertu
     sf_lon_below = evaluate_streamfunction(lat, lon - eps, z, config)
     u += - (sf_lat_above - sf_lat_below) / (2 * eps)
     v += (sf_lon_above - sf_lon_below) / (2 * eps)
-  return u, v, pressure, temp_v, q_vapor
+  return u, v, pressure, virtual_temperature, q_vapor
 
 
 def great_circle_dist(lat, lon, config):

@@ -2,11 +2,13 @@ from pysces.config import np, jnp, device_unwrapper, device_wrapper, use_wrapper
 
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
+from pysces.operations_2d.operators import horizontal_gradient
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
 from pysces.analytic_initialization.moist_baroclinic_wave import (get_umjs_config,
                                                     evaluate_pressure_temperature,
                                                     evaluate_state)
 from pysces.dynamical_cores.utils_3d import g_from_z
+from pysces.model_info import models
 
 
 def test_shallow():
@@ -32,8 +34,34 @@ def test_shallow():
     pressure, temperature = evaluate_pressure_temperature(z_center, lat, config_shallow, deep=False)
     rho = pressure / (config_shallow["Rgas"] * temperature)
     dp_dz = (pressure_above - pressure_below) / (2 * eps)
-    assert (np.max(np.abs(device_unwrapper(g_from_z(z, config_shallow, deep=False) * rho + dp_dz))) < 0.001)
+    assert (np.max(np.abs(device_unwrapper(g_from_z(z, config_shallow, models.homme_nonhydrostatic) * rho + dp_dz))) < 0.001)
 
+def test_moist_shallow():
+  npt = 4
+  if use_wrapper and wrapper_type == "torch":
+    # getting double precision init is not a priority
+    return
+  nx = 31
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt)
+  config_moist = get_umjs_config(pertu0=0.0,
+                                   pertup=0.0)
+  config_pseudo_moist = get_umjs_config(pertu0=0.0,
+                                        pertup=0.0,
+                                        moistq0=0.0)
+  lat = grid["physical_coords"][:, :, :, 0]
+  lon = grid["physical_coords"][:, :, :, 1]
+  for z in jnp.linspace(0, 40e3, 10):
+    z_2d = device_wrapper((z) * jnp.ones((*lat.shape, 1)))
+    _, _, _, _, Q = evaluate_state(lat, lon, z_2d, config_moist, deep=False, moist=True)
+    assert jnp.all(Q > 0)
+    assert jnp.all(Q <= config_moist["moistq0"])
+    # test if we're accidentally returning temperature instead of virtual temperature
+    _, _, _, virtual_temp_1, _ = evaluate_state(lat, lon, z_2d, config_moist, deep=False, moist=True)
+    _, _, _, virtual_temp_2, Q = evaluate_state(lat, lon, z_2d, config_pseudo_moist, deep=False, moist=True)
+    assert jnp.allclose(Q, 0.0)
+    assert jnp.allclose(virtual_temp_1, virtual_temp_2)
 
 def test_deep():
   npt = 4
@@ -66,5 +94,5 @@ def test_deep():
       ncts = -u * 2.0 * config_deep["period_earth"] * jnp.cos(lat)[:, :, :, np.newaxis]
       assert (np.max(np.abs(device_unwrapper(dp_dz / rho + g_from_z(z_center,
                                                                     config_deep,
-                                                                    deep=True) +
+                                                                    models.homme_nonhydrostatic_deep) +
                                              metric_terms + ncts))) < 1e-3)

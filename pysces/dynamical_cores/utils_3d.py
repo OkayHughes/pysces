@@ -147,7 +147,7 @@ def get_delta(field_interface):
 
 
 @jit
-def get_surface_sum(dfield_model, val_surf):
+def get_surface_sum(dfield_model, val_surf_top):
   """
   [Description]
 
@@ -171,8 +171,8 @@ def get_surface_sum(dfield_model, val_surf):
       when a key error
   """
   return jnp.concatenate((flip(jnp.cumsum(flip(dfield_model, -1), axis=-1), -1) +
-                          val_surf[:, :, :, np.newaxis],
-                          val_surf[:, :, :, np.newaxis]), axis=-1)
+                          val_surf_top[:, :, :, np.newaxis],
+                          val_surf_top[:, :, :, np.newaxis]), axis=-1)
 
 
 @partial(jit, static_argnames=["model"])

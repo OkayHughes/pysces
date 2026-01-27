@@ -6,8 +6,11 @@ from pysces.dynamical_cores.physics_config import init_physics_config
 from pysces.analytic_initialization.moist_baroclinic_wave import get_umjs_config
 from pysces.run_dycore import init_simulator
 from pysces.time_step import time_step_options
-from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
+from ..context import get_figdir
+from pysces.mesh_generation.element_local_metric import create_quasi_uniform_grid_elem_local
 from pysces.dynamical_cores.mass_coordinate import create_vertical_grid
+from .mass_coordinate_grids import vertical_grid_finite_diff
+from pysces.dynamical_cores.utils_3d import sphere_dot
 from pysces.dynamical_cores.model_state import sum_dynamics_states
 from pysces.model_info import models, spherical_models, homme_models, cam_se_models, thermodynamic_variable_names
 from pysces.dynamical_cores.time_stepping import advance_dynamics_euler
@@ -23,6 +26,7 @@ from pysces.dynamical_cores.homme.explicit_terms import d_mass_divergence_term a
 from pysces.dynamical_cores.homme.explicit_terms import vorticity_term as vorticity_term_homme
 from pysces.dynamical_cores.homme.explicit_terms import explicit_tendency as explicit_homme
 from frozendict import frozendict
+from pysces.operations_2d.operators import inner_product
 
 
 def compare_equivalent_terms(model_state_se, model_state_homme,
@@ -42,14 +46,14 @@ def compare_equivalent_terms(model_state_se, model_state_homme,
                                                  model_se)
   dynamics = model_state_homme["dynamics"]
   static_forcing = model_state_homme["static_forcing"]
-  commmon_variables_homme = init_common_variables_homme(dynamics, static_forcing, h_grid, v_grid_homme, physics_config_homme, model_homme)
+  common_variables_homme = init_common_variables_homme(dynamics, static_forcing, h_grid, v_grid_homme, physics_config_homme, model_homme)
   d_mass_div_se = d_mass_divergence_term_se(common_variables_se, h_grid, physics_config_se)
-  d_mass_div_homme = d_mass_divergence_term_homme(commmon_variables_homme)
+  d_mass_div_homme = d_mass_divergence_term_homme(common_variables_homme)
   vorticity_se = vorticity_term_se(common_variables_se, h_grid, physics_config_se)
-  vorticity_homme = vorticity_term_homme(commmon_variables_homme, h_grid, physics_config_homme)
+  vorticity_homme = vorticity_term_homme(common_variables_homme, h_grid, physics_config_homme)
   grad_energy_se = energy_gradient_term(common_variables_se, h_grid, physics_config_se)
-  grad_energy_homme = (grad_kinetic_energy_h_term(commmon_variables_homme, h_grid, physics_config_homme) +
-                       pgrad_phi_term(commmon_variables_homme))
+  grad_energy_homme = (grad_kinetic_energy_h_term(common_variables_homme, h_grid, physics_config_homme) +
+                       pgrad_phi_term(common_variables_homme))
   temperature_tend_se = (temperature_horiz_advection_term(common_variables_se, h_grid, physics_config_se) +
                          temperature_vertical_advection_term(common_variables_se, h_grid, physics_config_se))
   total_mixing_ratio = sum_species(moisture_species)
@@ -58,10 +62,13 @@ def compare_equivalent_terms(model_state_se, model_state_homme,
                                               common_variables_se["R_dry"],
                                               common_variables_se["cp_dry"],
                                               physics_config_se)
-  theta_v_tend_homme = theta_v_divergence_term(commmon_variables_homme,
+  theta_v_tend_homme = theta_v_divergence_term(common_variables_homme,
                                                h_grid,
                                                physics_config_homme) / model_state_homme["dynamics"]["d_mass"]
-  pgrad_homme = pgrad_pressure_term(commmon_variables_homme, h_grid, physics_config_homme)
+  pgrad_homme = pgrad_pressure_term(common_variables_homme, h_grid, physics_config_homme)
+  print(jnp.max(jnp.abs(common_variables_homme["phi"] - common_variables_se["phi"])))
+  print(common_variables_homme["phi"][0, 0, 0, :])
+  print(common_variables_se["phi"][0, 0, 0, :])
 
   pgrads_se = {}
   for pgrad in pressure_gradient_options:
@@ -81,6 +88,7 @@ def compare_equivalent_terms(model_state_se, model_state_homme,
 def compare_equivalent_tendency(model_state_se, model_state_homme):
   pass
 
+
 def test_equivalent_terms_dry_steady_state():
   tends = []
   temperature_tendencies = []
@@ -91,7 +99,7 @@ def test_equivalent_terms_dry_steady_state():
   nx = 16
   model_se = models.cam_se
   model_homme = models.homme_hydrostatic
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = create_quasi_uniform_grid_elem_local(nx, npt)
   v_grid_se = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"],
@@ -100,7 +108,6 @@ def test_equivalent_terms_dry_steady_state():
                                 cam30["hybrid_b_i"],
                                 cam30["p0"],
                                 model_homme)
-  
 
   physics_config_se = init_physics_config(model_se)
   test_config = get_umjs_config(model_config=physics_config_se)
@@ -116,7 +123,8 @@ def test_equivalent_terms_dry_steady_state():
   assert (jnp.max(jnp.abs(equivalent_terms["grad_energy"]["se"] + equivalent_terms["grad_energy"]["homme"]))) < 1e-2
   assert (jnp.max(jnp.abs(equivalent_terms["theta_v_divergence"]["se"] + equivalent_terms["theta_v_divergence"]["homme"]))) < 1e-4
   for pgrad in pressure_gradient_options:
-    print(f"{pgrad} error: {jnp.max(jnp.abs(equivalent_terms["pgrad"]["homme"] - equivalent_terms["pgrad"]["se"][pgrad]))}")
+    assert jnp.max(jnp.abs(equivalent_terms["pgrad"]["homme"] - equivalent_terms["pgrad"]["se"][pgrad])) < 1e-4
+
 
 def test_equivalent_terms_dry_perturbed():
   tends = []
@@ -126,9 +134,11 @@ def test_equivalent_terms_dry_perturbed():
   energy_gradients = []
   npt = 4
   nx = 16
+  nlev = 30
   model_se = models.cam_se
   model_homme = models.homme_hydrostatic
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = create_quasi_uniform_grid_elem_local(nx, npt)
+  v_grid_test = vertical_grid_finite_diff(nlev)
   v_grid_se = create_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
                                 cam30["p0"],
@@ -137,24 +147,30 @@ def test_equivalent_terms_dry_perturbed():
                                 cam30["hybrid_b_i"],
                                 cam30["p0"],
                                 model_homme)
-  
+
   physics_config_se = init_physics_config(model_se)
   test_config = get_umjs_config(model_config=physics_config_se)
   model_state_se = get_umjs_state(h_grid, v_grid_se, physics_config_se, test_config, dims, model_se, mountain=False, moist=False)
   physics_config_homme = init_physics_config(model_homme)
   test_config = get_umjs_config(model_config=physics_config_homme)
   model_state_homme = get_umjs_state(h_grid, v_grid_homme, physics_config_homme, test_config, dims, model_homme, mountain=False, moist=False)
-  d_mass_pert = 100.0 * jnp.cos(h_grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis]
+  scaling = (v_grid_se["hybrid_a_m"] + v_grid_se["hybrid_b_m"])[np.newaxis, np.newaxis, np.newaxis, :]
+  d_mass_pert = 1000.0 * jnp.cos(h_grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis] * scaling
+  pert_u = .1 * jnp.cos(h_grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis, np.newaxis] * jnp.cos(h_grid["physical_coords"][:, :, :, 1])[:, :, :, np.newaxis, np.newaxis] 
   model_state_homme["dynamics"]["d_mass"] += d_mass_pert
   model_state_se["dynamics"]["d_mass"] += d_mass_pert
+  model_state_homme["dynamics"]["u"] += pert_u
+  model_state_se["dynamics"]["u"] += pert_u
   equivalent_terms = compare_equivalent_terms(model_state_se, model_state_homme,
                                               physics_config_se, physics_config_homme,
                                               v_grid_se, v_grid_homme, model_se, model_homme, h_grid)
-  print(jnp.max(jnp.abs(equivalent_terms["d_mass_divergence"]["se"] - equivalent_terms["d_mass_divergence"]["homme"]))/jnp.max(jnp.abs(equivalent_terms["d_mass_divergence"]["se"])))
-  assert (jnp.max(jnp.abs(equivalent_terms["vorticity"]["se"] - equivalent_terms["vorticity"]["homme"]))) < 1e-4
-  assert (jnp.max(jnp.abs(equivalent_terms["grad_energy"]["se"] + equivalent_terms["grad_energy"]["homme"]))) < 1e-2
-  assert (jnp.max(jnp.abs(equivalent_terms["theta_v_divergence"]["se"] + equivalent_terms["theta_v_divergence"]["homme"]))) < 1e-4
-  for pgrad in pressure_gradient_options:
-    print(f"{pgrad} homme: {jnp.max(jnp.abs(equivalent_terms["pgrad"]["homme"]))}")
-    print(f"{pgrad} se: {jnp.max(jnp.abs( equivalent_terms["pgrad"]["se"][pgrad]))}")
-    print(f"{pgrad} error: {jnp.max(jnp.abs(equivalent_terms["pgrad"]["homme"] - equivalent_terms["pgrad"]["se"][pgrad]))}")
+  print (jnp.max(jnp.abs(equivalent_terms["vorticity"]["se"] - equivalent_terms["vorticity"]["homme"])))
+  print (jnp.max(jnp.abs(equivalent_terms["grad_energy"]["se"] + equivalent_terms["grad_energy"]["homme"]))) 
+  reference_pgrad_method = pressure_gradient_options.basic
+  for pgrad in [pressure_gradient_options.grad_exner, pressure_gradient_options.corrected_grad_exner]:
+    pgrad_mag = jnp.sqrt(sphere_dot(equivalent_terms["pgrad"]["se"][reference_pgrad_method], equivalent_terms["pgrad"]["se"][reference_pgrad_method]))
+    for k in range(nlev):
+      norm_const = inner_product(pgrad_mag[:, :, :, k], pgrad_mag[:, :, :, k], h_grid)
+      diff = (equivalent_terms["pgrad"]["se"][reference_pgrad_method][:, :, :, k, :] - equivalent_terms["pgrad"]["se"][pgrad][:, :, :, k, :])
+      diff_total = inner_product(diff[:, :, :, 0] / norm_const, diff[:, :, :, 0], h_grid) + inner_product(diff[:, :, :, 1] / norm_const, diff[:, :, :, 1], h_grid)
+      assert diff_total < 1e-8

@@ -1,16 +1,27 @@
-from .config import jnp, device_wrapper
+from .config import jnp, device_wrapper, np
 from .dynamical_cores.homme.homme_state import init_model_struct as init_model_struct_homme
 from .dynamical_cores.cam_se.se_state import init_model_struct as init_model_struct_se
+from .dynamical_cores.homme.thermodynamics import get_balanced_phi
 from .dynamical_cores.utils_3d import get_delta
-from .dynamical_cores.mass_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_interface
-from .model_info import hydrostatic_models, moist_mixing_ratio_models, cam_se_models, homme_models, dry_mixing_ratio_models
+from .dynamical_cores.mass_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_interface, top_interface_mass
+from .dynamical_cores.physics_config import typical_mass_ratios
+from .model_info import hydrostatic_models, moist_mixing_ratio_models, cam_se_models, homme_models, dry_mixing_ratio_models, variable_kappa_models
 
 gauss_points = (jnp.array([-0.97390652851717,-0.865063366689,-0.67940956829902,-0.4333953941292,-0.14887433898163, 0.14887433898163,0.4333953941292,0.679409568299,0.86506336668898,0.97390652851717]) + 1.0) / 2.0
 
 gauss_weights = jnp.array([0.06667134430869, 0.1494513491506, 0.219086362516, 0.26926671931, 0.29552422471475,  0.2955242247148, 0.26926671931, 0.21908636251598, 0.1494513491506, 0.0666713443087]) / 2.0
 
 
-def z_from_p_monotonic_dry(pressures, lat, lon, p_moist_given_z, q_given_z, Tv_given_z, config, eps=1e-5, z_top=80e3):
+def integrate_weight_of_vapor(p_moist_given_z, Tv_given_z, q_given_z, z, z_top, config):
+  weight = jnp.zeros_like(z)
+  for gauss_point, gauss_weight in zip(gauss_points, gauss_weights):
+    z_quad = z_top - gauss_point * (z_top-z)
+    rho_water = p_moist_given_z(z_quad) / (config["Rgas"] * Tv_given_z(z_quad)) * q_given_z(z_quad)
+    weight += gauss_weight * rho_water * config["gravity"] * (z_top-z)
+  return weight
+
+
+def z_from_p_monotonic_dry(pressures, p_moist_given_z, q_given_z, Tv_given_z, v_grid, config, eps=1e-5, z_top=80e3):
   """
   [Description]
 
@@ -33,20 +44,13 @@ def z_from_p_monotonic_dry(pressures, lat, lon, p_moist_given_z, q_given_z, Tv_g
   KeyError
       when a key error
   """
-  z_top = z_from_p_monotonic_moist(pressures, p_moist_given_z, eps)
-
-  def integrate_weight_of_q(z):
-    weight = jnp.zeros_like(z)
-    for gauss_point, gauss_weight in zip(gauss_points, gauss_weights):
-      z_quad = z_top - gauss_point * (z_top-z)
-      rho_water = p_moist_given_z(z_quad) / (config["Rgas"] * Tv_given_z(lat, lon, z_quad)) * q_given_z(lat, lon, z_quad)
-      weight += gauss_weight * rho_water * config["gravity"]
-    return weight
+  p_top = top_interface_mass(v_grid)
+  z_top = z_from_p_monotonic_moist(p_top * jnp.ones_like(pressures), p_moist_given_z, eps)
   def p_dry_given_z(z):
-    return p_moist_given_z(z) - integrate_weight_of_q(z)
-  z_guesses = z_top * jnp.ones_like(pressures)
+    return p_moist_given_z(z) - integrate_weight_of_vapor(p_moist_given_z, Tv_given_z, q_given_z, z, z_top, config)
+  z_guesses = jnp.zeros_like(pressures)
   not_converged = jnp.logical_not(jnp.abs((p_dry_given_z(z_guesses) - pressures)) / pressures < eps)
-  frac = 0.5
+  frac = 1.0
   ct = 0
   while jnp.any(not_converged):
     p_guess = p_dry_given_z(z_guesses)
@@ -57,7 +61,7 @@ def z_from_p_monotonic_dry(pressures, lat, lon, p_moist_given_z, q_given_z, Tv_g
                                     z_guesses + frac * z_top), z_guesses)
     not_converged = jnp.logical_not(jnp.abs((p_dry_given_z(z_guesses) - pressures)) / pressures < eps)
     frac *= 0.5
-    if ct > 100:
+    if ct > 30:
       break
     ct += 1
   return z_guesses
@@ -88,9 +92,9 @@ def z_from_p_monotonic_moist(pressures, p_given_z, eps=1e-5, z_top=80e3):
   """
 
 
-  z_guesses = p_given_z(z_top * jnp.ones_like(pressures))
+  z_guesses = 0.0 * p_given_z(z_top * jnp.ones_like(pressures))
   not_converged = jnp.logical_not(jnp.abs((p_given_z(z_guesses) - pressures)) / pressures < eps)
-  frac = 0.5
+  frac = 1.0
   ct = 0
   while jnp.any(not_converged):
     p_guess = p_given_z(z_guesses)
@@ -101,7 +105,7 @@ def z_from_p_monotonic_moist(pressures, p_given_z, eps=1e-5, z_top=80e3):
                                     z_guesses + frac * z_top), z_guesses)
     not_converged = jnp.logical_not(jnp.abs((p_given_z(z_guesses) - pressures)) / pressures < eps)
     frac *= 0.5
-    if ct > 100:
+    if ct > 30:
       break
     ct += 1
   return z_guesses
@@ -109,7 +113,8 @@ def z_from_p_monotonic_moist(pressures, p_given_z, eps=1e-5, z_top=80e3):
 
 def init_model_pressure(z_pi_surf_func, p_moist_func, Tv_func, u_func, v_func, Q_func,
                               h_grid, v_grid, config, dims,
-                              model, w_func=lambda lat, lon, z: 0.0, eps=1e-8):
+                              model, w_func=lambda lat, lon, z: 0.0, eps=1e-8,
+                              enforce_hydrostatic=False):
   """
   [Description]
 
@@ -135,16 +140,20 @@ def init_model_pressure(z_pi_surf_func, p_moist_func, Tv_func, u_func, v_func, Q
   lat = h_grid["physical_coords"][:, :, :, 0]
   lon = h_grid["physical_coords"][:, :, :, 1]
   z_surf, surface_mass = z_pi_surf_func(lat, lon)
+
+  if model in dry_mixing_ratio_models:
+    p_top = top_interface_mass(v_grid)
+    z_top = z_from_p_monotonic_moist(p_top * jnp.ones_like(surface_mass)[:, :, :, np.newaxis], p_moist_func, eps)
+    weight_of_vapor = integrate_weight_of_vapor(p_moist_func, lambda z: Tv_func(lat, lon, z), lambda z: Q_func(lat, lon, z), z_surf[:, :, :, np.newaxis], z_top, config)
+    surface_mass -= weight_of_vapor.squeeze()
   p_mid = mass_from_coordinate_midlev(surface_mass, v_grid)
   p_int = mass_from_coordinate_interface(surface_mass, v_grid)
-
   if model in moist_mixing_ratio_models:
     z_mid = z_from_p_monotonic_moist(p_mid, p_moist_func, eps=eps)
     z_int = z_from_p_monotonic_moist(p_int, p_moist_func, eps=eps)
   elif model in dry_mixing_ratio_models:
-    z_mid = z_from_p_monotonic_dry(p_mid, lat, lon, p_moist_func, Q_func, Tv_func, config, eps=eps)
-    z_int = z_from_p_monotonic_dry(p_int, lat, lon, p_moist_func, Q_func, Tv_func, config, eps=eps)
-
+    z_mid = z_from_p_monotonic_dry(p_mid, p_moist_func, lambda z: Q_func(lat, lon, z), lambda z: Tv_func(lat, lon, z), v_grid, config, eps=eps)
+    z_int = z_from_p_monotonic_dry(p_int, p_moist_func, lambda z: Q_func(lat, lon, z), lambda z: Tv_func(lat, lon, z), v_grid, config, eps=eps)
   if model not in hydrostatic_models:
     w_i = device_wrapper(w_func(lat, lon, z_int))
     phi_i = device_wrapper(z_int * config["gravity"])
@@ -166,6 +175,14 @@ def init_model_pressure(z_pi_surf_func, p_moist_func, Tv_func, u_func, v_func, Q
     #T(i,k) = tvk*(1.0_r8+qdry)/(1.0_r8+(1.0_r8/epsilo)*qdry)
     temperature = virtual_temperature * (1.0 + moisture_dry_ratio) / (1.0 + (1.0 / config["epsilon"]) * moisture_dry_ratio)
     moisture_species = {"water_vapor": device_wrapper(moisture_dry_ratio)}
+    if model in variable_kappa_models:
+      species_names = config["dry_air_species_Rgas"].keys()
+      ratios = typical_mass_ratios[frozenset(species_names)]
+      dry_air_species = {}
+      for species in species_names:
+        dry_air_species[species] = ratios[species] * jnp.ones_like(moisture_species["water_vapor"])
+    else:
+      dry_air_species = None
     initial_state = init_model_struct_se(device_wrapper(wind),
                                          device_wrapper(temperature),
                                          device_wrapper(d_mass),
@@ -174,12 +191,16 @@ def init_model_pressure(z_pi_surf_func, p_moist_func, Tv_func, u_func, v_func, Q
                                          {},
                                          h_grid,
                                          dims,
-                                         config, model)
+                                         config, model,
+                                         dry_air_species=dry_air_species)
 
   elif model in homme_models:
     theta_v = Tv_func(lat, lon, z_mid) * (config["p0"] / p_mid)**(config["Rgas"] / config["cp"])
     moisture_moist_ratio = Q_func(lat, lon, z_mid)
     theta_v_d_mass = theta_v * d_mass
+    if enforce_hydrostatic and model not in hydrostatic_models:
+      phi_i = get_balanced_phi(phi_surf, p_mid, theta_v_d_mass, config)
+      
     moisture_species = {"water_vapor": device_wrapper(moisture_moist_ratio)}
     initial_state = init_model_struct_homme(device_wrapper(wind),
                                             device_wrapper(theta_v_d_mass),

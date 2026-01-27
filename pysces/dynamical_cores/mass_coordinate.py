@@ -1,4 +1,4 @@
-from ..config import jit, np
+from ..config import jit, np, jnp
 from ..model_info import moist_mixing_ratio_models
 
 
@@ -123,3 +123,13 @@ def mass_from_coordinate_interface(ps, v_grid):
   """
   return (v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][np.newaxis, np.newaxis, np.newaxis, :] +
           v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, :] * ps[:, :, :, np.newaxis])
+
+
+@jit 
+def surface_mass_from_coordinate(d_mass, v_grid):
+  p_top = v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0]
+  return jnp.sum(d_mass, axis=-1) + p_top
+
+@jit
+def top_interface_mass(v_grid):
+  return v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0]

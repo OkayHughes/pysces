@@ -9,7 +9,7 @@ from ..time_step import time_step_options, stability_info
 from functools import partial
 from frozendict import frozendict
 from .physics_dynamics_coupling import coupling_types
-from ..model_info import spherical_models, cam_se_models, homme_models
+from ..model_info import spherical_models, cam_se_models, homme_models, thermodynamic_variable_names
 
 
 @partial(jit, static_argnames=["dims", "model"])
@@ -25,10 +25,11 @@ def dynamics_tendency(dynamics, static_forcing, h_grid, v_grid, physics_config, 
 @partial(jit, static_argnames=["model"])
 def enforce_conservation(dynamics, static_forcing, dt, physics_config, model):
   if model in cam_se_models:
-    dynamics_cont = dynamics
+    dynamics_conserve = dynamics
   else:
-    dynamics_cont = correct_state(dynamics, static_forcing, dt, physics_config, model)
-  return dynamics_cont
+    dynamics_conserve = correct_state(dynamics, static_forcing, dt, physics_config, model)
+  dynamics_conserve = dynamics
+  return dynamics_conserve
 
 
 #
@@ -266,34 +267,34 @@ def advance_dynamics_ullrich_5stage(dynamics_in, static_forcing, h_grid, v_grid,
   """
   dt = timestep_config["dynamics"]["dt"]
   dynamics_tend = dynamics_tendency(dynamics_in, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moist_species=moisture_species,
+                                     moisture_species=moisture_species,
                                      dry_air_species=dry_air_species)
   dynamics_keep = advance_dynamics([dynamics_in, dynamics_tend], [1.0, dt / 5.0], model)
-  dynamics_keep = enforce_conservation(dynamics_keep, dt / 5.0, physics_config, model)
+  dynamics_keep = enforce_conservation(dynamics_keep, static_forcing, dt / 5.0, physics_config, model)
 
   dynamics_tend = dynamics_tendency(dynamics_keep, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moist_species=moisture_species,
+                                     moisture_species=moisture_species,
                                      dry_air_species=dry_air_species)
   dynamics_tmp = advance_dynamics([dynamics_in, dynamics_tend], [1.0, dt / 5.0], model)
-  dynamics_tmp = enforce_conservation(dynamics_tmp, dt / 5.0, physics_config, model)
+  dynamics_tmp = enforce_conservation(dynamics_tmp, static_forcing, dt / 5.0, physics_config, model)
 
   dynamics_tend = dynamics_tendency(dynamics_tmp, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moist_species=moisture_species,
+                                     moisture_species=moisture_species,
                                      dry_air_species=dry_air_species)
   dynamics_tmp = advance_dynamics([dynamics_in, dynamics_tend], [1.0, dt / 3.0], model)
-  dynamics_tmp = enforce_conservation(dynamics_tmp, dt / 3.0, physics_config, model)
+  dynamics_tmp = enforce_conservation(dynamics_tmp, static_forcing, dt / 3.0, physics_config, model)
 
   dynamics_tend = dynamics_tendency(dynamics_tmp, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moist_species=moisture_species,
+                                     moisture_species=moisture_species,
                                      dry_air_species=dry_air_species)
   dynamics_tmp = advance_dynamics([dynamics_in, dynamics_tend], [1.0, 2.0 * dt / 3.0], model)
-  dynamics_tmp = enforce_conservation(dynamics_tmp, 2.0 * dt / 3.0, physics_config, model)
+  dynamics_tmp = enforce_conservation(dynamics_tmp, static_forcing, 2.0 * dt / 3.0, physics_config, model)
   
   dynamics_tend = dynamics_tendency(dynamics_tmp, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moist_species=moisture_species,
+                                     moisture_species=moisture_species,
                                      dry_air_species=dry_air_species)
   final_state = advance_dynamics([dynamics_in, dynamics_keep, dynamics_tend], [-1.0 / 4.0,
-                                                                                        5.0 / 4.0,
-                                                                                        3.0 * dt / 4.0], model)
+                                                                               5.0 / 4.0,
+                                                                               3.0 * dt / 4.0], model)
   final_state = enforce_conservation(final_state, static_forcing, 2.0 * dt / 3.0, physics_config, model)
   return final_state

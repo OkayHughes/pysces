@@ -4,6 +4,7 @@ import numpy as np
 from json import loads
 from typing import Hashable
 from mpi4py import MPI
+from dataclasses import dataclass
 
 
 def get_config_filepath():

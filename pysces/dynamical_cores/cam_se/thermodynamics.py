@@ -1,11 +1,9 @@
 from ...config import jnp, np
-from ...model_info import variable_kappa_models
-
 
 def sum_species(moisture_species_per_dry_mass):
   sum_species = jnp.ones_like(next(iter(moisture_species_per_dry_mass.values())))
   for species_name in moisture_species_per_dry_mass.keys():
-      sum_species += sum_species + (moisture_species_per_dry_mass[species_name])
+      sum_species += (moisture_species_per_dry_mass[species_name])
   return sum_species
 
 
@@ -20,6 +18,7 @@ def d_pressure(d_mass, moisture_species_per_dry_mass):
   dp_moist = 1.0 * d_mass
   for species_name in moisture_species_per_dry_mass.keys():
     dp_moist += d_mass * moisture_species_per_dry_mass[species_name]
+  return dp_moist
 
 
 def surface_pressure(d_mass, moisture_species_per_dry_mass, p_top):
@@ -30,7 +29,7 @@ def surface_pressure(d_mass, moisture_species_per_dry_mass, p_top):
 def interface_pressure(d_pressure, p_top):
   p_int_lower = p_top + jnp.cumsum(d_pressure, axis=3)
   p_int = jnp.concatenate((p_top * jnp.ones((*d_pressure.shape[:-1], 1)),
-                     p_int_lower), axis=-1)
+                           p_int_lower), axis=-1)
   return p_int
 
 
@@ -47,14 +46,14 @@ def virtual_temperature(temperature, moisture_species_per_dry_mass, sum_species,
   return virtual_temperature
 
 
-def Rgas_dry(dry_air_species_per_dry_mass, physics_config, model):
+def Rgas_dry(dry_air_species_per_dry_mass, physics_config):
   Rgas_total = jnp.zeros_like(next(iter(dry_air_species_per_dry_mass.values())))
   for species_name in dry_air_species_per_dry_mass.keys():
     Rgas_total += dry_air_species_per_dry_mass[species_name] * physics_config["dry_air_species_Rgas"][species_name]
   return Rgas_total
 
 
-def cp_dry(dry_air_species_per_dry_mass, physics_config, model):
+def cp_dry(dry_air_species_per_dry_mass, physics_config):
   cp_total = jnp.zeros_like(next(iter(dry_air_species_per_dry_mass.values())))
   for species_name in dry_air_species_per_dry_mass.keys():
     cp_total += dry_air_species_per_dry_mass[species_name] * physics_config["dry_air_species_cp"][species_name]
@@ -66,7 +65,7 @@ def exner_function(midpoint_pressure, R_dry, cp_dry, physics_config):
 
 
 def hydrostatic_geopotential(T_v, dp, p_mid, R_dry, phi_surf):
-  d_phi = -R_dry * T_v * dp / p_mid
+  d_phi = R_dry * T_v * dp / p_mid
   phi_i = jnp.cumsum(jnp.flip(d_phi, axis=-1), axis=-1) + phi_surf[:, :, :, np.newaxis]
   phi_m = jnp.flip(phi_i, axis=-1) - 0.5 * d_phi
   return phi_m

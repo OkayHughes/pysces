@@ -819,20 +819,19 @@ def correct_state(dynamics, static_forcing, dt, config, model):
                                                                     dt,
                                                                     config,
                                                                     model)
-  u_new = jnp.append((dynamics["u"][:, :, :, :-1, :],
-                      u_lowest_new), axis=-2)
+  u_new = jnp.concatenate((dynamics["u"][:, :, :, :-1, :],
+                           u_lowest_new[:, :, :, np.newaxis, :]), axis=-2)
   if model not in hydrostatic_models:
-    w_new = jnp.append((dynamics["w_i"][:, :, :, :-1],
-                        w_lowest_new), axis=-1)
+    w_new = jnp.concatenate((dynamics["w_i"][:, :, :, :-1],
+                             w_lowest_new[:, :, :, np.newaxis]), axis=-1)
   else:
     w_new = dynamics["w_i"]
   return wrap_dynamics_struct(u_new,
                               dynamics["theta_v_d_mass"],
                               dynamics["d_mass"],
-                              dynamics["phi_surf"],
-                              dynamics["grad_phi_surf"],
-                              dynamics["phi_i"],
-                              w_new)
+                              model,
+                              phi_i=dynamics["phi_i"],
+                              w_i=w_new,)
 
 
 @partial(jit, static_argnames=["model"])
