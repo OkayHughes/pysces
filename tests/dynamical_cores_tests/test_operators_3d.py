@@ -104,8 +104,8 @@ def test_vector_laplacian():
   config = {"radius_earth": 1.0}
   vec_3d = threedify(vec, nlev, axis=-2)
   laplace_v_wk = horizontal_weak_vector_laplacian_3d(vec_3d, grid, config)
-  laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
-                            project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
+  laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims),
+                            project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims)), axis=-1)
 
   lap_diff = laplace_v_wk + 2 * vec_3d
   for lev_idx in range(nlev):
@@ -115,8 +115,8 @@ def test_vector_laplacian():
                    jnp.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
   vec_3d = threedify(vec, nlev, axis=-2)
   laplace_v_wk = horizontal_weak_vector_laplacian_3d(vec_3d, grid, config)
-  laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
-                            project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
+  laplace_v_wk = jnp.stack((project_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims),
+                            project_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims)), axis=-1)
   lap_diff = laplace_v_wk + 3 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis, np.newaxis]
   # hack to negate pole point
   lap_diff *= np.cos(grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis, np.newaxis]**2

@@ -276,8 +276,8 @@ def _project_scalar_stub(fs_global, grids, dims):
   return fs_out
 
 
-@partial(jit, static_argnames=["dim", "scaled", "two_d"])
-def project_scalar_global(fs_in, grid, dim, scaled=True, two_d=True):
+@partial(jit, static_argnames=["dim", "two_d"])
+def project_scalar_global(fs_in, grid, dim, two_d=True):
   """
   Perform continuity projection on a list of processor-local scalars using projection triples.
 
@@ -312,10 +312,7 @@ def project_scalar_global(fs_in, grid, dim, scaled=True, two_d=True):
     Raises any error that can be raised by exchange_buffers_mpi function.
 
   """
-  if scaled:
-    scale = grid["mass_matrix"][:, :, :, np.newaxis]
-  else:
-    scale = jnp.ones_like(grid["mass_matrix"][:, :, :, np.newaxis])
+  scale = grid["mass_matrix"][:, :, :, np.newaxis]
 
   if two_d:
     fs = [f.reshape(*dim["shape"], 1) for f in fs_in]

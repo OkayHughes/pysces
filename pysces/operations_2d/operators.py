@@ -158,7 +158,9 @@ def horizontal_weak_laplacian(f, grid, a=1.0, apply_tensor=False):
   grad = horizontal_gradient(f, grid, a=a)
   if apply_tensor:
     grad = jnp.einsum("fijs,fijts->fijt", grad, grid["viscosity_tensor"]) * a**4
-  return horizontal_weak_divergence(grad, grid, a=a)
+  lap_unscaled = horizontal_weak_divergence(grad, grid, a=a)
+  lap_unscaled /= grid["mass_matrix"]
+  return lap_unscaled
 
 
 @jit
@@ -292,6 +294,7 @@ def horizontal_weak_vector_laplacian(u, grid, a=1.0, nu_div_fact=1.0, damp=False
                                       grid["metric_determinant"] * u[:, :, :, 1] * (1 / a)**2)), axis=-1)
   else:
     out = laplacian
+  out /= grid["mass_matrix"][:, :, :, np.newaxis]
   return out
 
 

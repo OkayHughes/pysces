@@ -10,8 +10,8 @@ from .vertical_remap import zerroukat_remap
 from ..distributed_memory.global_communication import global_sum
 
 
-@jit
-def sum_simple_tracers(state1, state2, fold_coeff1, fold_coeff2):
+@partial(jit, static_argnames=["is_dry_air_species"])
+def sum_tracers(state1, state2, fold_coeff1, fold_coeff2, is_dry_air_species=False):
   """
   [Description]
 
@@ -41,28 +41,41 @@ def sum_simple_tracers(state1, state2, fold_coeff1, fold_coeff2):
 
 
 @partial(jit, static_argnames=["model"])
-def advance_simple_tracers(tracer_states, coeffs, model):
-  if model in variable_kappa_models:
-    raise NotImplementedError("I'm still working on dry air tracers")
-  moisture_species = sum_simple_tracers(tracer_states[0]["moisture_species"],
+def advance_tracers(tracer_states, coeffs, model):
+  moisture_species = sum_tracers(tracer_states[0]["moisture_species"],
                                         tracer_states[1]["moisture_species"],
                                         coeffs[0],
                                         coeffs[1])
-  passiveish_tracers = sum_simple_tracers(tracer_states[0]["tracers"],
+  passiveish_tracers = sum_tracers(tracer_states[0]["tracers"],
                                           tracer_states[1]["tracers"],
                                           coeffs[0],
                                           coeffs[1])
-  for coeff_idx in range(2, len(tracer_states)):
-    moisture_species = sum_simple_tracers(moisture_species,
-                                          tracer_states[coeff_idx]["moisture_species"],
-                                          coeffs[0],
-                                          coeffs[1])
-    passiveish_tracers = sum_simple_tracers(passiveish_tracers,
-                                            tracer_states[coeff_idx]["tracers"],
-                                            1.0,
-                                            coeffs[coeff_idx])
+  if model in cam_se_models:
+    dry_air_species = sum_tracers(tracer_states[0]["dry_air_species"],
+                                      tracer_states[1]["dry_air_species"],
+                                      coeffs[0],
+                                      coeffs[1],
+                                      is_dry_air_species=True)
+  else:
+    dry_air_species = None
 
-  return wrap_tracer_struct(moisture_species, passiveish_tracers)
+  for coeff_idx in range(2, len(tracer_states)):
+    moisture_species = sum_tracers(moisture_species,
+                                   tracer_states[coeff_idx]["moisture_species"],
+                                   coeffs[0],
+                                   coeffs[1])
+    passiveish_tracers = sum_tracers(passiveish_tracers,
+                                     tracer_states[coeff_idx]["tracers"],
+                                     1.0,
+                                     coeffs[coeff_idx])
+    if model in cam_se_models:
+      dry_air_species = sum_tracers(dry_air_species,
+                                    tracer_states[coeff_idx]["dry_air_species"],
+                                    1.0,
+                                    coeffs[coeff_idx],
+                                    is_dry_air_species=True)
+
+  return wrap_tracer_struct(moisture_species, passiveish_tracers, model, dry_air_species=dry_air_species)
 
 
 @jit
@@ -174,8 +187,8 @@ def init_static_forcing(phi_surf, h_grid, physics_config, dims, model, f_plane_c
   return wrap_static_forcing(phi_surf, grad_phi_surf, coriolis_param, nontrad_coriolis_param=nontrad_coriolis_param)
 
 
-@partial(jit, static_argnames=["dims", "scaled", "model"])
-def project_dynamics_state(dynamics_in, h_grid, dims, model, scaled=True):
+@partial(jit, static_argnames=["dims", "model"])
+def project_dynamics_state(dynamics_in, h_grid, dims, model):
   """
   [Description]
 
@@ -198,13 +211,13 @@ def project_dynamics_state(dynamics_in, h_grid, dims, model, scaled=True):
   KeyError
       when a key error
   """
-  u_cont = project_scalar_3d(dynamics_in["u"][:, :, :, :, 0], h_grid, dims, scaled=scaled)
-  v_cont = project_scalar_3d(dynamics_in["u"][:, :, :, :, 1], h_grid, dims, scaled=scaled)
-  thermo_var_cont = project_scalar_3d(dynamics_in[thermodynamic_variable_names[model]][:, :, :, :], h_grid, dims, scaled=scaled)
-  d_mass_cont = project_scalar_3d(dynamics_in["d_mass"][:, :, :, :], h_grid, dims, scaled=scaled)
+  u_cont = project_scalar_3d(dynamics_in["u"][:, :, :, :, 0], h_grid, dims)
+  v_cont = project_scalar_3d(dynamics_in["u"][:, :, :, :, 1], h_grid, dims)
+  thermo_var_cont = project_scalar_3d(dynamics_in[thermodynamic_variable_names[model]][:, :, :, :], h_grid, dims)
+  d_mass_cont = project_scalar_3d(dynamics_in["d_mass"][:, :, :, :], h_grid, dims)
   if model not in hydrostatic_models:
-    w_i_cont = project_scalar_3d(dynamics_in["w_i"], h_grid, dims, scaled=scaled)
-    phi_i_cont = project_scalar_3d(dynamics_in["phi_i"], h_grid, dims, scaled=scaled)
+    w_i_cont = project_scalar_3d(dynamics_in["w_i"], h_grid, dims)
+    phi_i_cont = project_scalar_3d(dynamics_in["phi_i"], h_grid, dims)
   else:
     phi_i_cont = None
     w_i_cont = None
@@ -216,9 +229,9 @@ def project_dynamics_state(dynamics_in, h_grid, dims, model, scaled=True):
                               w_i=w_i_cont)
 
 
-@partial(jit, static_argnames=["dims", "scaled"])
-def project_scalar_3d(variable, h_grid, dims, scaled=True):
-  return project_scalar_global([variable], h_grid, dims, scaled=scaled, two_d=False)[0]
+@partial(jit, static_argnames=["dims"])
+def project_scalar_3d(variable, h_grid, dims):
+  return project_scalar_global([variable], h_grid, dims, two_d=False)[0]
 
 
 @jit
@@ -445,4 +458,3 @@ def check_tracers_nan(tracers, model):
       is_nan = is_nan or jnp.any(jnp.isnan(tracers["dry_air_species"][field_name]))
   is_nan = int(is_nan)
   return global_sum(is_nan) > 0
-

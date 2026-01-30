@@ -4,7 +4,7 @@ from .dynamical_cores.time_stepping import advance_dynamics_euler, advance_hyper
 from .dynamical_cores.model_state import remap_dynamics
 from .distributed_memory.global_communication import global_sum
 from .time_step import time_step_options
-from .dynamical_cores.model_state import advance_dynamics, advance_simple_tracers, wrap_model_state
+from .dynamical_cores.model_state import advance_dynamics, advance_simple_tracers, wrap_model_state, check_dynamics_nan, check_tracers_nan
 from .dynamical_cores.physics_dynamics_coupling import coupling_types
 from .model_info import thermodynamic_variable_names, hydrostatic_models, cam_se_models
 from sys import stdout

@@ -116,7 +116,7 @@ def test_divergence():
       div_analytic = device_wrapper((-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
                                     3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3))
       div = project_scalar(horizontal_divergence(vec, grid), grid, dims)
-      div_wk = project_scalar(horizontal_weak_divergence(vec, grid), grid, dims, scaled=False)
+      div_wk = project_scalar(horizontal_weak_divergence(vec, grid) / grid["mass_matrix"], grid, dims)
       vort = project_scalar(horizontal_vorticity(vec, grid), grid, dims)
       assert (inner_product(div_wk - div, div_wk - div, grid) < 1e-5)
       assert (inner_product(div_analytic - div, div_analytic - div, grid) < 1e-5)
@@ -130,8 +130,8 @@ def test_analytic_soln():
       fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
       grad_f_numerical = horizontal_gradient(fn, grid)
       sph_grad_wk = horizontal_weak_gradient_covariant(fn, grid)
-      sph_grad_wk = jnp.stack((project_scalar(sph_grad_wk[:, :, :, 0], grid, dims, scaled=False),
-                              project_scalar(sph_grad_wk[:, :, :, 1], grid, dims, scaled=False)), axis=-1)
+      sph_grad_wk = jnp.stack((project_scalar(sph_grad_wk[:, :, :, 0] / grid["mass_matrix"], grid, dims),
+                              project_scalar(sph_grad_wk[:, :, :, 1] / grid["mass_matrix"], grid, dims)), axis=-1)
       grad_diff = sph_grad_wk - grad_f_numerical
 
       sph_grad_lat = -jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.sin(grid["physical_coords"][:, :, :, 0])
@@ -152,8 +152,8 @@ def test_vector_laplacian():
       v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                      jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
       laplace_v_wk = horizontal_weak_vector_laplacian(v, grid)
-      laplace_v_wk = jnp.stack((project_scalar(laplace_v_wk[:, :, :, 0], grid, dims, scaled=False),
-                                project_scalar(laplace_v_wk[:, :, :, 1], grid, dims, scaled=False)), axis=-1)
+      laplace_v_wk = jnp.stack((project_scalar(laplace_v_wk[:, :, :, 0], grid, dims),
+                                project_scalar(laplace_v_wk[:, :, :, 1], grid, dims)), axis=-1)
 
       lap_diff = laplace_v_wk + 2 * v
       print("Approximation: disregarding pole points in vector laplacian test")
@@ -164,8 +164,8 @@ def test_vector_laplacian():
       v = jnp.stack((np.cos(grid["physical_coords"][:, :, :, 0])**2,
                      np.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
       laplace_v_wk = horizontal_weak_vector_laplacian(v, grid)
-      laplace_v_wk = jnp.stack((project_scalar(laplace_v_wk[:, :, :, 0], grid, dims, scaled=False),
-                                project_scalar(laplace_v_wk[:, :, :, 1], grid, dims, scaled=False)), axis=-1)
+      laplace_v_wk = jnp.stack((project_scalar(laplace_v_wk[:, :, :, 0], grid, dims),
+                                project_scalar(laplace_v_wk[:, :, :, 1], grid, dims)), axis=-1)
       lap_diff = laplace_v_wk + 3.0 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis]
       assert ((inner_product(mask * lap_diff[:, :, :, 0], mask * lap_diff[:, :, :, 0], grid) +
               inner_product(mask * lap_diff[:, :, :, 1], mask * lap_diff[:, :, :, 1], grid)) < 1e-2)

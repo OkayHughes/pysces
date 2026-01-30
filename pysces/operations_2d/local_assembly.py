@@ -45,7 +45,7 @@ def project_scalar_for(f, grid, *args):
   return workspace
 
 
-def project_scalar_sparse(f, grid, matrix, *args, scaled=True):
+def project_scalar_sparse(f, grid, matrix, *args):
 
   """
   Project a potentially discontinuous scalar onto the continuous
@@ -77,11 +77,8 @@ def project_scalar_sparse(f, grid, matrix, *args, scaled=True):
   f_cont
       The globally continous scalar closest in norm to f.
   """
-  if scaled:
-    vals_scaled = f * grid["mass_matrix"]
-    ret = vals_scaled + (matrix @ (vals_scaled).flatten()).reshape(f.shape)
-  else:
-    ret = f + (matrix @ (f).flatten()).reshape(f.shape)
+  vals_scaled = f * grid["mass_matrix"]
+  ret = vals_scaled + (matrix @ (vals_scaled).flatten()).reshape(f.shape)
   return ret * grid["mass_matrix_denominator"]
 
 
@@ -111,8 +108,8 @@ def segment_sum(data, segment_ids, N):
   return s
 
 
-@partial(jit, static_argnames=["dims", "scaled"])
-def project_scalar_wrapper(f, grid, dims, scaled=True):
+@partial(jit, static_argnames=["dims"])
+def project_scalar_wrapper(f, grid, dims):
   """
   Project a potentially discontinuous scalar onto the continuous subspace using assembly triples,
   assuming all data is processor-local.
@@ -139,12 +136,8 @@ def project_scalar_wrapper(f, grid, dims, scaled=True):
   """
   (data, rows, cols) = grid["assembly_triple"]
 
-  if scaled:
-    scaled_f = f * grid["mass_matrix"]
-    relevant_data = (scaled_f).flatten().take(cols) * data
-  else:
-    scaled_f = f
-    relevant_data = scaled_f.flatten().take(cols)
+  scaled_f = f * grid["mass_matrix"]
+  relevant_data = (scaled_f).flatten().take(cols) * data
 
   if use_wrapper and wrapper_type == "jax":
     scaled_f = scaled_f.flatten().at[rows].add(relevant_data)

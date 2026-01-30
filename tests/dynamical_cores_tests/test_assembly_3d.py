@@ -1,4 +1,4 @@
-from pysces.config import np, use_wrapper, device_wrapper, device_unwrapper
+from pysces.config import jnp, np, use_wrapper, device_wrapper, device_unwrapper
 from pysces.mesh_generation.cubed_sphere import gen_cube_topo
 from pysces.mesh_generation.mesh import gen_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo
@@ -7,7 +7,19 @@ from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.local_assembly import project_scalar_for
 
 
-def _project_scalar_3d_for(variable, h_grid, dims, scaled=True):
+def is_3d_field_c0(field, h_grid):
+  is_c0 = True
+  for lev_idx in range(field.shape[-1]):
+    rows = h_grid["assembly_triple"][1]
+    cols = h_grid["assembly_triple"][2]
+    lev_slice = jnp.take(field, lev_idx, axis=-1).flatten()
+    row_vals = jnp.take(lev_slice, rows, axis=0)
+    col_vals = jnp.take(lev_slice, cols, axis=0)
+    is_c0 = is_c0 and jnp.allclose(row_vals, col_vals)
+  return is_c0
+
+
+def _project_scalar_3d_for(variable, h_grid, dims):
   levs = []
   for lev_idx in range(variable.shape[-1]):
     levs.append(project_scalar_for(variable[:, :, :, lev_idx], h_grid))
@@ -61,3 +73,17 @@ def test_project_equiv_3d_rand():
     fn_rand = np.random.uniform(size=(*grid["physical_coords"][:, :, :, 1].shape, nlev))
     assert (np.allclose(device_unwrapper(project_scalar_3d(device_wrapper(fn_rand), grid_wrapped, dims_wrapped)),
                         _project_scalar_3d_for(fn_rand, grid, dims)))
+
+
+def test_project_c0():
+  npt = 4
+  nx = 15
+  nlev = 5
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d,
+                                                    vert_redundancy, npt, wrapped=use_wrapper)
+  for _ in range(20):
+    fn_rand = np.random.uniform(size=(*grid["physical_coords"][:, :, :, 1].shape, nlev))
+    scalar_cont = project_scalar_3d(device_wrapper(fn_rand), grid, dims)
+    assert is_3d_field_c0(scalar_cont, grid)
