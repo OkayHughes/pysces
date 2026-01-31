@@ -6,7 +6,6 @@ from pysces.mesh_generation.equiangular_metric import init_grid_from_topo
 from pysces.analytic_initialization.moist_baroclinic_wave import (init_baroclinic_wave_config,
                                                                   eval_pressure_temperature,
                                                                   eval_state)
-from pysces.initialization import init_baroclinic_wave_state
 from pysces.dynamical_cores.utils_3d import z_to_g
 from pysces.model_info import models
 
