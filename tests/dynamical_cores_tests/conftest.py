@@ -24,6 +24,7 @@ def quasi_uniform_test_states(nx, npt, model, mountain=False, moist=False):
                                            model,
                                            mountain=mountain,
                                            moist=moist,
+                                           enforce_hydrostatic=True,
                                            eps=1e-5)
   return {"h_grid": h_grid,
           "v_grid": v_grid,
@@ -56,6 +57,33 @@ def nx15_np4_dry_homme_hydro():
 @fixture
 def nx15_np4_dry_homme_nonhydro():
   nx = 15
+  npt = 4
+  return quasi_uniform_test_states(nx, npt, models.homme_nonhydrostatic)
+
+@fixture
+def nx7_np4_dry_se():
+  nx = 7
+  npt = 4
+  return quasi_uniform_test_states(nx, npt, models.cam_se)
+
+
+@fixture
+def nx7_np4_dry_se_whole():
+  nx = 7
+  npt = 4
+  return quasi_uniform_test_states(nx, npt, models.cam_se_whole_atmosphere)
+
+
+@fixture
+def nx7_np4_dry_homme_hydro():
+  nx = 7
+  npt = 4
+  return quasi_uniform_test_states(nx, npt, models.homme_hydrostatic)
+
+
+@fixture
+def nx7_np4_dry_homme_nonhydro():
+  nx = 7
   npt = 4
   return quasi_uniform_test_states(nx, npt, models.homme_nonhydrostatic)
 
