@@ -1,6 +1,6 @@
 from pysces.config import np
-from pysces.mesh_generation.cubed_sphere import face_topo, gen_cube_topo
-from pysces.mesh_generation.mesh import gen_vert_redundancy, edge_to_vert
+from pysces.mesh_generation.cubed_sphere import face_topo, init_cube_topo
+from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy, edge_to_vert
 from pysces.mesh_generation.mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE
 from pysces.mesh_generation.mesh_definitions import LEFT_FACE, RIGHT_FACE
 from pysces.mesh_generation.cubed_sphere import inv_elem_id_fn, elem_id_fn
@@ -31,7 +31,7 @@ def test_face_topo():
 
 def test_gen_cube_topo():
   nx = 15
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
+  face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
   for face_idx in [TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE]:
     for x_idx in range(nx):
       for y_idx in range(nx):
@@ -54,8 +54,8 @@ def test_gen_cube_topo():
 
 def test_vert_conn():
   nx = 15
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
+  vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
   # test if all identified vertex pairings are correct
   for elem_idx in vert_redundancy.keys():
     for vert_idx in vert_redundancy[elem_idx].keys():

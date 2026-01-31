@@ -1,49 +1,130 @@
-from .test_init import get_umjs_state
 from pysces.config import jnp, device_wrapper, np
-from pysces.model_info import models, cam_se_models, thermodynamic_variable_names, hydrostatic_models, spherical_models, deep_atmosphere_models
-from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
+from pysces.model_info import (models,
+                               cam_se_models,
+                               thermodynamic_variable_names,
+                               hydrostatic_models,
+                               deep_atmosphere_models)
+from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
 from pysces.dynamical_cores.physics_config import init_physics_config
-from pysces.analytic_initialization.moist_baroclinic_wave import get_umjs_config
-from pysces.dynamical_cores.mass_coordinate import create_vertical_grid
-from pysces.dynamical_cores.model_state import (sum_tracers, advance_tracers,
-                                                wrap_dynamics_struct, wrap_static_forcing, init_static_forcing, wrap_model_state, wrap_tracer_struct,
-                                                project_dynamics_state, sum_dynamics_states, advance_dynamics,
-                                                check_dynamics_nan, check_tracers_nan)
+from pysces.initialization import init_baroclinic_wave_state
+from pysces.analytic_initialization.moist_baroclinic_wave import init_baroclinic_wave_config
+from pysces.dynamical_cores.mass_coordinate import init_vertical_grid
+from pysces.dynamical_cores.model_state import (sum_tracers,
+                                                advance_tracers,
+                                                wrap_dynamics,
+                                                wrap_static_forcing,
+                                                init_static_forcing,
+                                                wrap_model_state,
+                                                wrap_tracers,
+                                                project_dynamics,
+                                                sum_dynamics_series,
+                                                sum_dynamics,
+                                                check_dynamics_nan,
+                                                check_tracers_nan,
+                                                copy_model_state)
 from .test_assembly_3d import is_3d_field_c0
 from .mass_coordinate_grids import cam30
+
+
+def test_copy_state():
+  npt = 4
+  nx = 4
+  model = models.cam_se
+  model_config = init_physics_config(model)
+  v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                              cam30["hybrid_b_i"],
+                              cam30["p0"],
+                              model)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
+  test_config = init_baroclinic_wave_config(model_config=model_config)
+  model_state = init_baroclinic_wave_state(h_grid,
+                                           v_grid,
+                                           model_config,
+                                           test_config,
+                                           dims,
+                                           model,
+                                           mountain=False,
+                                           moist=True,
+                                           eps=1e-3)
+  trac_name = "fitzpatrick"
+  water_vapor = model_state["tracers"]["moisture_species"]["water_vapor"]
+  model_state["tracers"]["tracers"][trac_name] = 1.0 * jnp.ones_like(water_vapor)
+  model_state_new = copy_model_state(model_state, model)
+  assert jnp.allclose(model_state_new["dynamics"]["u"], model_state["dynamics"]["u"])
+  assert jnp.allclose(model_state_new["dynamics"]["T"], model_state["dynamics"]["T"])
+  assert jnp.allclose(model_state_new["dynamics"]["d_mass"], model_state["dynamics"]["d_mass"])
+  tracers_new = model_state_new["tracers"]
+  tracers_old = model_state["tracers"]
+  assert set(tracers_new["moisture_species"].keys()) == set(tracers_old["moisture_species"].keys())
+  for species_name in tracers_new["moisture_species"].keys():
+    assert jnp.allclose(tracers_new["moisture_species"][species_name],
+                        tracers_old["moisture_species"][species_name])
+  assert set(tracers_new["tracers"].keys()) == set(tracers_old["tracers"].keys())
+  for species_name in tracers_new["tracers"].keys():
+    assert jnp.allclose(tracers_new["tracers"][species_name],
+                        tracers_old["tracers"][species_name])
+  assert set(tracers_new["dry_air_species"].keys()) == set(tracers_old["dry_air_species"].keys())
+  for species_name in model_state_new["tracers"]["dry_air_species"].keys():
+    assert jnp.allclose(tracers_new[species_name],
+                        tracers_old["dry_air_species"][species_name])
 
 
 def test_tracer_sums():
   npt = 4
   nx = 4
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
   for model in [models.homme_hydrostatic, models.cam_se, models.cam_se_whole_atmosphere]:
-    v_grid = create_vertical_grid(cam30["hybrid_a_i"],
-                                  cam30["hybrid_b_i"],
-                                  cam30["p0"],
-                                  model)
-    lat = h_grid["physical_coords"][:, :, :, 0]
-    lon = h_grid["physical_coords"][:, :, :, 1]
+    v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"],
+                                model)
     model_config = init_physics_config(model)
-    test_config = get_umjs_config(model_config=model_config)
-    model_state_1 = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False, moist=True, eps=1e-3)
-    model_state_2 = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False, moist=True, eps=1e-3)
+    test_config = init_baroclinic_wave_config(model_config=model_config)
+    model_state_1 = init_baroclinic_wave_state(h_grid,
+                                               v_grid,
+                                               model_config,
+                                               test_config,
+                                               dims,
+                                               model,
+                                               mountain=False,
+                                               moist=True,
+                                               eps=1e-3)
+    model_state_2 = init_baroclinic_wave_state(h_grid,
+                                               v_grid,
+                                               model_config,
+                                               test_config,
+                                               dims,
+                                               model,
+                                               mountain=False,
+                                               moist=True,
+                                               eps=1e-3)
     val_1 = 1.0
     val_2 = 2.0
     coeff_1 = 0.25
     coeff_2 = 1.0 - coeff_1
     total = coeff_1 * val_1 + coeff_2 * val_2
-    model_state_1["tracers"]["moisture_species"]["water_vapor"] = val_1 * jnp.ones_like(model_state_1["tracers"]["moisture_species"]["water_vapor"])
-    model_state_2["tracers"]["moisture_species"]["water_vapor"] = val_2 * jnp.ones_like(model_state_2["tracers"]["moisture_species"]["water_vapor"])
-    tracer_sum = sum_tracers(model_state_1["tracers"]["moisture_species"], model_state_2["tracers"]["moisture_species"], coeff_1, coeff_2)
+    water_vapor = model_state_1["tracers"]["moisture_species"]["water_vapor"]
+    model_state_1["tracers"]["moisture_species"]["water_vapor"] = val_1 * jnp.ones_like(water_vapor)
+    model_state_2["tracers"]["moisture_species"]["water_vapor"] = val_2 * jnp.ones_like(water_vapor)
+    tracer_sum = sum_tracers(model_state_1["tracers"]["moisture_species"],
+                             model_state_2["tracers"]["moisture_species"],
+                             coeff_1,
+                             coeff_2)
     assert jnp.allclose(tracer_sum["water_vapor"], total)
     trac_name = "fitzpatrick"
-    model_state_1["tracers"]["tracers"][trac_name] = val_1 * jnp.ones_like(model_state_1["tracers"]["moisture_species"]["water_vapor"])
-    model_state_2["tracers"]["tracers"][trac_name] = val_2 * jnp.ones_like(model_state_2["tracers"]["moisture_species"]["water_vapor"])
-    tracer_sum = sum_tracers(model_state_1["tracers"]["tracers"], model_state_2["tracers"]["tracers"], coeff_1, coeff_2)
+    model_state_1["tracers"]["tracers"][trac_name] = val_1 * jnp.ones_like(water_vapor)
+    model_state_2["tracers"]["tracers"][trac_name] = val_2 * jnp.ones_like(water_vapor)
+    tracer_sum = sum_tracers(model_state_1["tracers"]["tracers"],
+                             model_state_2["tracers"]["tracers"],
+                             coeff_1,
+                             coeff_2)
     assert jnp.allclose(tracer_sum[trac_name], total)
     if model in cam_se_models:
-      tracer_sum = sum_tracers(model_state_1["tracers"]["dry_air_species"], model_state_2["tracers"]["dry_air_species"], coeff_1, coeff_2, is_dry_air_species=True)
+      tracer_sum = sum_tracers(model_state_1["tracers"]["dry_air_species"],
+                               model_state_2["tracers"]["dry_air_species"],
+                               coeff_1,
+                               coeff_2,
+                               is_dry_air_species=True)
       tracer_total = jnp.zeros_like(tracer_sum[next(iter(tracer_sum.keys()))])
       for tracer_name in tracer_sum.keys():
         tracer_total += tracer_sum[tracer_name]
@@ -62,15 +143,23 @@ def test_tracer_sums():
 def test_wrappers():
   npt = 4
   nx = 4
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
   for model in models:
-    v_grid = create_vertical_grid(cam30["hybrid_a_i"],
-                                  cam30["hybrid_b_i"],
-                                  cam30["p0"],
-                                  model)
+    v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"],
+                                model)
     model_config = init_physics_config(model)
-    test_config = get_umjs_config(model_config=model_config)
-    model_state = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False, moist=True, eps=1e-3)
+    test_config = init_baroclinic_wave_config(model_config=model_config)
+    model_state = init_baroclinic_wave_state(h_grid,
+                                             v_grid,
+                                             model_config,
+                                             test_config,
+                                             dims,
+                                             model,
+                                             mountain=False,
+                                             moist=True,
+                                             eps=1e-3)
     u = model_state["dynamics"]["u"]
     thermo = model_state["dynamics"][thermodynamic_variable_names[model]]
     d_mass = model_state["dynamics"]["d_mass"]
@@ -80,15 +169,17 @@ def test_wrappers():
     else:
       phi_i = None
       w_i = None
-    dynamics_struct = wrap_dynamics_struct(u, thermo, d_mass, model, phi_i=phi_i, w_i=w_i)
+    dynamics_struct = wrap_dynamics(u, thermo, d_mass, model, phi_i=phi_i, w_i=w_i)
     for field in dynamics_struct.keys():
       assert jnp.allclose(dynamics_struct[field], model_state["dynamics"][field])
     if model in cam_se_models:
       dry_air_species = model_state["tracers"]["dry_air_species"]
     else:
       dry_air_species = None
-    tracer_struct = wrap_tracer_struct(model_state["tracers"]["moisture_species"], model_state["tracers"]["tracers"], model,
-                                       dry_air_species=dry_air_species)
+    tracer_struct = wrap_tracers(model_state["tracers"]["moisture_species"],
+                                 model_state["tracers"]["tracers"],
+                                 model,
+                                 dry_air_species=dry_air_species)
     assert set(tracer_struct["moisture_species"].keys()) == set(model_state["tracers"]["moisture_species"].keys())
     for tracer_name in tracer_struct["moisture_species"].keys():
       assert jnp.allclose(tracer_struct["moisture_species"][tracer_name],
@@ -100,7 +191,8 @@ def test_wrappers():
     if model in cam_se_models:
       assert set(tracer_struct["dry_air_species"].keys()) == set(model_state["tracers"]["dry_air_species"].keys())
       for tracer_name in tracer_struct["dry_air_species"].keys():
-        assert jnp.allclose(tracer_struct["dry_air_species"][tracer_name], model_state["tracers"]["dry_air_species"][tracer_name])
+        assert jnp.allclose(tracer_struct["dry_air_species"][tracer_name],
+                            model_state["tracers"]["dry_air_species"][tracer_name])
     phi_surf = model_state["static_forcing"]["phi_surf"]
     grad_phi_surf = model_state["static_forcing"]["grad_phi_surf"]
     coriolis_param = model_state["static_forcing"]["coriolis_param"]
@@ -108,7 +200,10 @@ def test_wrappers():
       nontrad_coriolis_param = model_state["static_forcing"]["nontrad_coriolis_param"]
     else:
       nontrad_coriolis_param = None
-    static_forcing = wrap_static_forcing(phi_surf, grad_phi_surf, coriolis_param, nontrad_coriolis_param=nontrad_coriolis_param)
+    static_forcing = wrap_static_forcing(phi_surf,
+                                         grad_phi_surf,
+                                         coriolis_param,
+                                         nontrad_coriolis_param=nontrad_coriolis_param)
     assert set(static_forcing.keys()) == set(model_state["static_forcing"].keys())
     for field in static_forcing.keys():
       assert jnp.allclose(static_forcing[field], model_state["static_forcing"][field])
@@ -119,35 +214,49 @@ def test_wrappers():
     assert is_3d_field_c0(static_forcing["grad_phi_surf"], h_grid)
     assert jnp.allclose(static_forcing["coriolis_param"], model_state["static_forcing"]["coriolis_param"])
     if model in deep_atmosphere_models:
-      assert jnp.allclose(static_forcing["nontrad_coriolis_param"], model_state["static_forcing"]["nontrad_coriolis_param"])
+      assert jnp.allclose(static_forcing["nontrad_coriolis_param"],
+                          model_state["static_forcing"]["nontrad_coriolis_param"])
     else:
       assert "nontrad_coriolis_param" not in static_forcing.keys()
     model_state_new = wrap_model_state(model_state["dynamics"],
                                        model_state["static_forcing"],
                                        model_state["tracers"])
-    assert jnp.allclose(model_state["dynamics"]["u"], model_state_new["dynamics"]["u"])
-    assert jnp.allclose(model_state["static_forcing"]["phi_surf"], model_state_new["static_forcing"]["phi_surf"])
-    assert jnp.allclose(model_state["tracers"]["moisture_species"]["water_vapor"], model_state_new["tracers"]["moisture_species"]["water_vapor"])
+    assert jnp.allclose(model_state["dynamics"]["u"],
+                        model_state_new["dynamics"]["u"])
+    assert jnp.allclose(model_state["static_forcing"]["phi_surf"],
+                        model_state_new["static_forcing"]["phi_surf"])
+    assert jnp.allclose(model_state["tracers"]["moisture_species"]["water_vapor"],
+                        model_state_new["tracers"]["moisture_species"]["water_vapor"])
 
-    
+
 def test_project_dynamics_state():
   npt = 4
   nx = 4
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
   for model in models:
-    v_grid = create_vertical_grid(cam30["hybrid_a_i"],
-                                  cam30["hybrid_b_i"],
-                                  cam30["p0"],
-                                  model)
+    v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"],
+                                model)
     model_config = init_physics_config(model)
-    test_config = get_umjs_config(model_config=model_config)
-    model_state = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False, moist=False, eps=1e-3)
+    test_config = init_baroclinic_wave_config(model_config=model_config)
+    model_state = init_baroclinic_wave_state(h_grid,
+                                             v_grid,
+                                             model_config,
+                                             test_config,
+                                             dims,
+                                             model,
+                                             mountain=False,
+                                             moist=False,
+                                             eps=1e-3)
+
     def noise_pert(field):
       return field + device_wrapper(np.random.normal(size=field.shape))
+
     for field in model_state["dynamics"].keys():
       model_state["dynamics"][field] = noise_pert(model_state["dynamics"][field])
       assert not is_3d_field_c0(model_state["dynamics"][field], h_grid)
-    dynamics_cont = project_dynamics_state(model_state["dynamics"], h_grid, dims, model)
+    dynamics_cont = project_dynamics(model_state["dynamics"], h_grid, dims, model)
     for field in dynamics_cont.keys():
       if field == "u":
         for comp_idx in range(2):
@@ -159,43 +268,66 @@ def test_project_dynamics_state():
 def test_advance_dynamics():
   npt = 4
   nx = 4
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
   for model in models:
-    v_grid = create_vertical_grid(cam30["hybrid_a_i"],
-                                  cam30["hybrid_b_i"],
-                                  cam30["p0"],
-                                  model)
+    v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"],
+                                model)
     model_config = init_physics_config(model)
-    test_config = get_umjs_config(model_config=model_config)
-    model_state = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False, moist=False, eps=1e-3)
+    test_config = init_baroclinic_wave_config(model_config=model_config)
+    model_state = init_baroclinic_wave_state(h_grid,
+                                             v_grid,
+                                             model_config,
+                                             test_config,
+                                             dims,
+                                             model,
+                                             mountain=False,
+                                             moist=False,
+                                             eps=1e-3)
     coeff_1 = 1.0
     coeff_2 = 2.0
     coeff_3 = 3.0
-    
-    dynamics_state_out = sum_dynamics_states(model_state["dynamics"],
-                                             model_state["dynamics"],
-                                             coeff_1, coeff_2, model)
+
+    dynamics_state_out = sum_dynamics(model_state["dynamics"],
+                                      model_state["dynamics"],
+                                      coeff_1,
+                                      coeff_2,
+                                      model)
     assert set(dynamics_state_out.keys()) == set(model_state["dynamics"].keys())
     for field in dynamics_state_out.keys():
-      assert jnp.allclose(dynamics_state_out[field], (coeff_1 + coeff_2) * model_state["dynamics"][field])
-    dynamics_state_out = advance_dynamics([model_state["dynamics"], model_state["dynamics"], model_state["dynamics"]], [coeff_1, coeff_2, coeff_3], model)
+      assert jnp.allclose(dynamics_state_out[field],
+                          (coeff_1 + coeff_2) * model_state["dynamics"][field])
+    dynamics_state_out = sum_dynamics_series([model_state["dynamics"],
+                                              model_state["dynamics"],
+                                              model_state["dynamics"]],
+                                             [coeff_1, coeff_2, coeff_3], model)
     for field in dynamics_state_out.keys():
       assert jnp.allclose(dynamics_state_out[field], (coeff_1 + coeff_2 + coeff_3) * model_state["dynamics"][field])
-    
+
 
 def test_check_nan():
   npt = 4
   nx = 4
-  h_grid, dims = create_quasi_uniform_grid(nx, npt)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
   for model in models:
-    v_grid = create_vertical_grid(cam30["hybrid_a_i"],
-                                  cam30["hybrid_b_i"],
-                                  cam30["p0"],
-                                  model)
+    v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"],
+                                model)
     model_config = init_physics_config(model)
-    test_config = get_umjs_config(model_config=model_config)
-    model_state = get_umjs_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False, moist=True, eps=1e-3)
-    model_state["tracers"]["tracers"]["fitzpatrick"] = jnp.ones_like(model_state["tracers"]["moisture_species"]["water_vapor"])
+    test_config = init_baroclinic_wave_config(model_config=model_config)
+    model_state = init_baroclinic_wave_state(h_grid,
+                                             v_grid,
+                                             model_config,
+                                             test_config,
+                                             dims,
+                                             model,
+                                             mountain=False,
+                                             moist=True,
+                                             eps=1e-3)
+    water_vapor = model_state["tracers"]["moisture_species"]["water_vapor"]
+    model_state["tracers"]["tracers"]["fitzpatrick"] = jnp.ones_like(water_vapor)
     for field in model_state["dynamics"].keys():
       assert not check_dynamics_nan(model_state["dynamics"], model)
       field_old = jnp.copy(model_state["dynamics"][field])
@@ -205,7 +337,7 @@ def test_check_nan():
     for field in model_state["tracers"]["moisture_species"].keys():
       assert not check_tracers_nan(model_state["tracers"], model)
       tracer_old = jnp.copy(model_state["tracers"]["moisture_species"][field])
-      model_state["tracers"]["moisture_species"][field] = jnp.nan * jnp.ones_like(model_state["tracers"]["moisture_species"][field])
+      model_state["tracers"]["moisture_species"][field] = jnp.nan * jnp.ones_like(tracer_old)
       assert check_tracers_nan(model_state["tracers"], model)
       model_state["tracers"]["moisture_species"][field] = tracer_old
     for field in model_state["tracers"]["tracers"].keys():
@@ -218,6 +350,6 @@ def test_check_nan():
       for field in model_state["tracers"]["dry_air_species"].keys():
         assert not check_tracers_nan(model_state["tracers"], model)
         tracer_old = jnp.copy(model_state["tracers"]["dry_air_species"][field])
-        model_state["tracers"]["dry_air_species"][field] = jnp.nan * jnp.ones_like(model_state["tracers"]["dry_air_species"][field])
+        model_state["tracers"]["dry_air_species"][field] = jnp.nan * jnp.ones_like(tracer_old)
         assert check_tracers_nan(model_state["tracers"], model)
         model_state["tracers"]["dry_air_species"][field] = tracer_old

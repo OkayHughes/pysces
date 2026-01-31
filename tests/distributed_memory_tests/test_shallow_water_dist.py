@@ -1,12 +1,17 @@
 from pysces.config import jnp, np, DEBUG, device_unwrapper, device_wrapper, mpi_rank
-from pysces.shallow_water_models.shallow_water_sphere_model import get_config_sw, create_state_struct, simulate_sw
-from pysces.shallow_water_models.williamson_init import (get_williamson_steady_config,
-                                                         williamson_tc2_h,
-                                                         williamson_tc2_hs,
-                                                         williamson_tc2_u)
-from pysces.shallow_water_models.galewsky_init import get_galewsky_config, galewsky_wind, galewsky_hs, galewsky_h
-from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
-from pysces.operations_2d.operators import inner_prod, sphere_vorticity
+from pysces.shallow_water_models.model_state import wrap_model_state
+from pysces.shallow_water_models.run_shallow_water import simulate_shallow_water
+from pysces.shallow_water_models.constants import init_physics_config_shallow_water
+from pysces.shallow_water_models.williamson_init import (init_williamson_steady_config,
+                                                         eval_williamson_tc2_h,
+                                                         eval_williamson_tc2_hs,
+                                                         eval_williamson_tc2_u)
+from pysces.shallow_water_models.galewsky_init import (init_galewsky_config,
+                                                       eval_galewsky_wind,
+                                                       eval_galewsky_hs,
+                                                       eval_galewsky_h)
+from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
+from pysces.operations_2d.operators import inner_product, horizontal_vorticity
 from pysces.operations_2d.local_assembly import project_scalar
 from ..context import get_figdir, test_division_factor
 from os import makedirs
@@ -19,30 +24,30 @@ if DEBUG:
 def test_sw_model_dist():
   npt = 4
   nx = 15
-  grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
-  config = get_config_sw(alpha=jnp.pi / 4, ne=15)
-  test_config = get_williamson_steady_config(config)
-  u_init = device_wrapper(williamson_tc2_u(grid["physical_coords"][:, :, :, 0],
-                                           grid["physical_coords"][:, :, :, 1],
-                                           test_config))
-  h_init = device_wrapper(williamson_tc2_h(grid["physical_coords"][:, :, :, 0],
-                                           grid["physical_coords"][:, :, :, 1],
-                                           test_config))
-  hs_init = device_wrapper(williamson_tc2_hs(grid["physical_coords"][:, :, :, 0],
-                                             grid["physical_coords"][:, :, :, 1],
-                                             test_config))
+  grid, dims = init_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
+  config = init_physics_config_shallow_water(alpha=jnp.pi / 4, ne=15)
+  test_config = init_williamson_steady_config(config)
+  u_init = device_wrapper(eval_williamson_tc2_u(grid["physical_coords"][:, :, :, 0],
+                                                grid["physical_coords"][:, :, :, 1],
+                                                test_config))
+  h_init = device_wrapper(eval_williamson_tc2_h(grid["physical_coords"][:, :, :, 0],
+                                                grid["physical_coords"][:, :, :, 1],
+                                                test_config))
+  hs_init = device_wrapper(eval_williamson_tc2_hs(grid["physical_coords"][:, :, :, 0],
+                                                  grid["physical_coords"][:, :, :, 1],
+                                                  test_config))
   print(u_init.dtype)
-  init_state = create_state_struct(u_init, h_init, hs_init)
+  init_state = wrap_model_state(u_init, h_init, hs_init)
 
   T = 4000.0
-  final_state = simulate_sw(T, nx, init_state, grid, config, dims)
+  final_state = simulate_shallow_water(T, nx, init_state, grid, config, dims)
   print(final_state["u"].dtype)
 
   diff_u = u_init - final_state["u"]
   diff_h = h_init - final_state["h"]
-  assert (inner_prod(diff_u[:, :, :, 0], diff_u[:, :, :, 0], grid) < 1e-5)
-  assert (inner_prod(diff_u[:, :, :, 1], diff_u[:, :, :, 1], grid) < 1e-5)
-  assert (inner_prod(diff_h, diff_h, grid) / jnp.max(h_init) < 1e-5)
+  assert (inner_product(diff_u[:, :, :, 0], diff_u[:, :, :, 0], grid) < 1e-5)
+  assert (inner_product(diff_u[:, :, :, 1], diff_u[:, :, :, 1], grid) < 1e-5)
+  assert (inner_product(diff_h, diff_h, grid) / jnp.max(h_init) < 1e-5)
   if DEBUG:
     fig_dir = get_figdir()
     makedirs(fig_dir, exist_ok=True)
@@ -74,25 +79,25 @@ def test_sw_model_dist():
 def test_galewsky_dist():
   npt = 4
   nx = 61
-  grid, dims = create_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
+  grid, dims = init_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
 
-  config = get_config_sw(ne=15)
-  test_config = get_galewsky_config(config)
+  config = init_physics_config_shallow_water(ne=15)
+  test_config = init_galewsky_config(config)
 
   T = (144 * 3600) / test_division_factor
-  u_init = device_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0],
-                                        grid["physical_coords"][:, :, :, 1],
-                                        test_config))
-  h_init = device_wrapper(galewsky_h(grid["physical_coords"][:, :, :, 0],
-                                     grid["physical_coords"][:, :, :, 1],
-                                     test_config))
-  hs_init = device_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0],
-                                       grid["physical_coords"][:, :, :, 1],
-                                       test_config))
-  init_state = create_state_struct(u_init, h_init, hs_init)
-  final_state = simulate_sw(T, nx, init_state, grid, config, dims, diffusion=True)
-  mass_init = inner_prod(h_init, h_init, grid)
-  mass_final = inner_prod(final_state["h"], final_state["h"], grid)
+  u_init = device_wrapper(eval_galewsky_wind(grid["physical_coords"][:, :, :, 0],
+                                             grid["physical_coords"][:, :, :, 1],
+                                             test_config))
+  h_init = device_wrapper(eval_galewsky_h(grid["physical_coords"][:, :, :, 0],
+                                          grid["physical_coords"][:, :, :, 1],
+                                          test_config))
+  hs_init = device_wrapper(eval_galewsky_hs(grid["physical_coords"][:, :, :, 0],
+                                            grid["physical_coords"][:, :, :, 1],
+                                            test_config))
+  init_state = wrap_model_state(u_init, h_init, hs_init)
+  final_state = simulate_shallow_water(T, nx, init_state, grid, config, dims, diffusion=True)
+  mass_init = inner_product(h_init, h_init, grid)
+  mass_final = inner_product(final_state["h"], final_state["h"], grid)
 
   assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
   # assert (not jnp.any(jnp.isnan(final_state["u"])))
@@ -103,7 +108,7 @@ def test_galewsky_dist():
     lon = device_unwrapper(grid["physical_coords"][:, :, :, 1])
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     levels = np.arange(-10 + 1e-4, 101, 10)
-    vort = project_scalar(sphere_vorticity(final_state["u"], grid, a=config["radius_earth"]), grid, dims)
+    vort = project_scalar(horizontal_vorticity(final_state["u"], grid, a=config["radius_earth"]), grid, dims)
     plt.figure()
     plt.title(f"U at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),

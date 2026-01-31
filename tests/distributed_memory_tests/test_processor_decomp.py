@@ -1,7 +1,7 @@
 from pysces.config import np
-from pysces.distributed_memory.processor_decomposition import (get_decomp,
-                                                               get_face_idx_pos,
-                                                               create_mapping)
+from pysces.distributed_memory.processor_decomposition import (init_decomp,
+                                                               sphere_coord_to_face_idx_pos,
+                                                               init_mapping)
 from ..context import get_figdir
 
 
@@ -9,7 +9,7 @@ def test_get_decomp():
   for _ in range(20):
     num_faces = np.random.randint(0, int(1e3))
     for num_procs in range(1, int(num_faces / 3.0)):
-      segments = get_decomp(num_faces, num_procs)
+      segments = init_decomp(num_faces, num_procs)
 
       for seg_idx, segment in enumerate(segments[1:]):
         assert segments[seg_idx][1] == segment[0]
@@ -26,8 +26,8 @@ def test_mapping():
   lons_flat = lons.flatten()
   latlons = np.stack((lats_flat,
                       lons_flat), axis=-1)
-  face_idxs, x, y = get_face_idx_pos(latlons[:, 0], latlons[:, 1])
-  index_map = create_mapping(11, latlons)
+  face_idxs, x, y = sphere_coord_to_face_idx_pos(latlons[:, 0], latlons[:, 1])
+  index_map = init_mapping(11, latlons)
   latlons = np.take(latlons, index_map, axis=0)
   face_idxs = np.take(face_idxs, index_map, axis=0)
   x = np.take(x, index_map, axis=0)

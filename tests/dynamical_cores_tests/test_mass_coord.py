@@ -1,9 +1,9 @@
-from pysces.dynamical_cores.mass_coordinate import (create_vertical_grid,
-                                                    mass_from_coordinate_midlev,
-                                                    mass_from_coordinate_interface,
-                                                    d_mass_from_coordinate,
-                                                    surface_mass_from_coordinate,
-                                                    top_interface_mass)
+from pysces.dynamical_cores.mass_coordinate import (init_vertical_grid,
+                                                    surface_mass_to_midlevel_mass,
+                                                    surface_mass_to_interface_mass,
+                                                    surface_mass_to_d_mass,
+                                                    d_mass_to_surface_mass,
+                                                    eval_top_interface_mass)
 from pysces.config import jnp, np
 from .mass_coordinate_grids import cam30
 from pysces.model_info import models
@@ -11,16 +11,16 @@ from pysces.model_info import models
 
 def test_vcoord():
   for model in models:
-    v_grid = create_vertical_grid(cam30["hybrid_a_i"],
-                                  cam30["hybrid_b_i"],
-                                  cam30["p0"],
-                                  model)
-    assert jnp.allclose(top_interface_mass(v_grid), v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0])
+    v_grid = init_vertical_grid(cam30["hybrid_a_i"],
+                                cam30["hybrid_b_i"],
+                                cam30["p0"],
+                                model)
+    assert jnp.allclose(eval_top_interface_mass(v_grid), v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0])
     n_test = 12
     ps = ((1 + .05 * jnp.sin(jnp.linspace(0, jnp.pi, n_test))[:, np.newaxis, np.newaxis]) *
           v_grid["reference_surface_mass"])
-    p_mid = mass_from_coordinate_midlev(ps, v_grid)
-    p_int = mass_from_coordinate_interface(ps, v_grid)
+    p_mid = surface_mass_to_midlevel_mass(ps, v_grid)
+    p_int = surface_mass_to_interface_mass(ps, v_grid)
     assert (p_mid.shape == (n_test, 1, 1, 30))
     assert (p_int.shape == (n_test, 1, 1, 31))
     for lev_isobaric in range(0, 12):
@@ -32,8 +32,8 @@ def test_vcoord():
       p_int_scaled = p_int[:, :, :, lev_terrain] / ps
       assert (jnp.max(jnp.abs(p_int_scaled[0:1, 0, 0] -
                               p_int_scaled[:, 0, 0])) < 1e-8)
-    assert (jnp.allclose(0.5 * (p_int[:, :, :, :-1] + p_int[:, :, :, 1:]),
-                        p_mid))
-    d_mass = d_mass_from_coordinate(ps, v_grid)
-    surface_mass = surface_mass_from_coordinate(d_mass, v_grid)
+    analytic_p_mid = 0.5 * (p_int[:, :, :, :-1] + p_int[:, :, :, 1:])
+    assert (jnp.allclose(analytic_p_mid, p_mid))
+    d_mass = surface_mass_to_d_mass(ps, v_grid)
+    surface_mass = d_mass_to_surface_mass(d_mass, v_grid)
     assert jnp.allclose(ps, surface_mass)

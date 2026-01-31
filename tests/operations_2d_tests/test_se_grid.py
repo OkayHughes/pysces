@@ -1,10 +1,10 @@
-from pysces.mesh_generation.equiangular_metric import gen_metric_from_topo, create_quasi_uniform_grid
-from pysces.mesh_generation.cubed_sphere import gen_cube_topo
-from pysces.mesh_generation.mesh import gen_vert_redundancy
+from pysces.mesh_generation.equiangular_metric import init_grid_from_topo, init_quasi_uniform_grid
+from pysces.mesh_generation.cubed_sphere import init_cube_topo
+from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
-from pysces.distributed_memory.processor_decomposition import get_decomp, local_to_global
+from pysces.distributed_memory.processor_decomposition import init_decomp, local_to_global
 from pysces.horizontal_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,
-                                          init_assembly_local, create_spectral_element_grid,)
+                                    init_assembly_local, init_spectral_element_grid,)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np
 from ..context import test_npts
@@ -15,7 +15,7 @@ def test_vert_triage_artificial():
 
   # check symmetry first
   nproc = 2
-  decomp = get_decomp(NELEM, nproc)
+  decomp = init_decomp(NELEM, nproc)
   vert_locals = []
   vert_sends = []
   vert_recvs = []
@@ -77,15 +77,15 @@ def test_vert_red_triage():
   for npt in test_npts:
     for nproc in range(1, 6):
       for nx in range(2, 5):
-        face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-        vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-        grid, dims = gen_metric_from_topo(face_connectivity,
-                                          face_mask,
-                                          face_position_2d,
-                                          vert_redundancy,
-                                          npt,
-                                          wrapped=False)
-        decomp = get_decomp(dims["num_elem"], nproc)
+        face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
+        vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
+        grid, dims = init_grid_from_topo(face_connectivity,
+                                         face_mask,
+                                         face_position_2d,
+                                         vert_redundancy,
+                                         npt,
+                                         wrapped=False)
+        decomp = init_decomp(dims["num_elem"], nproc)
         vert_redundancy_gll = vert_red_flat_to_hierarchy(grid["vertex_redundancy"])
         vert_redundancy_check = {}
         for face_idx in vert_redundancy_gll.keys():
@@ -150,7 +150,7 @@ def test_assembly_init():
                             (se_grid["gll_weights"][np.newaxis, :, np.newaxis] *
                              se_grid["gll_weights"][np.newaxis, np.newaxis, :])), 8.0)
   nproc = 2
-  decomp = get_decomp(2, 2)
+  decomp = init_decomp(2, 2)
 
   def flip_triple(triple):
     return [x for x in zip(triple[0],
@@ -185,32 +185,32 @@ def test_triples_order():
   for npt in test_npts:
     for nx in range(1, 5):
       for nproc in range(1, 3):
-        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
-        decomp = get_decomp(dim_total["num_elem"], nproc)
+        grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=False)
+        decomp = init_decomp(dim_total["num_elem"], nproc)
         grids = []
         grids_nowrapper = []
         dims = []
         for proc_idx in range(nproc):
-          grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                   grid_total["contra_to_physical"],
-                                                   grid_total["physical_to_contra"],
-                                                   grid_total["physical_to_cartesian"],
-                                                   grid_total["recip_metric_determinant"],
-                                                   grid_total["metric_determinant"],
-                                                   grid_total["mass_matrix"],
-                                                   grid_total["mass_matrix_denominator"],
-                                                   grid_total["vertex_redundancy"],
-                                                   proc_idx, decomp, wrapped=True)
-          grid_nowrapper, _ = create_spectral_element_grid(grid_total["physical_coords"],
-                                                           grid_total["contra_to_physical"],
-                                                           grid_total["physical_to_contra"],
-                                                           grid_total["physical_to_cartesian"],
-                                                           grid_total["recip_metric_determinant"],
-                                                           grid_total["metric_determinant"],
-                                                           grid_total["mass_matrix"],
-                                                           grid_total["mass_matrix_denominator"],
-                                                           grid_total["vertex_redundancy"],
-                                                           proc_idx, decomp, wrapped=False)
+          grid, dim = init_spectral_element_grid(grid_total["physical_coords"],
+                                                 grid_total["contra_to_physical"],
+                                                 grid_total["physical_to_contra"],
+                                                 grid_total["physical_to_cartesian"],
+                                                 grid_total["recip_metric_determinant"],
+                                                 grid_total["metric_determinant"],
+                                                 grid_total["mass_matrix"],
+                                                 grid_total["mass_matrix_denominator"],
+                                                 grid_total["vertex_redundancy"],
+                                                 proc_idx, decomp, wrapped=True)
+          grid_nowrapper, _ = init_spectral_element_grid(grid_total["physical_coords"],
+                                                         grid_total["contra_to_physical"],
+                                                         grid_total["physical_to_contra"],
+                                                         grid_total["physical_to_cartesian"],
+                                                         grid_total["recip_metric_determinant"],
+                                                         grid_total["metric_determinant"],
+                                                         grid_total["mass_matrix"],
+                                                         grid_total["mass_matrix_denominator"],
+                                                         grid_total["vertex_redundancy"],
+                                                         proc_idx, decomp, wrapped=False)
           grids.append(grid)
           grids_nowrapper.append(grid_nowrapper)
           dims.append(dim)

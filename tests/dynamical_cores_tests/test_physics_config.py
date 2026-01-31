@@ -2,13 +2,14 @@ from pysces.dynamical_cores.physics_config import init_physics_config, typical_m
 from pysces.model_info import models
 from pysces.config import np
 
+
 def test_mass_ratio_consistency():
   for molecule_set in typical_mass_ratios.keys():
     sum = 0.0
     for molecule in typical_mass_ratios[molecule_set].keys():
       sum += typical_mass_ratios[molecule_set][molecule]
     assert np.allclose(sum, 1.0)
-    
+
 
 def test_config_consistency():
   config_cam_se = init_physics_config(models.cam_se)
@@ -25,5 +26,3 @@ def test_config_consistency():
     cp += dry_air_species_cp[molecule_name] * mass_ratios[molecule_name]
   assert np.abs(Rgas - default_Rgas) / Rgas < 0.01
   assert np.abs(cp - default_cp) / cp < 0.01
-
-

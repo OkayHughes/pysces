@@ -30,7 +30,7 @@
 #   gfr%check_ok = .true.
 
 #   gfr%boost_pg1 = .false.
-#   if (nphys == 1 .and. present(boost_pg1)) gfr%boost_pg1 = boost_pg1    
+#   if (nphys == 1 .and. present(boost_pg1)) gfr%boost_pg1 = boost_pg1
 
 #   gfr%tolfac = one
 #   if (par%masterproc) then
@@ -98,7 +98,7 @@
 #   ! Init GLL w(i)*w(j) values on the reference element.
 
 #   use quadrature_mod, only : gausslobatto, quadrature_t
-  
+
 #   integer, intent(in) :: np
 #   real(kind=real_kind), intent(out) :: w_gg(:,:)
 
@@ -112,20 +112,19 @@
 #         w_gg(i,j) = gll%weights(i)*gll%weights(j)
 #      end do
 #   end do
-  
+
 #   call gll_cleanup(gll)
 # end subroutine gfr_init_w_gg
 
 
 # subroutine gfr_init_w_ff(nphys, w_ff)
 #   ! Init FV w(i)*w(j) values on the reference element.
-  
+
 #   integer, intent(in) :: nphys
 #   real(kind=real_kind), intent(out) :: w_ff(:)
 
 #   w_ff(:nphys*nphys) = four/real(nphys*nphys, real_kind)
 # end subroutine gfr_init_w_ff
-
 
 
 # subroutine gfr_init_M_gf(np, nphys, M_gf, scale)
@@ -193,13 +192,12 @@
 # end subroutine gfr_init_M_gf
 
 
-
 # subroutine eval_lagrange_bases(gll, np, x, y)
 #   ! Evaluate the GLL basis functions at x in [-1,1], writing the
 #   ! values to y(1:np). This implements the Lagrange interpolant.
 
 #   use quadrature_mod, only : quadrature_t
-  
+
 #   type (quadrature_t), intent(in) :: gll
 #   integer, intent(in) :: np
 #   real(kind=real_kind), intent(in) :: x ! in [-1,1]
@@ -266,7 +264,6 @@
 #   end do
 #   call dgeqrf(np*np, nphys*nphys, R, size(R,1), tau, wrk, np*np*nphys*nphys, info)
 # end subroutine gfr_init_R
-
 
 
 # subroutine gfr_init_interp_matrix(npsrc, interp)
@@ -389,8 +386,6 @@
 #      end do
 #   end if
 # end subroutine gfr_f2g_remapd_op
-
-
 
 
 #   subroutine gfr_init_geometry(elem, gfr)
@@ -532,7 +527,6 @@
 # end subroutine gfr_init_geometry
 
 
-
 #   subroutine gfr_f_ref_center(nphys, i, a)
 #   ! FV subcell center in ref [-1,1]^2 coord.
 
@@ -556,7 +550,6 @@
 # end subroutine gfr_f_ref_edges
 
 
-
 #   subroutine gfr_init_Dmap(elem, gfr)
 #   use control_mod, only: cubed_sphere_map
 #   use cube_mod, only: Dmap, ref2sphere
@@ -572,14 +565,14 @@
 
 #   nf = gfr%nphys
 #   nf2 = nf*nf
-  
+
 #   ! Jacobian matrices to map a vector between reference element and sphere.
 #   do ie = 1,nelemd
 #      do j = 1,nf
 #         do i = 1,nf
 #            if (gfr%is_planar .or. cubed_sphere_map == 0) then
 #               call gfr_f_ref_center(nf, i, a)
-#               call gfr_f_ref_center(nf, j, b)                
+#               call gfr_f_ref_center(nf, j, b)
 #            else
 #               call gfr_f_get_cartesian3d(ie, i, j, sphere)
 #               call sphere2ref(elem(ie)%corners3D, sphere, a, b)
@@ -680,5 +673,3 @@
 #      end do
 #   end do
 # end subroutine apply_interp
-
-

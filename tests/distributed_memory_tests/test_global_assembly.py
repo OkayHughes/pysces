@@ -1,16 +1,17 @@
-from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
+from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
 from tests.distributed_memory_tests.reference_global_assembly import (project_scalar_for_stub,
-                                                   assemble_scalar_for_pack, assemble_scalar_for_unpack,
-                                                   extract_fields_for,
-                                                   accumulate_fields_for,
-                                                   project_scalar_for_mpi)
-from pysces.distributed_memory.global_communication import (_exchange_buffers_stub, exchange_buffers)
+                                                                      assemble_scalar_for_pack,
+                                                                      assemble_scalar_for_unpack,
+                                                                      extract_fields_for,
+                                                                      accumulate_fields_for,
+                                                                      project_scalar_for_mpi)
+from pysces.distributed_memory.global_communication import (_exchange_buffers_stub)
 from pysces.distributed_memory.global_assembly import (extract_fields, accumulate_fields, _project_scalar_stub,
                                                        project_scalar_global)
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
-from pysces.horizontal_grid import create_spectral_element_grid
-from pysces.mesh_generation.periodic_plane import create_uniform_grid
-from pysces.distributed_memory.processor_decomposition import get_decomp, elem_idx_global_to_proc_idx, global_to_local
+from pysces.horizontal_grid import init_spectral_element_grid
+from pysces.mesh_generation.periodic_plane import init_uniform_grid
+from pysces.distributed_memory.processor_decomposition import init_decomp, elem_idx_global_to_proc_idx, global_to_local
 from pysces.config import device_unwrapper, np, use_wrapper, device_wrapper, mpi_size, mpi_rank
 from ..handmade_grids import init_test_grid, vert_redundancy_gll
 from ..context import test_npts
@@ -22,9 +23,9 @@ def test_unordered_assembly_for_stub():
     for nx in range(1, 3):
       for nproc in range(1, 6):
         print(f"dividing nx {nx} grid among {nproc} processors")
-        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
+        grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=False)
         vert_redundancy = vert_red_flat_to_hierarchy(grid_total["vertex_redundancy"])
-        decomp = get_decomp(dim_total["num_elem"], nproc)
+        decomp = init_decomp(dim_total["num_elem"], nproc)
         grids = []
         dims = []
         fs = []
@@ -45,16 +46,16 @@ def test_unordered_assembly_for_stub():
                             source_j))
             pairs[pair_key] = pair_set.copy()
         for proc_idx in range(nproc):
-          grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                   grid_total["contra_to_physical"],
-                                                   grid_total["physical_to_contra"],
-                                                   grid_total["physical_to_cartesian"],
-                                                   grid_total["recip_metric_determinant"],
-                                                   grid_total["metric_determinant"],
-                                                   grid_total["mass_matrix"],
-                                                   grid_total["mass_matrix_denominator"],
-                                                   grid_total["vertex_redundancy"],
-                                                   proc_idx, decomp, wrapped=False)
+          grid, dim = init_spectral_element_grid(grid_total["physical_coords"],
+                                                 grid_total["contra_to_physical"],
+                                                 grid_total["physical_to_contra"],
+                                                 grid_total["physical_to_cartesian"],
+                                                 grid_total["recip_metric_determinant"],
+                                                 grid_total["metric_determinant"],
+                                                 grid_total["mass_matrix"],
+                                                 grid_total["mass_matrix_denominator"],
+                                                 grid_total["vertex_redundancy"],
+                                                 proc_idx, decomp, wrapped=False)
           grids.append(grid)
           dims.append(dim)
           total_elems += dim["num_elem"]
@@ -101,8 +102,8 @@ def test_unordered_assembly_triple_stub():
     for nx in range(1, 3):
       for nproc in range(1, 6):
         print(f"dividing nx {nx} grid among {nproc} processors")
-        grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
-        decomp = get_decomp(dim_total["num_elem"], nproc)
+        grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=False)
+        decomp = init_decomp(dim_total["num_elem"], nproc)
         grids = []
         dims = []
         fs = []
@@ -124,16 +125,16 @@ def test_unordered_assembly_triple_stub():
                             source_j))
             pairs[pair_key] = pair_set.copy()
         for proc_idx in range(nproc):
-          grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                   grid_total["contra_to_physical"],
-                                                   grid_total["physical_to_contra"],
-                                                   grid_total["physical_to_cartesian"],
-                                                   grid_total["recip_metric_determinant"],
-                                                   grid_total["metric_determinant"],
-                                                   grid_total["mass_matrix"],
-                                                   grid_total["mass_matrix_denominator"],
-                                                   grid_total["vertex_redundancy"],
-                                                   proc_idx, decomp, wrapped=use_wrapper)
+          grid, dim = init_spectral_element_grid(grid_total["physical_coords"],
+                                                 grid_total["contra_to_physical"],
+                                                 grid_total["physical_to_contra"],
+                                                 grid_total["physical_to_cartesian"],
+                                                 grid_total["recip_metric_determinant"],
+                                                 grid_total["metric_determinant"],
+                                                 grid_total["mass_matrix"],
+                                                 grid_total["mass_matrix_denominator"],
+                                                 grid_total["vertex_redundancy"],
+                                                 proc_idx, decomp, wrapped=use_wrapper)
           grids.append(grid)
           dims.append(dim)
           total_elems += dim["num_elem"]
@@ -183,7 +184,7 @@ def test_stub_exchange():
   se_grid, total_dims = init_test_grid()
   npt = total_dims["npt"]
 
-  decomp = get_decomp(NELEM, nproc)
+  decomp = init_decomp(NELEM, nproc)
   proc_ids = elem_idx_global_to_proc_idx(np.array([0, 1]), decomp)
   # set associated vertices to 1,
   # then test that extract, communicate, accumulate returns multiplicity
@@ -205,18 +206,18 @@ def test_stub_exchange():
   dims = []
 
   for proc_idx in range(nproc):
-    grid, dim = create_spectral_element_grid(se_grid["physical_coords"],
-                                             se_grid["contra_to_physical"],
-                                             se_grid["physical_to_contra"],
-                                             se_grid["physical_to_cartesian"],
-                                             se_grid["recip_metric_determinant"],
-                                             se_grid["metric_determinant"],
-                                             se_grid["mass_matrix"],
-                                             se_grid["mass_matrix_denominator"],
-                                             se_grid["vertex_redundancy"],
-                                             proc_idx,
-                                             decomp,
-                                             wrapped=False)
+    grid, dim = init_spectral_element_grid(se_grid["physical_coords"],
+                                           se_grid["contra_to_physical"],
+                                           se_grid["physical_to_contra"],
+                                           se_grid["physical_to_cartesian"],
+                                           se_grid["recip_metric_determinant"],
+                                           se_grid["metric_determinant"],
+                                           se_grid["mass_matrix"],
+                                           se_grid["mass_matrix_denominator"],
+                                           se_grid["vertex_redundancy"],
+                                           proc_idx,
+                                           decomp,
+                                           wrapped=False)
     grids.append(grid)
     dims.append(dim)
 
@@ -265,16 +266,16 @@ def test_extract_fields_triples():
   for npt in test_npts:
     np.random.seed(global_seed)
     for nx in range(1, 3):
-      global_grids_nowrapper = [create_uniform_grid(nx, nx + 1, npt, wrapped=False),
-                                create_quasi_uniform_grid(nx, npt, wrapped=False)]
-      global_grids = [create_uniform_grid(nx, nx + 1, npt, wrapped=use_wrapper),
-                      create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper)]
+      global_grids_nowrapper = [init_uniform_grid(nx, nx + 1, npt, wrapped=False),
+                                init_quasi_uniform_grid(nx, npt, wrapped=False)]
+      global_grids = [init_uniform_grid(nx, nx + 1, npt, wrapped=use_wrapper),
+                      init_quasi_uniform_grid(nx, npt, wrapped=use_wrapper)]
       for ((grid_total, dim_total),
            (grid_total_nowrapper, _)) in zip(global_grids, global_grids_nowrapper):
         for random, num_iters in zip([False, True], [1, 10]):
           for _ in range(num_iters):
             nproc = 2
-            decomp = get_decomp(dim_total["num_elem"], nproc)
+            decomp = init_decomp(dim_total["num_elem"], nproc)
             grids = []
             grids_nodevice = []
             dims = []
@@ -298,26 +299,26 @@ def test_extract_fields_triples():
                                 source_j))
                 pairs[pair_key] = pair_set.copy()
             for proc_idx in range(nproc):
-              grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                       grid_total_nowrapper["contra_to_physical"],
-                                                       grid_total_nowrapper["physical_to_contra"],
-                                                       grid_total_nowrapper["physical_to_cartesian"],
-                                                       grid_total_nowrapper["recip_metric_determinant"],
-                                                       grid_total_nowrapper["metric_determinant"],
-                                                       grid_total_nowrapper["mass_matrix"],
-                                                       grid_total_nowrapper["mass_matrix_denominator"],
-                                                       grid_total_nowrapper["vertex_redundancy"],
-                                                       proc_idx, decomp, wrapped=use_wrapper)
-              grid_nodevice, _ = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                              grid_total_nowrapper["contra_to_physical"],
-                                                              grid_total_nowrapper["physical_to_contra"],
-                                                              grid_total_nowrapper["physical_to_cartesian"],
-                                                              grid_total_nowrapper["recip_metric_determinant"],
-                                                              grid_total_nowrapper["metric_determinant"],
-                                                              grid_total_nowrapper["mass_matrix"],
-                                                              grid_total_nowrapper["mass_matrix_denominator"],
-                                                              grid_total_nowrapper["vertex_redundancy"],
-                                                              proc_idx, decomp, wrapped=False)
+              grid, dim = init_spectral_element_grid(grid_total_nowrapper["physical_coords"],
+                                                     grid_total_nowrapper["contra_to_physical"],
+                                                     grid_total_nowrapper["physical_to_contra"],
+                                                     grid_total_nowrapper["physical_to_cartesian"],
+                                                     grid_total_nowrapper["recip_metric_determinant"],
+                                                     grid_total_nowrapper["metric_determinant"],
+                                                     grid_total_nowrapper["mass_matrix"],
+                                                     grid_total_nowrapper["mass_matrix_denominator"],
+                                                     grid_total_nowrapper["vertex_redundancy"],
+                                                     proc_idx, decomp, wrapped=use_wrapper)
+              grid_nodevice, _ = init_spectral_element_grid(grid_total_nowrapper["physical_coords"],
+                                                            grid_total_nowrapper["contra_to_physical"],
+                                                            grid_total_nowrapper["physical_to_contra"],
+                                                            grid_total_nowrapper["physical_to_cartesian"],
+                                                            grid_total_nowrapper["recip_metric_determinant"],
+                                                            grid_total_nowrapper["metric_determinant"],
+                                                            grid_total_nowrapper["mass_matrix"],
+                                                            grid_total_nowrapper["mass_matrix_denominator"],
+                                                            grid_total_nowrapper["vertex_redundancy"],
+                                                            proc_idx, decomp, wrapped=False)
               grids.append(grid)
               grids_nodevice.append(grid_nodevice)
               dims.append(dim)
@@ -373,8 +374,8 @@ def test_mpi_exchange_for():
       nproc = mpi_size
       local_proc_idx = mpi_rank
       print(f"dividing nx {nx} grid among {nproc} processors")
-      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=False)
-      decomp = get_decomp(dim_total["num_elem"], nproc)
+      grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=False)
+      decomp = init_decomp(dim_total["num_elem"], nproc)
       grids = []
       dims = []
       fs = []
@@ -396,16 +397,16 @@ def test_mpi_exchange_for():
                           source_j))
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
-        grid, dim = create_spectral_element_grid(grid_total["physical_coords"],
-                                                 grid_total["contra_to_physical"],
-                                                 grid_total["physical_to_contra"],
-                                                 grid_total["physical_to_cartesian"],
-                                                 grid_total["recip_metric_determinant"],
-                                                 grid_total["metric_determinant"],
-                                                 grid_total["mass_matrix"],
-                                                 grid_total["mass_matrix_denominator"],
-                                                 grid_total["vertex_redundancy"],
-                                                 proc_idx, decomp, wrapped=False)
+        grid, dim = init_spectral_element_grid(grid_total["physical_coords"],
+                                               grid_total["contra_to_physical"],
+                                               grid_total["physical_to_contra"],
+                                               grid_total["physical_to_cartesian"],
+                                               grid_total["recip_metric_determinant"],
+                                               grid_total["metric_determinant"],
+                                               grid_total["mass_matrix"],
+                                               grid_total["mass_matrix_denominator"],
+                                               grid_total["vertex_redundancy"],
+                                               proc_idx, decomp, wrapped=False)
         grids.append(grid)
         dims.append(dim)
         total_elems += dim["num_elem"]
@@ -472,9 +473,9 @@ def test_mpi_exchange_triple():
       nproc = mpi_size
       local_proc_idx = mpi_rank
       print(f"dividing nx {nx} grid among {nproc} processors")
-      grid_total_nowrapper, dim_total_nowrapper = create_quasi_uniform_grid(nx, npt, wrapped=False)
-      grid_total, dim_total = create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper)
-      decomp = get_decomp(dim_total["num_elem"], nproc)
+      grid_total_nowrapper, dim_total_nowrapper = init_quasi_uniform_grid(nx, npt, wrapped=False)
+      grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=use_wrapper)
+      decomp = init_decomp(dim_total["num_elem"], nproc)
       grids = []
       dims = []
       fs = []
@@ -496,16 +497,16 @@ def test_mpi_exchange_triple():
                           source_j))
           pairs[pair_key] = pair_set.copy()
       for proc_idx in range(nproc):
-        grid, dim = create_spectral_element_grid(grid_total_nowrapper["physical_coords"],
-                                                 grid_total_nowrapper["contra_to_physical"],
-                                                 grid_total_nowrapper["physical_to_contra"],
-                                                 grid_total_nowrapper["physical_to_cartesian"],
-                                                 grid_total_nowrapper["recip_metric_determinant"],
-                                                 grid_total_nowrapper["metric_determinant"],
-                                                 grid_total_nowrapper["mass_matrix"],
-                                                 grid_total_nowrapper["mass_matrix_denominator"],
-                                                 grid_total_nowrapper["vertex_redundancy"],
-                                                 proc_idx, decomp, wrapped=use_wrapper)
+        grid, dim = init_spectral_element_grid(grid_total_nowrapper["physical_coords"],
+                                               grid_total_nowrapper["contra_to_physical"],
+                                               grid_total_nowrapper["physical_to_contra"],
+                                               grid_total_nowrapper["physical_to_cartesian"],
+                                               grid_total_nowrapper["recip_metric_determinant"],
+                                               grid_total_nowrapper["metric_determinant"],
+                                               grid_total_nowrapper["mass_matrix"],
+                                               grid_total_nowrapper["mass_matrix_denominator"],
+                                               grid_total_nowrapper["vertex_redundancy"],
+                                               proc_idx, decomp, wrapped=use_wrapper)
         grids.append(grid)
         dims.append(dim)
         total_elems += dim["num_elem"]

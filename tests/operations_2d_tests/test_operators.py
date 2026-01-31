@@ -1,16 +1,21 @@
 from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
-from pysces.mesh_generation.equiangular_metric import create_quasi_uniform_grid
+from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
 from pysces.operations_2d.local_assembly import project_scalar
-from pysces.operations_2d.operators import horizontal_gradient, horizontal_divergence, horizontal_vorticity, inner_product
-from pysces.operations_2d.operators import horizontal_weak_divergence, horizontal_weak_gradient_covariant, horizontal_weak_vector_laplacian
-from pysces.mesh_generation.periodic_plane import create_uniform_grid
+from pysces.operations_2d.operators import (horizontal_gradient,
+                                            horizontal_divergence,
+                                            horizontal_vorticity,
+                                            inner_product)
+from pysces.operations_2d.operators import (horizontal_weak_divergence,
+                                            horizontal_weak_gradient_covariant,
+                                            horizontal_weak_vector_laplacian)
+from pysces.mesh_generation.periodic_plane import init_uniform_grid
 from ..context import test_npts, seed
 
 
 def test_vector_identites_sphere():
   for npt in test_npts:
     for nx in [30, 31]:
-      grid, dims = create_quasi_uniform_grid(nx, npt)
+      grid, dims = init_quasi_uniform_grid(nx, npt)
       fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
       grad = horizontal_gradient(fn, grid)
       vort = horizontal_vorticity(grad, grid)
@@ -30,7 +35,7 @@ def test_vector_identites_sphere():
 def test_vector_identities_plane():
   for npt in test_npts:
     nx, ny = (31, 33)
-    grid, dims = create_uniform_grid(nx, ny, npt, length_x=jnp.pi, length_y=jnp.pi)
+    grid, dims = init_uniform_grid(nx, ny, npt, length_x=jnp.pi, length_y=jnp.pi)
     fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
     grad = horizontal_gradient(fn, grid)
     vort = horizontal_vorticity(grad, grid)
@@ -51,7 +56,7 @@ def test_vector_identites_rand_sphere():
   for npt in test_npts:
     np.random.seed(seed)
     for nx in [30, 31]:
-      grid, dims = create_quasi_uniform_grid(nx, npt)
+      grid, dims = init_quasi_uniform_grid(nx, npt)
       for _ in range(10):
         fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
         fn = project_scalar(fn, grid, dims)
@@ -77,7 +82,7 @@ def test_vector_identites_rand_plane():
   for npt in test_npts:
     np.random.seed(seed)
     nx, ny = (31, 33)
-    grid, dims = create_uniform_grid(nx, ny, npt)
+    grid, dims = init_uniform_grid(nx, ny, npt)
     for _ in range(10):
       fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
       fn = project_scalar(fn, grid, dims)
@@ -102,7 +107,7 @@ def test_vector_identites_rand_plane():
 def test_divergence():
   for npt in test_npts:
     for nx in [60, 61]:
-      grid, dims = create_quasi_uniform_grid(nx, npt)
+      grid, dims = init_quasi_uniform_grid(nx, npt)
       vec = np.zeros_like(grid["physical_coords"])
       lat = grid["physical_coords"][:, :, :, 0]
       lon = grid["physical_coords"][:, :, :, 1]
@@ -126,7 +131,7 @@ def test_divergence():
 def test_analytic_soln():
   for npt, tol in zip([3, 4], [1e-3, 1e-5]):
     for nx in [60, 61]:
-      grid, dims = create_quasi_uniform_grid(nx, npt)
+      grid, dims = init_quasi_uniform_grid(nx, npt)
       fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
       grad_f_numerical = horizontal_gradient(fn, grid)
       sph_grad_wk = horizontal_weak_gradient_covariant(fn, grid)
@@ -148,7 +153,7 @@ def test_analytic_soln():
 def test_vector_laplacian():
   for npt in test_npts:
     for nx in [60, 61]:
-      grid, dims = create_quasi_uniform_grid(nx, npt)
+      grid, dims = init_quasi_uniform_grid(nx, npt)
       v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                      jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
       laplace_v_wk = horizontal_weak_vector_laplacian(v, grid)

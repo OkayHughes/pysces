@@ -1,5 +1,6 @@
-from ...pysces.config import np
-from ...pysces.distributed_memory.global_communication import _exchange_buffers_stub, exchange_buffers
+from pysces.config import np
+from pysces.distributed_memory.global_communication import _exchange_buffers_stub, exchange_buffers
+
 
 def summation_local_for(f, grid, *args):
   """
@@ -31,6 +32,7 @@ def summation_local_for(f, grid, *args):
   # this line works even for multi-processor decompositions.
 
   return workspace
+
 
 def extract_fields_for(fijk_fields, vert_redundancy_send):
   """
@@ -70,6 +72,7 @@ def extract_fields_for(fijk_fields, vert_redundancy_send):
       buffers[remote_proc_idx].append(np.stack(data, axis=-1))
   return buffers
 
+
 def accumulate_fields_for(fijk_fields, buffers, vert_redundancy_receive):
   """
   Sum non-processor-local redundant DOFs into a list of processor-local 3D fields after
@@ -107,6 +110,7 @@ def accumulate_fields_for(fijk_fields, buffers, vert_redundancy_receive):
                                  target_j, :] += buffers[remote_proc_idx][field_idx][:, col_idx]
   return fijk_fields
 
+
 def assemble_scalar_for_pack(fs_local, grid):
   """
   Extract processor-local list of scalars before
@@ -143,6 +147,7 @@ def assemble_scalar_for_pack(fs_local, grid):
   """
   buffers = extract_fields_for([f.reshape((*f.shape, 1)) for f in fs_local], grid["vertex_redundancy_send"])
   return buffers
+
 
 def assemble_scalar_for_unpack(fs_local, buffers, grid, *args):
   """
@@ -233,6 +238,7 @@ def project_scalar_for_stub(fs_global, grids):
                         for f in assemble_scalar_for_unpack(fs_out[proc_idx], buffers[proc_idx], grids[proc_idx])]
 
   return fs_out
+
 
 def project_scalar_for_mpi(fs, grid):
   """
