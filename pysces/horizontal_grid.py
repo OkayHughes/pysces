@@ -1,10 +1,10 @@
 from .config import np, device_wrapper, use_wrapper, device_unwrapper, jnp
 from frozendict import frozendict
 from .operations_2d.local_assembly import triage_vert_redundancy_flat, init_assembly_global, init_assembly_local
-from .mesh_generation.bilinear_utils import bilinear
+from .mesh_generation.bilinear_utils import eval_bilinear_mapping
 from .distributed_memory.global_assembly import project_scalar_global
 from .distributed_memory.global_communication import global_max, global_min
-from .operations_2d.tensor_hyperviscosity import init_hypervis_tensor
+from .operations_2d.tensor_hyperviscosity import eval_hypervis_tensor
 from .spectral import init_spectral
 
 
@@ -25,19 +25,19 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapp
   return var_out
 
 
-def create_spectral_element_grid(latlon,
-                                 gll_to_sphere_jacobian,
-                                 gll_to_sphere_jacobian_inv,
-                                 physical_coords_to_cartesian,
-                                 rmetdet,
-                                 metdet,
-                                 mass_mat,
-                                 inv_mass_mat,
-                                 vert_redundancy_gll_flat,
-                                 proc_idx,
-                                 decomp,
-                                 element_reordering=None,
-                                 wrapped=use_wrapper):
+def init_spectral_element_grid(latlon,
+                               gll_to_sphere_jacobian,
+                               gll_to_sphere_jacobian_inv,
+                               physical_coords_to_cartesian,
+                               rmetdet,
+                               metdet,
+                               mass_mat,
+                               inv_mass_mat,
+                               vert_redundancy_gll_flat,
+                               proc_idx,
+                               decomp,
+                               element_reordering=None,
+                               wrapped=use_wrapper):
 
   # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
   # this extra conditional is not extraneous.
@@ -79,7 +79,7 @@ def create_spectral_element_grid(latlon,
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
                                    wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
                                    wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
-  viscosity_tensor, hypervis_scaling = init_hypervis_tensor(met_inv, gll_to_sphere_jacobian)
+  viscosity_tensor, hypervis_scaling = eval_hypervis_tensor(met_inv, gll_to_sphere_jacobian)
   ret = {"physical_coords": subset_wrapper(latlon),
          "physical_to_cartesian": subset_wrapper(physical_coords_to_cartesian),
          "contra_to_physical": subset_wrapper(gll_to_sphere_jacobian),
@@ -116,7 +116,8 @@ def create_spectral_element_grid(latlon,
   return ret, grid_dims
 
 
-def get_grid_deformation_metrics(grid, npt):
+def eval_grid_deformation_metrics(grid,
+                                  npt):
   eigs, _ = jnp.linalg.eigh(grid["metric_inverse"])
   max_svd = jnp.sqrt(jnp.max(eigs, axis=-1))
   min_svd = jnp.sqrt(jnp.min(eigs, axis=-1))
@@ -125,15 +126,20 @@ def get_grid_deformation_metrics(grid, npt):
   return max_svd, dx_short, dx_long
 
 
-def get_global_grid_deformation_metrics(h_grid, dims):
-  L2_jac_inv, dx_short, dx_long = get_grid_deformation_metrics(h_grid, dims["npt"])
+def eval_global_grid_deformation_metrics(h_grid,
+                                         dims):
+  L2_jac_inv, dx_short, dx_long = eval_grid_deformation_metrics(h_grid, dims["npt"])
   max_norm_jac_inv = global_max(jnp.max(L2_jac_inv))
   max_min_dx = global_max(jnp.max(dx_short))
   min_max_dx = global_min(jnp.min(dx_long))
   return max_norm_jac_inv, max_min_dx, min_max_dx
 
 
-def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
+def eval_cfl(h_grid,
+             radius_earth,
+             diffusion_config,
+             dims,
+             sphere=True):
   #
   # estimate various CFL limits
   # Credit: This is basically copy-pasted from CAM-SE/HOMME
@@ -163,7 +169,7 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
 
   hypervis_scaling = h_grid["hypervis_scaling"]
 
-  max_norm_jac_inv, max_min_dx, min_min_dx = get_global_grid_deformation_metrics(h_grid, dims)
+  max_norm_jac_inv, max_min_dx, min_min_dx = eval_global_grid_deformation_metrics(h_grid, dims)
 
   # tensorHV.  New eigenvalues are the eigenvalues of the tensor V
   # formulas here must match what is in cube_mod.F90
@@ -178,13 +184,15 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
   else:
     norm_jac_inv_hvis = norm_jac_inv_hvis_const
 
-  nu_div_fact = 1.0 if "tensor_hypervis" in diffusion_config.keys() else diffusion_config["nu_div_factor"]
+  nu_div_fact = 1.0 if "nu_div_factor" not in diffusion_config.keys() else diffusion_config["nu_div_factor"]
+  nu_d_mass = 1.0 if "nu_d_mass" not in diffusion_config.keys() else diffusion_config["nu_d_mass"]
+  nu = 1.0 if "nu" not in diffusion_config.keys() else diffusion_config["nu"]
   rkssp_euler_stability = minimum_gauss_weight / (120.0 * max_norm_jac_inv * scale_inv)
   rk2_tracer = 1.0 / (120.0 * max_norm_jac_inv * lambda_max * scale_inv)
   gravit_wave_stability = 1.0 / (342.0 * max_norm_jac_inv * lambda_max * scale_inv)
-  hypervis_stability_dpi = 1.0 / (diffusion_config["nu_d_mass"] * norm_jac_inv_hvis)
-  hypervis_stability_vort = 1.0 / (diffusion_config["nu"] * norm_jac_inv_hvis)
-  hypervis_stability_div = 1.0 / (nu_div_fact * diffusion_config["nu"] * norm_jac_inv_hvis)
+  hypervis_stability_dpi = 1.0 / (nu_d_mass * norm_jac_inv_hvis)
+  hypervis_stability_vort = 1.0 / (nu * norm_jac_inv_hvis)
+  hypervis_stability_div = 1.0 / (nu_div_fact * nu * norm_jac_inv_hvis)
   return ({"dt_rkssp_euler": rkssp_euler_stability,
            "dt_rk2_tracer": rk2_tracer,
            "dt_gravity_wave": gravit_wave_stability,
@@ -198,7 +206,8 @@ def get_cfl(h_grid, radius_earth, diffusion_config, dims, sphere=True):
            "scale_inv": scale_inv})
 
 
-def postprocess_grid(grid, dims):
+def postprocess_grid(grid,
+                     dims):
   npt = dims["npt"]
   spectral = init_spectral(npt)
 
@@ -225,10 +234,12 @@ def postprocess_grid(grid, dims):
         v1 = tensor_cont[:, 0, npt - 1, :, :]
         v2 = tensor_cont[:, npt - 1, 0, :, :]
         v3 = tensor_cont[:, npt - 1, npt - 1, :, :]
-        tensor_bilinear[:, i_idx, j_idx, :, :] = bilinear(v0,
-                                                          v1,
-                                                          v2,
-                                                          v3, alpha, beta)
+        tensor_bilinear[:, i_idx, j_idx, :, :] = eval_bilinear_mapping(v0,
+                                                                       v1,
+                                                                       v2,
+                                                                       v3,
+                                                                       alpha,
+                                                                       beta)
 
   grid["viscosity_tensor"] = device_wrapper(tensor_bilinear)
   return grid

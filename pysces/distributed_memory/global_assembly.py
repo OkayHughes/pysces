@@ -5,7 +5,10 @@ from .global_communication import exchange_buffers, _exchange_buffers_stub
 from functools import partial
 
 
-def sum_into(fijk_field, buffer, rows, dims):
+def sum_into(fijk_field,
+             buffer,
+             rows,
+             dims):
   """
   Sum redundant dofs into a 3D field using assembly triples.
 
@@ -49,7 +52,8 @@ def sum_into(fijk_field, buffer, rows, dims):
 
 
 @jit
-def extract_fields(fijk_fields, triples_send):
+def extract_fields(fijk_fields,
+                   triples_send):
   """
   Extract values from a list of processor-local 3D fields before
   inter-process communication using assembly triples.
@@ -92,7 +96,10 @@ def extract_fields(fijk_fields, triples_send):
   return buffers
 
 
-def accumulate_fields(fijk_fields, buffers, triples_receive, dims):
+def accumulate_fields(fijk_fields,
+                      buffers,
+                      triples_receive,
+                      dims):
   """
   Sum non-processor-local redundant DOFs into a list of processor-local 3D fields after
   inter-process communication using assembly triples.
@@ -132,7 +139,8 @@ def accumulate_fields(fijk_fields, buffers, triples_receive, dims):
 
 
 @jit
-def assemble_scalar_pack(fs_local, grid):
+def pack_scalar(fs_local,
+                grid):
   """
   Extract processor-local list of scalars before
   inter-process communication using assembly triples.
@@ -169,7 +177,11 @@ def assemble_scalar_pack(fs_local, grid):
   return buffers
 
 
-def assemble_scalar_unpack(fs_local, buffers, grid, dim, *args):
+def unpack_scalar(fs_local,
+                  buffers,
+                  grid,
+                  dim,
+                  *args):
   """
   Sum non-processor-local redundancies into list of scalars
   after inter-process communication using assembly triples.
@@ -210,7 +222,9 @@ def assemble_scalar_unpack(fs_local, buffers, grid, dim, *args):
                                        dim)]
 
 
-def _project_scalar_stub(fs_global, grids, dims):
+def _project_scalar_stub(fs_global,
+                         grids,
+                         dims):
   """
   Perform continuity projection on a list of scalars assuming all data is processor local
   using stub communicator and projection triples.
@@ -252,8 +266,8 @@ def _project_scalar_stub(fs_global, grids, dims):
   local_buffers = []
   for fs_local, grid, dim in zip(fs_global, grids, dims):
     data_scaled.append([f * grid["mass_matrix"] for f in fs_local])
-    buffers.append(assemble_scalar_pack([(f * grid["mass_matrix"])[:, :, :, np.newaxis]
-                                         for f in fs_local], grid))
+    buffers.append(pack_scalar([(f * grid["mass_matrix"])[:, :, :, np.newaxis]
+                                for f in fs_local], grid))
     local_buffers.append(extract_fields([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1))
                                          for f in fs_local],
                                         {mpi_rank: grid["assembly_triple"]})[mpi_rank])
@@ -268,16 +282,19 @@ def _project_scalar_stub(fs_global, grids, dims):
 
   for proc_idx in range(len(fs_out)):
     fs_out[proc_idx] = [f.squeeze() * grids[proc_idx]["mass_matrix_denominator"]
-                        for f in assemble_scalar_unpack(fs_out[proc_idx],
-                                                        buffers[proc_idx],
-                                                        grids[proc_idx],
-                                                        dims[proc_idx])]
+                        for f in unpack_scalar(fs_out[proc_idx],
+                                               buffers[proc_idx],
+                                               grids[proc_idx],
+                                               dims[proc_idx])]
 
   return fs_out
 
 
 @partial(jit, static_argnames=["dim", "two_d"])
-def project_scalar_global(fs_in, grid, dim, two_d=True):
+def project_scalar_global(fs_in,
+                          grid,
+                          dim,
+                          two_d=True):
   """
   Perform continuity projection on a list of processor-local scalars using projection triples.
 
@@ -319,17 +336,17 @@ def project_scalar_global(fs_in, grid, dim, two_d=True):
   else:
     fs = fs_in
 
-  buffer = assemble_scalar_pack([f * scale for f in fs], grid)
+  buffer = pack_scalar([f * scale for f in fs], grid)
   buffer = exchange_buffers(buffer)
 
   local_buffer = extract_fields([f * scale for f in fs], {mpi_rank: grid["assembly_triple"]})[mpi_rank]
   fs_out = []
   for f, local_buf in zip(fs, local_buffer):
       fs_out.append(sum_into(f * scale, local_buf, grid["assembly_triple"][1], dim))
-  fs = [f * grid["mass_matrix_denominator"][:, :, :, np.newaxis] for f in assemble_scalar_unpack(fs_out,
-                                                                                                 buffer,
-                                                                                                 grid,
-                                                                                                 dim)]
+  fs = [f * grid["mass_matrix_denominator"][:, :, :, np.newaxis] for f in unpack_scalar(fs_out,
+                                                                                        buffer,
+                                                                                        grid,
+                                                                                        dim)]
   if two_d:
     fs = [f.squeeze() for f in fs]
   return fs

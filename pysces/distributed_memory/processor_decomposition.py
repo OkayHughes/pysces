@@ -3,7 +3,7 @@ from ..mesh_generation.mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FAC
                                                 BACK_FACE, LEFT_FACE, RIGHT_FACE)
 
 
-def hilbert_curve(n_subdiv):
+def eval_hilbert_curve(n_subdiv):
   """
   Generate a 2D array containing indices
   representing a 2D hilbert curve in euclidean space.
@@ -63,7 +63,8 @@ def hilbert_curve(n_subdiv):
   return idxs_prev
 
 
-def get_face_idx_pos(lat, lon):
+def sphere_coord_to_face_idx_pos(lat,
+                                 lon):
   """
   Calculate which face of the cubed sphere contain
   points given in spherical coordinates.
@@ -121,7 +122,9 @@ def get_face_idx_pos(lat, lon):
   return face_idx, x_provisional, y_provisional
 
 
-def processor_id_to_range(proc_idx, num_elems, num_procs):
+def processor_id_to_range(proc_idx,
+                          num_elems,
+                          num_procs):
   """
   Calculate the number of elements to assign to a processor
   from the global grid size.
@@ -170,7 +173,8 @@ def processor_id_to_range(proc_idx, num_elems, num_procs):
   return beginning_idx, end_idx
 
 
-def get_decomp(num_elems, num_procs):
+def init_decomp(num_elems,
+                num_procs):
   """
   Get decomposition of total number of faces by processor
   for all processors.
@@ -202,7 +206,8 @@ def get_decomp(num_elems, num_procs):
   return tuple(segments)
 
 
-def create_mapping(n_subdiv, latlons):
+def init_mapping(n_subdiv,
+                 latlons):
   """
   Use a cubed-sphere hilbert curve
   to create a reordering of the global grid
@@ -238,8 +243,8 @@ def create_mapping(n_subdiv, latlons):
   KeyError
       when a key error
   """
-  face_idx, x, y = get_face_idx_pos(latlons[:, 0], latlons[:, 1])
-  idxs = hilbert_curve(n_subdiv)
+  face_idx, x, y = sphere_coord_to_face_idx_pos(latlons[:, 0], latlons[:, 1])
+  idxs = eval_hilbert_curve(n_subdiv)
   grid_pos_1d = np.linspace(-1.0, 1.0, 2**n_subdiv)
   id_x = np.argmin(np.abs(x[np.newaxis, :] - grid_pos_1d[:, np.newaxis]), axis=0)
   id_y = np.argmin(np.abs(y[np.newaxis, :] - grid_pos_1d[:, np.newaxis]), axis=0)
@@ -249,7 +254,9 @@ def create_mapping(n_subdiv, latlons):
   return index_map
 
 
-def local_to_global(elem_idxs_local, proc_idx, decomp):
+def local_to_global(elem_idxs_local,
+                    proc_idx,
+                    decomp):
   """
   Return global element indexes for a specific processor
   index, e.g., config.mpi_rank.
@@ -273,7 +280,9 @@ def local_to_global(elem_idxs_local, proc_idx, decomp):
   return elem_idxs_local + decomp[proc_idx][0]
 
 
-def global_to_local(elem_idxs_global, proc_idx, decomp):
+def global_to_local(elem_idxs_global,
+                    proc_idx,
+                    decomp):
   """
   Return local element indexes for a specific processor
   index, e.g., config.mpi_rank.
@@ -297,7 +306,8 @@ def global_to_local(elem_idxs_global, proc_idx, decomp):
   return elem_idxs_global - decomp[proc_idx][0]
 
 
-def elem_idx_global_to_proc_idx(elem_idxs_global, decomp):
+def elem_idx_global_to_proc_idx(elem_idxs_global,
+                                decomp):
   """
   Map global element indexes to the id of the
   processor they are assigned to.

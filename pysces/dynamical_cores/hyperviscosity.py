@@ -1,18 +1,21 @@
 from ..config import vmap_1d_apply, jit, jnp, device_wrapper, np
 from ..operations_2d.operators import horizontal_weak_vector_laplacian, horizontal_weak_laplacian
-from ..operations_2d.tensor_hyperviscosity import quasi_uniform_hypervisc_coeff, variable_resolution_hypervisc_coeff
-from ..horizontal_grid import get_global_grid_deformation_metrics
-from .model_state import wrap_dynamics_struct, project_dynamics_state
-from ..config import jnp, jit, np, device_wrapper
-from .utils_3d import get_delta, interface_to_model
-from .homme.thermodynamics import get_balanced_phi
-from .mass_coordinate import mass_from_coordinate_interface
+from ..operations_2d.tensor_hyperviscosity import (eval_quasi_uniform_hypervisc_coeff,
+                                                   eval_variable_resolution_hypervisc_coeff)
+from ..horizontal_grid import eval_global_grid_deformation_metrics
+from .model_state import wrap_dynamics, project_dynamics
+from .utils_3d import interface_to_delta, interface_to_midlevel
+from .homme.thermodynamics import eval_balanced_geopotential
+from .mass_coordinate import surface_mass_to_interface_mass
 from functools import partial
 from ..model_info import hydrostatic_models, thermodynamic_variable_names, homme_models, cam_se_models
 
 
-@jit
-def scalar_harmonic_3d(scalar, h_grid, physics_config, apply_tensor=False):
+@partial(jit, static_argnames=["apply_tensor"])
+def scalar_harmonic_3d(scalar,
+                       h_grid,
+                       physics_config,
+                       apply_tensor=False):
   """
   [Description]
 
@@ -43,7 +46,10 @@ def scalar_harmonic_3d(scalar, h_grid, physics_config, apply_tensor=False):
 
 
 @jit
-def vector_harmonic_3d(vector, h_grid, physics_config, nu_div_factor):
+def vector_harmonic_3d(vector,
+                       h_grid,
+                       physics_config,
+                       nu_div_factor):
   """
   [Description]
 
@@ -75,7 +81,12 @@ def vector_harmonic_3d(vector, h_grid, physics_config, nu_div_factor):
 
 
 @partial(jit, static_argnames=["apply_nu", "model"])
-def calc_hypervis_harmonic(dynamics, h_grid, physics_config, diffusion_config, model, apply_nu=True):
+def eval_hypervis_harmonic(dynamics,
+                           h_grid,
+                           physics_config,
+                           diffusion_config,
+                           model,
+                           apply_nu=True):
   """
   [Description]
 
@@ -109,12 +120,14 @@ def calc_hypervis_harmonic(dynamics, h_grid, physics_config, diffusion_config, m
     nu_phi = 1.0
     nu_d_mass = 1.0
 
-
   if "tensor_hypervis" in diffusion_config.keys():
     u_cart = jnp.einsum("fijks,fijcs->fijkc", dynamics["u"], h_grid["physical_to_cartesian"])
     components = []
     for comp_idx in range(u_cart.shape[-1]):
-      components.append(scalar_harmonic_3d(u_cart[:, :, :, :, comp_idx], h_grid, physics_config, apply_tensor=apply_tensor))
+      components.append(scalar_harmonic_3d(u_cart[:, :, :, :, comp_idx],
+                                           h_grid,
+                                           physics_config,
+                                           apply_tensor=apply_tensor))
     hyperdiff_u = jnp.einsum("fijkc,fijcs->fijks", jnp.stack(components, axis=-1), h_grid["physical_to_cartesian"])
   elif "constant_hypervis" in diffusion_config.keys():
     nu_div_factor = diffusion_config["nu_div_factor"] if apply_nu else 1.0
@@ -123,9 +136,13 @@ def calc_hypervis_harmonic(dynamics, h_grid, physics_config, diffusion_config, m
   hyperdiff_d_mass = scalar_harmonic_3d(dynamics["d_mass"], h_grid, physics_config, apply_tensor=apply_tensor)
   if model not in hydrostatic_models:
     hyperdiff_phi_i = nu_phi * scalar_harmonic_3d(dynamics["phi_i"],
-                                         h_grid, physics_config, apply_tensor=apply_tensor)
+                                                  h_grid,
+                                                  physics_config,
+                                                  apply_tensor=apply_tensor)
     hyperdiff_w_i = nu_default * scalar_harmonic_3d(dynamics["w_i"],
-                                       h_grid, physics_config, apply_tensor=apply_tensor)
+                                                    h_grid,
+                                                    physics_config,
+                                                    apply_tensor=apply_tensor)
   else:
     hyperdiff_phi_i = None
     hyperdiff_w_i = None
@@ -133,20 +150,31 @@ def calc_hypervis_harmonic(dynamics, h_grid, physics_config, diffusion_config, m
   if model in homme_models:
     # THIS IS THE ONE POINT IN THE CODE WHERE dynamics["theta_v_d_mass"] MAY BE theta_v
     hyperdiff_thermo = scalar_harmonic_3d(dynamics["theta_v_d_mass"],
-                                              h_grid, physics_config, apply_tensor=apply_tensor)
+                                          h_grid,
+                                          physics_config,
+                                          apply_tensor=apply_tensor)
   else:
-    hyperdiff_thermo = scalar_harmonic_3d(dynamics["T"], h_grid, physics_config, apply_tensor=apply_tensor)
-  hypervis_tend = wrap_dynamics_struct(nu_default * hyperdiff_u,
-                                        nu_default * hyperdiff_thermo,
-                                        nu_d_mass * hyperdiff_d_mass,
-                                        model,
-                                        phi_i=hyperdiff_phi_i,
-                                        w_i=hyperdiff_w_i)
+    hyperdiff_thermo = scalar_harmonic_3d(dynamics["T"],
+                                          h_grid,
+                                          physics_config,
+                                          apply_tensor=apply_tensor)
+  hypervis_tend = wrap_dynamics(nu_default * hyperdiff_u,
+                                nu_default * hyperdiff_thermo,
+                                nu_d_mass * hyperdiff_d_mass,
+                                model,
+                                phi_i=hyperdiff_phi_i,
+                                w_i=hyperdiff_w_i)
   return hypervis_tend
 
 
 @partial(jit, static_argnames=["dims", "model"])
-def sponge_layer(dynamics, dt, h_grid, physics_config, diffusion_config, dims, model):
+def advance_sponge_layer(dynamics,
+                         dt,
+                         h_grid,
+                         physics_config,
+                         diffusion_config,
+                         dims,
+                         model):
   """
   [Description]
 
@@ -189,43 +217,49 @@ def sponge_layer(dynamics, dt, h_grid, physics_config, diffusion_config, dims, m
   hyperdiff_u = vector_harmonic_3d(dynamics["u"][:, :, :, :n_sponge, :],
                                    h_grid, physics_config, 1.0)
   hyperdiff_u *= nu_ramp[:, :, :, :, np.newaxis]
-  hyperdiff_state = wrap_dynamics_struct(hyperdiff_u,
-                                         hyperdiff_thermo,
-                                         hyperdiff_d_mass,
-                                         model,
-                                         phi_i=hyperdiff_phi_i,
-                                         w_i=hyperdiff_w_i)
-  hyperdiff_state = project_dynamics_state(hyperdiff_state,
-                                           h_grid,
-                                           dims,
-                                           model)
+  hyperdiff_state = wrap_dynamics(hyperdiff_u,
+                                  hyperdiff_thermo,
+                                  hyperdiff_d_mass,
+                                  model,
+                                  phi_i=hyperdiff_phi_i,
+                                  w_i=hyperdiff_w_i)
+  hyperdiff_state = project_dynamics(hyperdiff_state,
+                                     h_grid,
+                                     dims,
+                                     model)
 
   u_out = jnp.concatenate((dt * hyperdiff_state["u"] + dynamics["u"][:, :, :, :n_sponge, :],
-                           dynamics["u"][:, :, :, n_sponge:, :]), axis=-2)
+                           dynamics["u"][:, :, :, n_sponge:, :]),
+                          axis=-2)
   thermo_out = jnp.concatenate((dt * hyperdiff_state[thermo_var_name] + dynamics[thermo_var_name][:, :, :, :n_sponge],
-                                dynamics[thermo_var_name][:, :, :, n_sponge:]), axis=-1)
+                                dynamics[thermo_var_name][:, :, :, n_sponge:]),
+                               axis=-1)
   d_mass_out = jnp.concatenate((dt * hyperdiff_state["d_mass"] + dynamics["d_mass"][:, :, :, :n_sponge],
-                             dynamics["d_mass"][:, :, :, n_sponge:]), axis=-1)
+                                dynamics["d_mass"][:, :, :, n_sponge:]),
+                               axis=-1)
   if model not in hydrostatic_models:
     phi_i_out = jnp.concatenate((dt * hyperdiff_state["phi_i"] + dynamics["phi_i"][:, :, :, :n_sponge],
-                                 dynamics["phi_i"][:, :, :, n_sponge:]), axis=-1)
+                                 dynamics["phi_i"][:, :, :, n_sponge:]),
+                                axis=-1)
     w_i_out = jnp.concatenate((dt * hyperdiff_state["w_i"] + dynamics["w_i"][:, :, :, :n_sponge],
-                               dynamics["w_i"][:, :, :, n_sponge:]), axis=-1)
+                               dynamics["w_i"][:, :, :, n_sponge:]),
+                              axis=-1)
   else:
     phi_i_out = None
     w_i_out = None
 
-  struct = wrap_dynamics_struct(u_out,
-                                thermo_out,
-                                d_mass_out,
-                                model,
-                                phi_i=phi_i_out,
-                                w_i=w_i_out)
+  struct = wrap_dynamics(u_out,
+                         thermo_out,
+                         d_mass_out,
+                         model,
+                         phi_i=phi_i_out,
+                         w_i=w_i_out)
   return struct
 
 
 @partial(jit, static_argnames=["n_sponge"])
-def get_nu_ramp(v_grid, n_sponge):
+def eval_nu_ramp(v_grid,
+                 n_sponge):
   """
   [Description]
 
@@ -256,7 +290,8 @@ def get_nu_ramp(v_grid, n_sponge):
   return nu_ramp
 
 
-def init_hypervis_config_const(ne, physics_config,
+def init_hypervis_config_const(ne,
+                               physics_config,
                                v_grid,
                                nu_top=2.5e5,
                                nu_base=-1.0,
@@ -266,10 +301,10 @@ def init_hypervis_config_const(ne, physics_config,
                                n_sponge=5,
                                T_ref=288.0,
                                T_ref_lapse=0.0065):
-  nu = quasi_uniform_hypervisc_coeff(ne, physics_config["radius_earth"]) if nu_base <= 0 else nu_base
+  nu = eval_quasi_uniform_hypervisc_coeff(ne, physics_config["radius_earth"]) if nu_base <= 0 else nu_base
   nu_phi = nu if nu_phi < 0 else nu_phi
-  nu_d_mass= nu if nu_d_mass < 0 else nu_d_mass
-  nu_ramp = get_nu_ramp(v_grid, n_sponge)
+  nu_d_mass = nu if nu_d_mass < 0 else nu_d_mass
+  nu_ramp = eval_nu_ramp(v_grid, n_sponge)
   diffusion_config = {"constant_hypervis": 1.0,
                       "nu": device_wrapper(nu),
                       "nu_phi": device_wrapper(nu_phi),
@@ -284,23 +319,26 @@ def init_hypervis_config_const(ne, physics_config,
     diffusion_config["nu_ramp"] = device_wrapper(nu_ramp)
   return diffusion_config
 
+
 def init_hypervis_config_stub():
   return {"disable_diffusion": 1.0}
 
-def init_hypervis_config_tensor(h_grid, v_grid, dims, config,
+
+def init_hypervis_config_tensor(h_grid,
+                                v_grid,
+                                dims,
+                                config,
                                 nu_top=2.5e5,
                                 ad_hoc_scale=1.0,
                                 n_sponge=5,
                                 T_ref=288.0,
                                 T_ref_lapse=0.0065):
-  nu_ramp = get_nu_ramp(v_grid, n_sponge)
+  nu_ramp = eval_nu_ramp(v_grid, n_sponge)
   radius_earth = config["radius_earth"]
-  _, max_min_dx, _ = get_global_grid_deformation_metrics(h_grid, dims)
-  print(radius_earth)
-  print(max_min_dx)
-  nu_tens = variable_resolution_hypervisc_coeff(radius_earth * max_min_dx,
-                                                h_grid["hypervis_scaling"],
-                                                dims["npt"])
+  _, max_min_dx, _ = eval_global_grid_deformation_metrics(h_grid, dims)
+  nu_tens = eval_variable_resolution_hypervisc_coeff(radius_earth * max_min_dx,
+                                                     h_grid["hypervis_scaling"],
+                                                     dims["npt"])
   nu = device_wrapper(ad_hoc_scale * nu_tens)
   diffusion_config = {"tensor_hypervis": 1.0,
                       "nu": nu,
@@ -316,7 +354,14 @@ def init_hypervis_config_tensor(h_grid, v_grid, dims, config,
 
 
 @partial(jit, static_argnames=["model", "dims"])
-def hypervis_terms(dynamics, static_forcing, h_grid, v_grid, dims, physics_config, diffusion_config, model):
+def eval_hypervis_terms(dynamics,
+                        static_forcing,
+                        h_grid,
+                        v_grid,
+                        dims,
+                        physics_config,
+                        diffusion_config,
+                        model):
   """
   [Description]
 
@@ -339,37 +384,38 @@ def hypervis_terms(dynamics, static_forcing, h_grid, v_grid, dims, physics_confi
   KeyError
       when a key error
   """
-  ref_state = get_ref_states(static_forcing["phi_surf"], v_grid, physics_config, diffusion_config, model)
+  ref_state = eval_ref_state(static_forcing["phi_surf"], v_grid, physics_config, diffusion_config, model)
   if model not in hydrostatic_models:
     phi_i_pert = dynamics["phi_i"] - ref_state["phi_i"]
     w_i = dynamics["w_i"]
   else:
     phi_i_pert = None
     w_i = None
-  
+
   if model in cam_se_models:
     thermo_var = dynamics["T"] - ref_state["T"]
   else:
-    thermo_var = dynamics["theta_v_d_mass"] / dynamics["d_mass"] -  ref_state["theta_v"]
+    thermo_var = dynamics["theta_v_d_mass"] / dynamics["d_mass"] - ref_state["theta_v"]
 
-  hypervis_state = wrap_dynamics_struct(dynamics["u"],
-                                        thermo_var,
-                                        dynamics["d_mass"],
-                                        model,
-                                        phi_i=phi_i_pert,
-                                        w_i=w_i)
+  hypervis_state = wrap_dynamics(dynamics["u"],
+                                 thermo_var,
+                                 dynamics["d_mass"],
+                                 model,
+                                 phi_i=phi_i_pert,
+                                 w_i=w_i)
   for apply_nu in [True, False]:
-    hypervis_state = calc_hypervis_harmonic(hypervis_state,
+    hypervis_state = eval_hypervis_harmonic(hypervis_state,
                                             h_grid,
                                             physics_config,
                                             diffusion_config,
                                             model,
                                             apply_nu=apply_nu)
-    
-    hypervis_state = project_dynamics_state(hypervis_state, h_grid, dims, model)
+
+    hypervis_state = project_dynamics(hypervis_state, h_grid, dims, model)
   if model not in hydrostatic_models:
     phi_i = jnp.concatenate((-hypervis_state["phi_i"][:, :, :, :-1],
-                       jnp.zeros_like(hypervis_state["phi_i"][:, :, :, -1:])), axis=-1)
+                             jnp.zeros_like(hypervis_state["phi_i"][:, :, :, -1:])),
+                            axis=-1)
     w_i = -hypervis_state["w_i"]
   else:
     phi_i = None
@@ -379,18 +425,21 @@ def hypervis_terms(dynamics, static_forcing, h_grid, v_grid, dims, physics_confi
     thermo_tend = -hypervis_state[thermodynamic_variable_names[model]] * dynamics["d_mass"]
   else:
     thermo_tend = -hypervis_state[thermodynamic_variable_names[model]]
-  
-  return wrap_dynamics_struct(-hypervis_state["u"],
-                              thermo_tend,
-                              -hypervis_state["d_mass"],
-                              model,
-                              phi_i=phi_i,
-                              w_i=w_i)
-                              
+
+  return wrap_dynamics(-hypervis_state["u"],
+                       thermo_tend,
+                       -hypervis_state["d_mass"],
+                       model,
+                       phi_i=phi_i,
+                       w_i=w_i)
 
 
-@jit
-def get_ref_states(phi_surf, v_grid, physics_config, diffusion_config, model):
+@partial(jit, static_argnames=["model"])
+def eval_ref_state(phi_surf,
+                   v_grid,
+                   physics_config,
+                   diffusion_config,
+                   model):
   """
   [Description]
 
@@ -419,9 +468,9 @@ def get_ref_states(phi_surf, v_grid, physics_config, diffusion_config, model):
   reference_params = diffusion_config["reference_profiles"]
   dummy_thermo = physics_config
   ps_ref = v_grid["reference_surface_mass"] * jnp.exp(-phi_surf / (dummy_thermo["Rgas"] * reference_params["T_ref"]))
-  pressure_int = mass_from_coordinate_interface(ps_ref, v_grid)
-  d_mass_ref = get_delta(pressure_int)
-  p_mid = interface_to_model(pressure_int)
+  pressure_int = surface_mass_to_interface_mass(ps_ref, v_grid)
+  d_mass_ref = interface_to_delta(pressure_int)
+  p_mid = interface_to_midlevel(pressure_int)
   exner = (p_mid / dummy_thermo["p0"])**(dummy_thermo["Rgas"] / dummy_thermo["cp"])
   T1 = reference_params["T_ref_lapse"] * reference_params["T_ref"] * dummy_thermo["cp"] / physics_config["gravity"]
   T0 = reference_params["T_ref"] - T1
@@ -435,5 +484,5 @@ def get_ref_states(phi_surf, v_grid, physics_config, diffusion_config, model):
   ref_profiles = {"d_mass": d_mass_ref,
                   thermo_var_name: thermo_profile}
   if model not in hydrostatic_models:
-    ref_profiles["phi_i"] = get_balanced_phi(phi_surf, p_mid, theta_ref * d_mass_ref, physics_config)
+    ref_profiles["phi_i"] = eval_balanced_geopotential(phi_surf, p_mid, theta_ref * d_mass_ref, physics_config)
   return ref_profiles

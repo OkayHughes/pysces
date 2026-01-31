@@ -4,7 +4,14 @@ from ..time_step import time_step_options
 from sys import stdout
 
 
-def simulate_sw(end_time, state_in, grid, physics_config, diffusion_config, timestep_config, dims, diffusion=True):
+def simulate_shallow_water(end_time,
+                           state_in,
+                           grid,
+                           physics_config,
+                           diffusion_config,
+                           timestep_config,
+                           dims,
+                           diffusion=True):
   """
   [Description]
 

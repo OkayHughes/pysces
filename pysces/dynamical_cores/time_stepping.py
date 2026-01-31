@@ -1,29 +1,53 @@
 from ..config import jit, jnp, DEBUG
-from .model_state import wrap_dynamics_struct, project_dynamics_state, advance_dynamics
-from .homme.explicit_terms import explicit_tendency as explicit_tendency_homme
-from .cam_se.explicit_terms import explicit_tendency as explicit_tendency_se
+from .model_state import project_dynamics, sum_dynamics_series
+from .homme.explicit_terms import eval_explicit_tendency as eval_explicit_tendency_homme
+from .cam_se.explicit_terms import eval_explicit_tendency as eval_explicit_tendency_se
 from .homme.explicit_terms import correct_state
-from .hyperviscosity import hypervis_terms, sponge_layer
-from ..horizontal_grid import get_cfl
+from .hyperviscosity import eval_hypervis_terms, advance_sponge_layer
+from ..horizontal_grid import eval_cfl
 from ..time_step import time_step_options, stability_info
 from functools import partial
 from frozendict import frozendict
 from .physics_dynamics_coupling import coupling_types
-from ..model_info import spherical_models, cam_se_models, homme_models, thermodynamic_variable_names
+from ..model_info import cam_se_models, homme_models
 
 
 @partial(jit, static_argnames=["dims", "model"])
-def dynamics_tendency(dynamics, static_forcing, h_grid, v_grid, physics_config, dims, model, moisture_species=None, dry_air_species=None):
+def dynamics_tendency(dynamics,
+                      static_forcing,
+                      h_grid,
+                      v_grid,
+                      physics_config,
+                      dims,
+                      model,
+                      moisture_species=None,
+                      dry_air_species=None):
   if model in cam_se_models:
-    dynamics_tend = explicit_tendency_se(dynamics, static_forcing, moisture_species, dry_air_species, h_grid, v_grid, physics_config, model)
+    dynamics_tend = eval_explicit_tendency_se(dynamics,
+                                              static_forcing,
+                                              moisture_species,
+                                              dry_air_species,
+                                              h_grid,
+                                              v_grid,
+                                              physics_config,
+                                              model)
   elif model in homme_models:
-    dynamics_tend = explicit_tendency_homme(dynamics, static_forcing,
-                                            h_grid, v_grid, physics_config, model)
-  dynamics_tend_c0 = project_dynamics_state(dynamics_tend, h_grid, dims, model)
+    dynamics_tend = eval_explicit_tendency_homme(dynamics,
+                                                 static_forcing,
+                                                 h_grid,
+                                                 v_grid,
+                                                 physics_config,
+                                                 model)
+  dynamics_tend_c0 = project_dynamics(dynamics_tend, h_grid, dims, model)
   return dynamics_tend_c0
 
+
 @partial(jit, static_argnames=["model"])
-def enforce_conservation(dynamics, static_forcing, dt, physics_config, model):
+def enforce_conservation(dynamics,
+                         static_forcing,
+                         dt,
+                         physics_config,
+                         model):
   if model in cam_se_models:
     dynamics_conserve = dynamics
   else:
@@ -41,13 +65,20 @@ def enforce_conservation(dynamics, static_forcing, dt, physics_config, model):
 #                                 tracer_struct["avg_d_mass_dissip"])
 
 
-def get_cfl_theta(h_grid, physics_config, diffusion_config, dims, model):
-  cfl_info, grid_info = get_cfl(h_grid, physics_config["radius_earth"], diffusion_config, dims, model)
+def eval_cfl_3d(h_grid,
+                physics_config,
+                diffusion_config,
+                dims,
+                model):
+  cfl_info, grid_info = eval_cfl(h_grid, physics_config["radius_earth"], diffusion_config, dims, model)
   max_norm_jac_inv = grid_info["max_norm_jac_inv"]
 
-  nu_top_max = jnp.max(diffusion_config["nu_ramp"]) * diffusion_config["nu_top"]
-  sponge_layer_stab = 1.0 / (nu_top_max * ((grid_info["scale_inv"] * max_norm_jac_inv)**2) * grid_info["lambda_vis"])
-  cfl_info["dt_sponge_layer"] = sponge_layer_stab
+  if "sponge_layer" in diffusion_config.keys():
+    nu_top_max = jnp.max(diffusion_config["nu_ramp"]) * diffusion_config["nu_top"]
+    sponge_layer_stab = 1.0 / (nu_top_max * ((grid_info["scale_inv"] * max_norm_jac_inv)**2) * grid_info["lambda_vis"])
+    cfl_info["dt_sponge_layer"] = sponge_layer_stab
+  else:
+    cfl_info["dt_sponge_layer"] = 1e6
   return cfl_info
 
 
@@ -65,8 +96,9 @@ def init_timestep_config(dt_coupling,
                          dyn_steps_per_tracer=-1,
                          hypervis_steps_per_dyn=-1,
                          sponge_steps_per_dyn=-1,
-                         physics_dynamics_coupling=coupling_types.none):
-  cfl_info = get_cfl_theta(h_grid, physics_config, diffusion_config, dims, model)
+                         physics_dynamics_coupling=coupling_types.none,
+                         print_cfl=False):
+  cfl_info = eval_cfl_3d(h_grid, physics_config, diffusion_config, dims, model)
   tracer_S = stability_info[tracer_tstep_type]
   hypervisc_S = stability_info[hypervis_tstep_type]
   dynamics_S = stability_info[dynamics_tstep_type]
@@ -87,7 +119,7 @@ def init_timestep_config(dt_coupling,
   dt_tracer = dt_coupling / tracer_subcycle
 
   # determine n_split
-  max_dt_dynamics = dynamics_S * dt_gravity_wave
+  max_dt_dynamics = dynamics_S * dt_gravity_wave / 2.0
   dynamics_subcycle = max(int(dt_tracer / max_dt_dynamics) + 1, dyn_steps_per_tracer)
   dt_dynamics = dt_tracer / dynamics_subcycle
 
@@ -133,7 +165,14 @@ def init_timestep_config(dt_coupling,
 
 
 @partial(jit, static_argnames=["dims", "model", "timestep_config"])
-def advance_dynamics_euler(dynamics_in, static_forcing, h_grid, v_grid, physics_config, timestep_config, dims, model,
+def advance_dynamics_euler(dynamics_in,
+                           static_forcing,
+                           h_grid,
+                           v_grid,
+                           physics_config,
+                           timestep_config,
+                           dims,
+                           model,
                            moisture_species=None,
                            dry_air_species=None):
   """
@@ -159,16 +198,36 @@ def advance_dynamics_euler(dynamics_in, static_forcing, h_grid, v_grid, physics_
       when a key error
   """
   dt = timestep_config["dynamics"]["dt"]
-  dynamics_tend_cont = dynamics_tendency(dynamics_in, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                       moisture_species=moisture_species,
-                                       dry_air_species=dry_air_species)
-  dynamics_out_discont = advance_dynamics([dynamics_in, dynamics_tend_cont], [1.0, dt], model)
-  dynamics_out_cont = enforce_conservation(dynamics_out_discont, static_forcing, dt, physics_config, model)
+  dynamics_tend_cont = dynamics_tendency(dynamics_in,
+                                         static_forcing,
+                                         h_grid,
+                                         v_grid,
+                                         physics_config,
+                                         dims,
+                                         model,
+                                         moisture_species=moisture_species,
+                                         dry_air_species=dry_air_species)
+  dynamics_out_discont = sum_dynamics_series([dynamics_in, dynamics_tend_cont],
+                                             [1.0, dt],
+                                             model)
+  dynamics_out_cont = enforce_conservation(dynamics_out_discont,
+                                           static_forcing,
+                                           dt,
+                                           physics_config,
+                                           model)
   return dynamics_out_cont
 
 
 @partial(jit, static_argnames=["dims", "model", "timestep_config"])
-def advance_hypervis_euler(dynamics, static_forcing, h_grid, v_grid, physics_config, diffusion_config, timestep_config, dims, model):
+def advance_hypervis_euler(dynamics,
+                           static_forcing,
+                           h_grid,
+                           v_grid,
+                           physics_config,
+                           diffusion_config,
+                           timestep_config,
+                           dims,
+                           model):
   """
   [Description]
 
@@ -193,18 +252,31 @@ def advance_hypervis_euler(dynamics, static_forcing, h_grid, v_grid, physics_con
   """
   state_out = dynamics
   for _ in range(timestep_config["hypervis_subcycle"]):
-    hypervis_rhs = hypervis_terms(dynamics, static_forcing,
-                                  h_grid, v_grid, dims,
-                                  physics_config,
-                                  diffusion_config,
-                                  model)
-    state_out = advance_dynamics([dynamics, hypervis_rhs], [1.0, timestep_config["hyperviscosity"]["dt"]], model)
+    hypervis_rhs = eval_hypervis_terms(state_out,
+                                       static_forcing,
+                                       h_grid,
+                                       v_grid,
+                                       dims,
+                                       physics_config,
+                                       diffusion_config,
+                                       model)
+    print(f"u hypervis max {jnp.max(jnp.abs(hypervis_rhs['u']))}")
+    print(f"u max {jnp.max(jnp.abs(state_out['u']))}")
+    print(f"vtheta hypervis max {jnp.max(jnp.abs(hypervis_rhs['theta_v_d_mass']))}")
+    print(f"d_mass hypervis max {jnp.max(jnp.abs(hypervis_rhs['d_mass']))}")
+    state_out = sum_dynamics_series([state_out, hypervis_rhs], [1.0, timestep_config["hyperviscosity"]["dt"]], model)
   # Todo: figure out lower boundary correction.
   return state_out
 
 
 @partial(jit, static_argnames=["dims", "model", "timestep_config"])
-def advance_sponge_euler(dynamics, h_grid, physics_config, diffusion_config, timestep_config, dims, model):
+def advance_sponge_euler(dynamics,
+                         h_grid,
+                         physics_config,
+                         diffusion_config,
+                         timestep_config,
+                         dims,
+                         model):
   """
   [Description]
 
@@ -229,18 +301,25 @@ def advance_sponge_euler(dynamics, h_grid, physics_config, diffusion_config, tim
   """
   dynamics_out = dynamics
   for _ in range(timestep_config["sponge_subcycle"]):
-    dynamics_out = sponge_layer(dynamics_out,
-                                timestep_config["sponge"]["dt"],
-                                h_grid,
-                                physics_config,
-                                diffusion_config,
-                                dims,
-                                model)
+    dynamics_out = advance_sponge_layer(dynamics_out,
+                                        timestep_config["sponge"]["dt"],
+                                        h_grid,
+                                        physics_config,
+                                        diffusion_config,
+                                        dims,
+                                        model)
   return dynamics_out
 
 
 @partial(jit, static_argnames=["dims", "model", "timestep_config"])
-def advance_dynamics_ullrich_5stage(dynamics_in, static_forcing, h_grid, v_grid, physics_config, timestep_config, dims, model,
+def advance_dynamics_ullrich_5stage(dynamics_in,
+                                    static_forcing,
+                                    h_grid,
+                                    v_grid,
+                                    physics_config,
+                                    timestep_config,
+                                    dims,
+                                    model,
                                     moisture_species=None,
                                     dry_air_species=None):
   """
@@ -266,35 +345,95 @@ def advance_dynamics_ullrich_5stage(dynamics_in, static_forcing, h_grid, v_grid,
       when a key error
   """
   dt = timestep_config["dynamics"]["dt"]
-  dynamics_tend = dynamics_tendency(dynamics_in, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moisture_species=moisture_species,
-                                     dry_air_species=dry_air_species)
-  dynamics_keep = advance_dynamics([dynamics_in, dynamics_tend], [1.0, dt / 5.0], model)
-  dynamics_keep = enforce_conservation(dynamics_keep, static_forcing, dt / 5.0, physics_config, model)
+  dynamics_tend = dynamics_tendency(dynamics_in,
+                                    static_forcing,
+                                    h_grid,
+                                    v_grid,
+                                    physics_config,
+                                    dims,
+                                    model,
+                                    moisture_species=moisture_species,
+                                    dry_air_species=dry_air_species)
+  dynamics_keep = sum_dynamics_series([dynamics_in, dynamics_tend], [1.0, dt / 5.0], model)
+  dynamics_keep = enforce_conservation(dynamics_keep,
+                                       static_forcing,
+                                       dt / 5.0,
+                                       physics_config,
+                                       model)
 
-  dynamics_tend = dynamics_tendency(dynamics_keep, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moisture_species=moisture_species,
-                                     dry_air_species=dry_air_species)
-  dynamics_tmp = advance_dynamics([dynamics_in, dynamics_tend], [1.0, dt / 5.0], model)
-  dynamics_tmp = enforce_conservation(dynamics_tmp, static_forcing, dt / 5.0, physics_config, model)
+  dynamics_tend = dynamics_tendency(dynamics_keep,
+                                    static_forcing,
+                                    h_grid,
+                                    v_grid,
+                                    physics_config,
+                                    dims,
+                                    model,
+                                    moisture_species=moisture_species,
+                                    dry_air_species=dry_air_species)
+  dynamics_tmp = sum_dynamics_series([dynamics_in, dynamics_tend],
+                                     [1.0, dt / 5.0],
+                                     model)
+  dynamics_tmp = enforce_conservation(dynamics_tmp,
+                                      static_forcing,
+                                      dt / 5.0,
+                                      physics_config,
+                                      model)
 
-  dynamics_tend = dynamics_tendency(dynamics_tmp, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moisture_species=moisture_species,
-                                     dry_air_species=dry_air_species)
-  dynamics_tmp = advance_dynamics([dynamics_in, dynamics_tend], [1.0, dt / 3.0], model)
-  dynamics_tmp = enforce_conservation(dynamics_tmp, static_forcing, dt / 3.0, physics_config, model)
+  dynamics_tend = dynamics_tendency(dynamics_tmp,
+                                    static_forcing,
+                                    h_grid,
+                                    v_grid,
+                                    physics_config,
+                                    dims,
+                                    model,
+                                    moisture_species=moisture_species,
+                                    dry_air_species=dry_air_species)
+  dynamics_tmp = sum_dynamics_series([dynamics_in, dynamics_tend],
+                                     [1.0, dt / 3.0],
+                                     model)
+  dynamics_tmp = enforce_conservation(dynamics_tmp,
+                                      static_forcing,
+                                      dt / 3.0,
+                                      physics_config,
+                                      model)
 
-  dynamics_tend = dynamics_tendency(dynamics_tmp, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moisture_species=moisture_species,
-                                     dry_air_species=dry_air_species)
-  dynamics_tmp = advance_dynamics([dynamics_in, dynamics_tend], [1.0, 2.0 * dt / 3.0], model)
-  dynamics_tmp = enforce_conservation(dynamics_tmp, static_forcing, 2.0 * dt / 3.0, physics_config, model)
-  
-  dynamics_tend = dynamics_tendency(dynamics_tmp, static_forcing, h_grid, v_grid, physics_config, dims, model,
-                                     moisture_species=moisture_species,
-                                     dry_air_species=dry_air_species)
-  final_state = advance_dynamics([dynamics_in, dynamics_keep, dynamics_tend], [-1.0 / 4.0,
-                                                                               5.0 / 4.0,
-                                                                               3.0 * dt / 4.0], model)
-  final_state = enforce_conservation(final_state, static_forcing, 2.0 * dt / 3.0, physics_config, model)
+  dynamics_tend = dynamics_tendency(dynamics_tmp,
+                                    static_forcing,
+                                    h_grid,
+                                    v_grid,
+                                    physics_config,
+                                    dims,
+                                    model,
+                                    moisture_species=moisture_species,
+                                    dry_air_species=dry_air_species)
+  dynamics_tmp = sum_dynamics_series([dynamics_in, dynamics_tend],
+                                     [1.0, 2.0 * dt / 3.0],
+                                     model)
+  dynamics_tmp = enforce_conservation(dynamics_tmp,
+                                      static_forcing,
+                                      2.0 * dt / 3.0,
+                                      physics_config,
+                                      model)
+
+  dynamics_tend = dynamics_tendency(dynamics_tmp,
+                                    static_forcing,
+                                    h_grid,
+                                    v_grid,
+                                    physics_config,
+                                    dims,
+                                    model,
+                                    moisture_species=moisture_species,
+                                    dry_air_species=dry_air_species)
+  final_state = sum_dynamics_series([dynamics_in,
+                                     dynamics_keep,
+                                     dynamics_tend],
+                                    [-1.0 / 4.0,
+                                     5.0 / 4.0,
+                                     3.0 * dt / 4.0],
+                                    model)
+  final_state = enforce_conservation(final_state,
+                                     static_forcing,
+                                     2.0 * dt / 3.0,
+                                     physics_config,
+                                     model)
   return final_state

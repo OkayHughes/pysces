@@ -1,7 +1,10 @@
 from ..config import device_wrapper
 
 
-def get_physics_config_sw(radius_earth=6371e3, angular_freq_earth=7.292e-5, gravity=9.81, alpha=0.0):
+def init_physics_config_shallow_water(radius_earth=6371e3,
+                                      angular_freq_earth=7.292e-5,
+                                      gravity=9.81,
+                                      alpha=0.0):
   """
   Returns a struct that contains physical constants of the sphere on which
   you are simulating.

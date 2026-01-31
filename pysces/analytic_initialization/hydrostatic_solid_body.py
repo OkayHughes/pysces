@@ -16,15 +16,23 @@ def init_test_config(T0=300,
           "Rgas": Rgas}
 
 
-def wind(lat, lon, z):
+def wind(lat,
+         lon,
+         z):
   # assume shallow atmosphere
-  u = jnp.ones_like(z) * jnp.
+  u = jnp.ones_like(z)
   v = jnp.zeros_like(z)
+  return jnp.stack((u, v), axis=-1)
 
 
-def temperature(lat, lon , z, test_config):
+def temperature(lat,
+                lon,
+                z,
+                test_config):
   return test_config["T0"] - test_config["lapse_rate"] * z
 
 
-def pressure(lat, lon, z):
-  
+def pressure(lat,
+             lon,
+             z):
+  pass

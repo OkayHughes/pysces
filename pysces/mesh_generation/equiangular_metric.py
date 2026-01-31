@@ -1,11 +1,13 @@
 from ..config import np, DEBUG, use_wrapper
-from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy, generate_metric_terms
+from .mesh import mesh_to_cart_bilinear, init_spectral_grid_redundancy, metric_terms_to_grid
 from .mesh_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
-from .cubed_sphere import gen_cube_topo
-from .mesh import gen_vert_redundancy
+from .cubed_sphere import init_cube_topo
+from .mesh import init_element_corner_vert_redundancy
 
 
-def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
+def eval_metric_terms_equiangular(face_mask,
+                                  cube_points_2d,
+                                  npt):
   """
   Use the equiangular cubed sphere map
   to evaluate latitude, longitude and jacobian ∂(x, y)/∂(λ, φ)
@@ -296,8 +298,13 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, npt):
   return gll_latlon, cube_to_sphere_jacobian
 
 
-def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt,
-                         wrapped=use_wrapper, proc_idx=None):
+def init_grid_from_topo(face_connectivity,
+                        face_mask,
+                        face_position_2d,
+                        vert_redundancy,
+                        npt,
+                        wrapped=use_wrapper,
+                        proc_idx=None):
   """
   Generate SpectralElementGrid from topological information.
 
@@ -336,13 +343,21 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
     Global spectral element grid.
   """
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d, npt)
-  cube_redundancy = gen_gll_redundancy(vert_redundancy, npt)
-  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, npt)
-  return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, npt,
-                               wrapped=wrapped, proc_idx=proc_idx)
+  cube_redundancy = init_spectral_grid_redundancy(vert_redundancy, npt)
+  gll_latlon, cube_to_sphere_jacobian = eval_metric_terms_equiangular(face_mask, gll_position, npt)
+  return metric_terms_to_grid(gll_latlon,
+                              gll_jacobian,
+                              cube_to_sphere_jacobian,
+                              cube_redundancy,
+                              npt,
+                              wrapped=wrapped,
+                              proc_idx=proc_idx)
 
 
-def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper, proc_idx=None):
+def init_quasi_uniform_grid(nx,
+                            npt,
+                            wrapped=use_wrapper,
+                            proc_idx=None):
   """
   Generate an equiangular quasi-uniform cubed-sphere
   SpectralElementGrid.
@@ -362,12 +377,12 @@ def create_quasi_uniform_grid(nx, npt, wrapped=use_wrapper, proc_idx=None):
   SpectralElementGrid
     Global spectral element grid.
   """
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  return gen_metric_from_topo(face_connectivity,
-                              face_mask,
-                              face_position_2d,
-                              vert_redundancy,
-                              npt,
-                              wrapped=wrapped,
-                              proc_idx=proc_idx)
+  face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
+  vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
+  return init_grid_from_topo(face_connectivity,
+                             face_mask,
+                             face_position_2d,
+                             vert_redundancy,
+                             npt,
+                             wrapped=wrapped,
+                             proc_idx=proc_idx)

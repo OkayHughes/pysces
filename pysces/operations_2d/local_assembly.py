@@ -4,7 +4,9 @@ from scipy.sparse import coo_array
 from functools import partial
 
 
-def project_scalar_for(f, grid, *args):
+def project_scalar_for(f,
+                       grid,
+                       *args):
   """
   Project a potentially discontinuous scalar onto the continuous
   subspace using a for loop, assuming all data is processor-local.
@@ -45,7 +47,10 @@ def project_scalar_for(f, grid, *args):
   return workspace
 
 
-def project_scalar_sparse(f, grid, matrix, *args):
+def project_scalar_sparse(f,
+                          grid,
+                          matrix,
+                          *args):
 
   """
   Project a potentially discontinuous scalar onto the continuous
@@ -82,7 +87,9 @@ def project_scalar_sparse(f, grid, matrix, *args):
   return ret * grid["mass_matrix_denominator"]
 
 
-def segment_sum(data, segment_ids, N):
+def segment_sum(data,
+                segment_ids,
+                N):
   """
   A function that provides a numpy equivalent of the `segment_sum` function
   from Jax and TensorFlow.
@@ -109,7 +116,9 @@ def segment_sum(data, segment_ids, N):
 
 
 @partial(jit, static_argnames=["dims"])
-def project_scalar_wrapper(f, grid, dims):
+def project_scalar_wrapper(f,
+                           grid,
+                           dims):
   """
   Project a potentially discontinuous scalar onto the continuous subspace using assembly triples,
   assuming all data is processor-local.
@@ -154,7 +163,9 @@ def project_scalar_wrapper(f, grid, dims):
 project_scalar = project_scalar_wrapper
 
 
-def init_assembly_matrix(NELEM, npt, assembly_triple):
+def init_assembly_matrix(NELEM,
+                         npt,
+                         assembly_triple):
   data, rows, cols = assembly_triple
   assembly_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM * npt * npt))
   return assembly_matrix
@@ -186,7 +197,10 @@ def init_assembly_local(NELEM, npt, vert_redundancy_local):
           np.array(cols, dtype=np.int64))
 
 
-def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_receive):
+def init_assembly_global(NELEM,
+                         npt,
+                         vert_redundancy_send,
+                         vert_redundancy_receive):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
@@ -224,7 +238,8 @@ def init_assembly_global(NELEM, npt, vert_redundancy_send, vert_redundancy_recei
 
 
 def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
-                                proc_idx, decomp):
+                                proc_idx,
+                                decomp):
   # current understanding: this works because the outer
   # three for loops will iterate in exactly the same order for
   # the sending and recieving processor

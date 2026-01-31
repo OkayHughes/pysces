@@ -2,7 +2,10 @@ from ..config import jit, np, jnp
 from ..model_info import moist_mixing_ratio_models
 
 
-def create_vertical_grid(hybrid_a_i, hybrid_b_i, reference_surface_mass, model):
+def init_vertical_grid(hybrid_a_i,
+                       hybrid_b_i,
+                       reference_surface_mass,
+                       model):
   """
   [Description]
 
@@ -38,7 +41,8 @@ def create_vertical_grid(hybrid_a_i, hybrid_b_i, reference_surface_mass, model):
 
 
 @jit
-def mass_from_coordinate_midlev(ps, v_grid):
+def surface_mass_to_midlevel_mass(ps,
+                                  v_grid):
   """
   [Description]
 
@@ -66,7 +70,8 @@ def mass_from_coordinate_midlev(ps, v_grid):
 
 
 @jit
-def d_mass_from_coordinate(ps, v_grid):
+def surface_mass_to_d_mass(ps,
+                           v_grid):
   """
   [Description]
 
@@ -98,7 +103,8 @@ def d_mass_from_coordinate(ps, v_grid):
 
 
 @jit
-def mass_from_coordinate_interface(ps, v_grid):
+def surface_mass_to_interface_mass(ps,
+                                   v_grid):
   """
   [Description]
 
@@ -125,11 +131,13 @@ def mass_from_coordinate_interface(ps, v_grid):
           v_grid["hybrid_b_i"][np.newaxis, np.newaxis, np.newaxis, :] * ps[:, :, :, np.newaxis])
 
 
-@jit 
-def surface_mass_from_coordinate(d_mass, v_grid):
+@jit
+def d_mass_to_surface_mass(d_mass,
+                           v_grid):
   p_top = v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0]
   return jnp.sum(d_mass, axis=-1) + p_top
 
+
 @jit
-def top_interface_mass(v_grid):
+def eval_top_interface_mass(v_grid):
   return v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0]

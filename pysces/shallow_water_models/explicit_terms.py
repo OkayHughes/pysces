@@ -1,10 +1,12 @@
 from ..config import jit, jnp, np
 from ..operations_2d.operators import horizontal_vorticity, horizontal_gradient, horizontal_divergence
-from .model_state import create_state_struct
+from .model_state import wrap_model_state
 
 
 @jit
-def calc_rhs(state_in, grid, physics_config):
+def eval_explicit_terms(state_in,
+                        grid,
+                        physics_config):
   """
   Calculate the explicit right-hand-side of the rotating shallow water equations on a sphere.
 
@@ -44,5 +46,8 @@ def calc_rhs(state_in, grid, physics_config):
   u_tend = abs_vort * state_in["u"][:, :, :, 1] - energy_grad[:, :, :, 0]
   v_tend = -abs_vort * state_in["u"][:, :, :, 0] - energy_grad[:, :, :, 1]
   h_tend = -horizontal_divergence(state_in["h"][:, :, :, np.newaxis] * state_in["u"],
-                                grid, a=physics_config["radius_earth"])
-  return create_state_struct(jnp.stack((u_tend, v_tend), axis=-1), h_tend, state_in["hs"])
+                                  grid,
+                                  a=physics_config["radius_earth"])
+  return wrap_model_state(jnp.stack((u_tend, v_tend), axis=-1),
+                          h_tend,
+                          state_in["hs"])

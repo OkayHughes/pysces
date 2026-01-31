@@ -1,7 +1,9 @@
-from ..config import np
 
 
-def bilinear(v0, v1, v2, v3, alpha, beta):
+def eval_bilinear_mapping(v0, v1,
+                          v2, v3,
+                          alpha,
+                          beta):
   """
   Compute bilinear mapping for unstructured arrays of
   topological quadrilaterals in arbitrary cartesian dimension.
@@ -42,7 +44,10 @@ def bilinear(v0, v1, v2, v3, alpha, beta):
   return (bprime * top_point + (1 - bprime) * bottom_point)
 
 
-def bilinear_jacobian(v0, v1, v2, v3, alpha, beta):
+def eval_bilinear_jacobian(v0, v1,
+                           v2, v3,
+                           alpha,
+                           beta):
   """
   Compute jacobian of the bilinear mapping for unstructured arrays of
   topological quadrilaterals in arbitrary cartesian dimension.

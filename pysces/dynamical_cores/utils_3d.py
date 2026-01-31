@@ -2,8 +2,11 @@ from ..config import jnp, jit, np, flip
 from functools import partial
 from ..model_info import deep_atmosphere_models
 
+
 @jit
-def vel_model_to_interface(field_model, d_mass, d_mass_int):
+def midlevel_to_interface_vel(field_model,
+                              d_mass,
+                              d_mass_int):
   """
   [Description]
 
@@ -26,15 +29,16 @@ def vel_model_to_interface(field_model, d_mass, d_mass_int):
   KeyError
       when a key error
   """
-  mid_levels = (d_mass[:, :, :, :-1, np.newaxis] * field_model[:, :, :, :-1, :] +
-                d_mass[:, :, :, 1:, np.newaxis] * field_model[:, :, :, 1:, :]) / (2.0 * d_mass_int[:, :, :, 1:-1, np.newaxis])
+  scaled_sum = (d_mass[:, :, :, :-1, np.newaxis] * field_model[:, :, :, :-1, :] +
+                d_mass[:, :, :, 1:, np.newaxis] * field_model[:, :, :, 1:, :])
+  mid_levels = scaled_sum / (2.0 * d_mass_int[:, :, :, 1:-1, np.newaxis])
   return jnp.concatenate((field_model[:, :, :, 0:1, :],
                           mid_levels,
                           field_model[:, :, :, -1:, :]), axis=-2)
 
 
 @jit
-def model_to_interface(field_model):
+def midlevel_to_interface(field_model):
   """
   [Description]
 
@@ -64,7 +68,7 @@ def model_to_interface(field_model):
 
 
 @jit
-def interface_to_model(field_interface):
+def interface_to_midlevel(field_interface):
   """
   [Description]
 
@@ -92,7 +96,7 @@ def interface_to_model(field_interface):
 
 
 @jit
-def interface_to_model_vec(vec_interface):
+def interface_to_midlevel_vec(vec_interface):
   """
   [Description]
 
@@ -120,7 +124,7 @@ def interface_to_model_vec(vec_interface):
 
 
 @jit
-def get_delta(field_interface):
+def interface_to_delta(field_interface):
   """
   [Description]
 
@@ -147,7 +151,8 @@ def get_delta(field_interface):
 
 
 @jit
-def get_surface_sum(dfield_model, val_surf_top):
+def cumulative_sum(dfield_model,
+                   val_surf_top):
   """
   [Description]
 
@@ -176,7 +181,9 @@ def get_surface_sum(dfield_model, val_surf_top):
 
 
 @partial(jit, static_argnames=["model"])
-def z_from_phi(phi, config, model):
+def phi_to_z(phi,
+             config,
+             model):
   """
   [Description]
 
@@ -210,7 +217,9 @@ def z_from_phi(phi, config, model):
 
 
 @partial(jit, static_argnames=["model"])
-def g_from_z(z, config, model):
+def z_to_g(z,
+           config,
+           model):
   """
   [Description]
 
@@ -243,7 +252,9 @@ def g_from_z(z, config, model):
 
 
 @partial(jit, static_argnames=["model"])
-def g_from_phi(phi, config, model):
+def phi_to_g(phi,
+             config,
+             model):
   """
   [Description]
 
@@ -266,12 +277,14 @@ def g_from_phi(phi, config, model):
   KeyError
       when a key error
   """
-  z = z_from_phi(phi, config, model)
-  return g_from_z(z, config, model)
+  z = phi_to_z(phi, config, model)
+  return z_to_g(z, config, model)
 
 
 @partial(jit, static_argnames=["model"])
-def r_hat_from_phi(phi, config, model):
+def phi_to_r_hat(phi,
+                 config,
+                 model):
   """
   [Description]
 
@@ -296,14 +309,14 @@ def r_hat_from_phi(phi, config, model):
   """
   radius_earth = config["radius_earth"]
   if model in deep_atmosphere_models:
-    r_hat = (z_from_phi(phi, config, model) + radius_earth) / radius_earth
+    r_hat = (phi_to_z(phi, config, model) + radius_earth) / radius_earth
   else:
     r_hat = jnp.ones_like(phi)
   return r_hat
 
 
 @jit
-def sphere_dot(u, v):
+def physical_dot_product(u, v):
   """
   [Description]
 

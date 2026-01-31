@@ -1,11 +1,15 @@
 from ..config import np, use_wrapper, mpi_size
 from ..spectral import init_spectral
-from ..distributed_memory.processor_decomposition import get_decomp
-from ..horizontal_grid import create_spectral_element_grid
+from ..distributed_memory.processor_decomposition import init_decomp
+from ..horizontal_grid import init_spectral_element_grid
 from .mesh import vert_red_hierarchy_to_flat
 
 
-def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
+def init_periodic_plane(nx,
+                        ny,
+                        npt,
+                        length_x=2.0,
+                        length_y=2.0):
   """
   Generate grid topology for an axis-aligned
   regular grid on a doubly periodic plane.
@@ -129,8 +133,12 @@ def init_periodic_plane(nx, ny, npt, length_x=2.0, length_y=2.0):
   return physical_coords, ref_to_planar, vert_redundancy_gll
 
 
-def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundancy_gll, npt,
-                          wrapped=use_wrapper, proc_idx=None):
+def metric_terms_to_grid(physical_coords,
+                         gll_to_planar_jacobian,
+                         vert_redundancy_gll,
+                         npt,
+                         wrapped=use_wrapper,
+                         proc_idx=None):
   """
     Collate individual coordinate mappings into into global SpectralElementGrid
     on a periodic plane.
@@ -165,9 +173,9 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
   NELEM = physical_coords.shape[0]
   if proc_idx is None:
     proc_idx = 0
-    decomp = get_decomp(NELEM, 1)
+    decomp = init_decomp(NELEM, 1)
   else:
-    decomp = get_decomp(NELEM, mpi_size)
+    decomp = init_decomp(NELEM, mpi_size)
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 
@@ -191,16 +199,27 @@ def generate_metric_terms(physical_coords, gll_to_planar_jacobian, vert_redundan
   inv_mass_mat = 1.0 / mass_mat
   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
-  return create_spectral_element_grid(physical_coords,
-                                      gll_to_planar_jacobian,
-                                      gll_to_planar_jacobian_inv,
-                                      physical_coords_to_cartesian,
-                                      rmetdet, metdet, mass_mat,
-                                      inv_mass_mat, vert_red_flat,
-                                      proc_idx, decomp, wrapped=wrapped)
+  return init_spectral_element_grid(physical_coords,
+                                    gll_to_planar_jacobian,
+                                    gll_to_planar_jacobian_inv,
+                                    physical_coords_to_cartesian,
+                                    rmetdet,
+                                    metdet,
+                                    mass_mat,
+                                    inv_mass_mat,
+                                    vert_red_flat,
+                                    proc_idx,
+                                    decomp,
+                                    wrapped=wrapped)
 
 
-def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wrapper, proc_idx=None):
+def init_uniform_grid(nx,
+                      ny,
+                      npt,
+                      length_x=2.0,
+                      length_y=2.0,
+                      wrapped=use_wrapper,
+                      proc_idx=None):
   """
   Generate a uniform doubly periodic
   SpectralElementGrid on an axis-aligned cartesian plane.
@@ -227,4 +246,9 @@ def create_uniform_grid(nx, ny, npt, length_x=2.0, length_y=2.0, wrapped=use_wra
     Global spectral element grid.
   """
   physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
-  return generate_metric_terms(physical_coords, ref_to_planar, vert_red, npt, wrapped=wrapped, proc_idx=proc_idx)
+  return metric_terms_to_grid(physical_coords,
+                              ref_to_planar,
+                              vert_red,
+                              npt,
+                              wrapped=wrapped,
+                              proc_idx=proc_idx)

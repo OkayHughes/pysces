@@ -1,7 +1,8 @@
-from ..config import np, jnp
+from ..config import np
 
 
-def quasi_uniform_hypervisc_coeff(ne, radius_earth=1.0):
+def eval_quasi_uniform_hypervisc_coeff(ne,
+                                       radius_earth=1.0):
   ne_30_full_radius_coeff = 1e15
   small_planet_correction_factor = radius_earth / 6371e3
   # note: this power accounts for scrunched elements at corner points
@@ -10,7 +11,9 @@ def quasi_uniform_hypervisc_coeff(ne, radius_earth=1.0):
   return nu_base
 
 
-def variable_resolution_hypervisc_coeff(smallest_gridpoint_dx, hypervis_scaling, npt, radius_earth=1.0):
+def eval_variable_resolution_hypervisc_coeff(smallest_gridpoint_dx,
+                                             hypervis_scaling, npt,
+                                             radius_earth=1.0):
     smallest_gridpoint_dx *= radius_earth
     ne30_elem_length = 110000.0
     small_planet_correction_factor = radius_earth / 6371e3
@@ -22,7 +25,9 @@ def variable_resolution_hypervisc_coeff(smallest_gridpoint_dx, hypervis_scaling,
     return nu_tensor
 
 
-def init_hypervis_tensor(met_inv, jacobian, hypervis_scaling=3.2):
+def eval_hypervis_tensor(met_inv,
+                         jacobian,
+                         hypervis_scaling=3.2):
   """
   Initialize the metric tensor used to encode anisotropic resolution-dependent hyperviscosity
   for unstructured grids.
@@ -98,7 +103,7 @@ def init_hypervis_tensor(met_inv, jacobian, hypervis_scaling=3.2):
 
   # NOTE: missing rearth**4 scaling compared to HOMME code
   viscosity_tensor = np.einsum("fijmn, fijsm, fijrn -> fijsr",
-                                met_inv_scaled,
-                                jacobian,
-                                jacobian)
+                               met_inv_scaled,
+                               jacobian,
+                               jacobian)
   return viscosity_tensor, hypervis_scaling

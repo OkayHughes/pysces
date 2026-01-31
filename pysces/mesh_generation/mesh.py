@@ -1,13 +1,14 @@
 from ..config import np, DEBUG, use_wrapper, mpi_size
-from ..distributed_memory.processor_decomposition import get_decomp
-from .bilinear_utils import bilinear, bilinear_jacobian
+from ..distributed_memory.processor_decomposition import init_decomp
+from .bilinear_utils import eval_bilinear_mapping, eval_bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
-from ..horizontal_grid import create_spectral_element_grid
+from ..horizontal_grid import init_spectral_element_grid
 from .spherical_coord_utils import unit_sphere_to_cart_coords_jacobian
 
 
-def edge_to_vert(edge_id, is_forwards=FORWARDS):
+def edge_to_vert(edge_id,
+                 is_forwards=FORWARDS):
   """
   Map an edge id of oriented vertex ids of a given element edge.
 
@@ -47,7 +48,8 @@ def edge_to_vert(edge_id, is_forwards=FORWARDS):
     return v_idx_in_0, v_idx_in_1
 
 
-def mesh_to_cart_bilinear(face_position, npt):
+def mesh_to_cart_bilinear(face_position,
+                          npt):
   """
   Bilinearly map cartesian elements corners to
   cartesian tensor-GLL mesh.
@@ -85,22 +87,27 @@ def mesh_to_cart_bilinear(face_position, npt):
     for j_idx in range(npt):
         alpha = spectrals["gll_points"][i_idx]
         beta = spectrals["gll_points"][j_idx]
-        gll_position[:, i_idx, j_idx, :] = bilinear(face_position[:, 0, :],
-                                                    face_position[:, 1, :],
-                                                    face_position[:, 2, :],
-                                                    face_position[:, 3, :], alpha, beta)
+        gll_position[:, i_idx, j_idx, :] = eval_bilinear_mapping(face_position[:, 0, :],
+                                                                 face_position[:, 1, :],
+                                                                 face_position[:, 2, :],
+                                                                 face_position[:, 3, :],
+                                                                 alpha,
+                                                                 beta)
 
-        dphys_dalpha, dphys_dbeta = bilinear_jacobian(face_position[:, 0, :],
-                                                      face_position[:, 1, :],
-                                                      face_position[:, 2, :],
-                                                      face_position[:, 3, :], alpha, beta)
+        dphys_dalpha, dphys_dbeta = eval_bilinear_jacobian(face_position[:, 0, :],
+                                                           face_position[:, 1, :],
+                                                           face_position[:, 2, :],
+                                                           face_position[:, 3, :],
+                                                           alpha,
+                                                           beta)
         gll_jacobian[:, i_idx, j_idx, :, 0] = dphys_dalpha
         gll_jacobian[:, i_idx, j_idx, :, 1] = dphys_dbeta
 
   return gll_position, gll_jacobian
 
 
-def gen_gll_redundancy(vert_redundancy, npt):
+def init_spectral_grid_redundancy(vert_redundancy,
+                                  npt):
   """
   Enumerate all redundant DOFs in a global
   SpectralElementGrid.
@@ -275,7 +282,9 @@ def vert_red_hierarchy_to_flat(vert_redundancy_gll):
   return vert_redundancy
 
 
-def gen_vert_redundancy(nx, face_connectivity, face_position):
+def init_element_corner_vert_redundancy(nx,
+                                        face_connectivity,
+                                        face_position):
   """
   Enumerate redundant DOFs on the elemental
   representation of an arbitrary mesh
@@ -339,8 +348,13 @@ def gen_vert_redundancy(nx, face_connectivity, face_position):
   return vert_redundancy
 
 
-def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
-                          cartesian_to_sphere_jacobian, vert_redundancy_gll, npt, wrapped=use_wrapper, proc_idx=None):
+def metric_terms_to_grid(gll_latlon,
+                         gll_to_cartesian_jacobian,
+                         cartesian_to_sphere_jacobian,
+                         vert_redundancy_gll,
+                         npt,
+                         wrapped=use_wrapper,
+                         proc_idx=None):
   """
   Collate individual coordinate mappings into global SpectralElementGrid
   on an equiangular cubed sphere grid.
@@ -375,10 +389,10 @@ def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
   """
   NELEM = gll_latlon.shape[0]
   if proc_idx is not None:
-    decomp = get_decomp(NELEM, mpi_size)
+    decomp = init_decomp(NELEM, mpi_size)
   else:
     proc_idx = 0
-    decomp = get_decomp(NELEM, 1)
+    decomp = init_decomp(NELEM, 1)
 
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cartesian_to_sphere_jacobian, gll_to_cartesian_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
@@ -418,10 +432,15 @@ def generate_metric_terms(gll_latlon, gll_to_cartesian_jacobian,
   inv_mass_mat = 1.0 / mass_mat
   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
-  return create_spectral_element_grid(gll_latlon,
-                                      gll_to_sphere_jacobian,
-                                      gll_to_sphere_jacobian_inv,
-                                      physical_coords_to_cartesian,
-                                      rmetdet, metdet, mass_mat,
-                                      inv_mass_mat, vert_red_flat,
-                                      proc_idx, decomp, wrapped=wrapped)
+  return init_spectral_element_grid(gll_latlon,
+                                    gll_to_sphere_jacobian,
+                                    gll_to_sphere_jacobian_inv,
+                                    physical_coords_to_cartesian,
+                                    rmetdet,
+                                    metdet,
+                                    mass_mat,
+                                    inv_mass_mat,
+                                    vert_red_flat,
+                                    proc_idx,
+                                    decomp,
+                                    wrapped=wrapped)

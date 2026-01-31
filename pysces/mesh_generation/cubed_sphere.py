@@ -6,7 +6,10 @@ from .mesh_definitions import (TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEF
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
 
 
-def edge_match(nx, free_idx, id_edge_out, is_forwards):
+def match_edges(nx,
+                free_idx,
+                id_edge_out,
+                is_forwards):
   """
   Return the horizontal and vertical element indexes
   of the pair of an element across a cubed-sphere edge.
@@ -48,7 +51,10 @@ def edge_match(nx, free_idx, id_edge_out, is_forwards):
   return x_idx_out, y_idx_out
 
 
-def elem_id_fn(nx, face_idx, x_idx, y_idx):
+def elem_id_fn(nx,
+               face_idx,
+               x_idx,
+               y_idx):
   """
   Maps an element within a
   regular grid on a cubed-sphere face
@@ -78,7 +84,8 @@ def elem_id_fn(nx, face_idx, x_idx, y_idx):
   return face_idx * nx**2 + x_idx * nx + y_idx
 
 
-def inv_elem_id_fn(nx, idx):
+def inv_elem_id_fn(nx,
+                   idx):
   """
   Map a global element index to the index of the
   cubed-sphere face it is located on, and its
@@ -107,7 +114,7 @@ def inv_elem_id_fn(nx, idx):
   return face_id, x_id, y_id
 
 
-def gen_cube_topo(nx):
+def init_cube_topo(nx):
   """
   Generates the cartesian coordinates and topological
   connectivity of a quasi-regular grid
@@ -167,25 +174,25 @@ def gen_cube_topo(nx):
           edge_idx = LEFT_EDGE
           free_idx = y_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = match_edges(nx, free_idx, edge_pair, edge_dir)
           left_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
         if x_idx == nx - 1:
           edge_idx = RIGHT_EDGE
           free_idx = y_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = match_edges(nx, free_idx, edge_pair, edge_dir)
           right_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
         if y_idx == nx - 1:
           edge_idx = BOTTOM_EDGE
           free_idx = x_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = match_edges(nx, free_idx, edge_pair, edge_dir)
           bottom_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
         if y_idx == 0:
           edge_idx = TOP_EDGE
           free_idx = x_idx
           face_pair, edge_pair, edge_dir = face_topo[face_idx][edge_idx]
-          x_idx_out, y_idx_out = edge_match(nx, free_idx, edge_pair, edge_dir)
+          x_idx_out, y_idx_out = match_edges(nx, free_idx, edge_pair, edge_dir)
           top_info = [elem_id_fn(nx, face_pair, x_idx_out, y_idx_out), edge_pair, edge_dir]
 
         elem_idx = elem_id_fn(nx, face_idx, x_idx, y_idx)
@@ -201,7 +208,9 @@ def gen_cube_topo(nx):
   return face_connectivity, face_mask, face_position, face_position_2d
 
 
-def gen_vert_redundancy_cube(nx, face_connectivity, face_position):
+def init_vert_redundancy_cube(nx,
+                              face_connectivity,
+                              face_position):
   """
   Enumerate redundant DOFs on the elemental
   representation of a quasi-regular cubed sphere grid.

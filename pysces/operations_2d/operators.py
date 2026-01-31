@@ -3,7 +3,9 @@ from functools import partial
 
 
 @jit
-def horizontal_gradient(f, grid, a=1.0):
+def horizontal_gradient(f,
+                        grid,
+                        a=1.0):
   """
   Calculate the element-local gradient of f in spherical coordinates.
 
@@ -33,7 +35,9 @@ def horizontal_gradient(f, grid, a=1.0):
 
 
 @jit
-def horizontal_divergence(u, grid, a=1.0):
+def horizontal_divergence(u,
+                          grid,
+                          a=1.0):
   """
   Calculate the element-local spherical divergence of a physical vector.
 
@@ -65,7 +69,9 @@ def horizontal_divergence(u, grid, a=1.0):
 
 
 @jit
-def horizontal_vorticity(u, grid, a=1.0):
+def horizontal_vorticity(u,
+                         grid,
+                         a=1.0):
   """
   Calculate the element-local spherical vorticity of a physical vector.
 
@@ -97,7 +103,9 @@ def horizontal_vorticity(u, grid, a=1.0):
 
 
 @jit
-def horizontal_laplacian(f, grid, a=1.0):
+def horizontal_laplacian(f,
+                         grid,
+                         a=1.0):
   """
   Calculate the element-local spherical laplacian of f.
 
@@ -125,7 +133,10 @@ def horizontal_laplacian(f, grid, a=1.0):
 
 
 @partial(jit, static_argnames=["apply_tensor"])
-def horizontal_weak_laplacian(f, grid, a=1.0, apply_tensor=False):
+def horizontal_weak_laplacian(f,
+                              grid,
+                              a=1.0,
+                              apply_tensor=False):
   """
   Calculate the element-local weak spherical laplacian of f.
 
@@ -164,7 +175,9 @@ def horizontal_weak_laplacian(f, grid, a=1.0, apply_tensor=False):
 
 
 @jit
-def horizontal_weak_gradient_covariant(s, grid, a=1.0):
+def horizontal_weak_gradient_covariant(s,
+                                       grid,
+                                       a=1.0):
   """
   Calculate the element-local weak gradient of s in spherical coordinates
   using covariant test functions.
@@ -219,7 +232,9 @@ def horizontal_weak_gradient_covariant(s, grid, a=1.0):
 
 
 @jit
-def horizontal_weak_curl_covariant(s, grid, a=1.0):
+def horizontal_weak_curl_covariant(s,
+                                   grid,
+                                   a=1.0):
   """
   Calculates weak horizontal spherical curl of the vector s𝐤 using covariant test functions.
 
@@ -251,7 +266,11 @@ def horizontal_weak_curl_covariant(s, grid, a=1.0):
 
 
 @partial(jit, static_argnames=["damp"])
-def horizontal_weak_vector_laplacian(u, grid, a=1.0, nu_div_fact=1.0, damp=False):
+def horizontal_weak_vector_laplacian(u,
+                                     grid,
+                                     a=1.0,
+                                     nu_div_fact=1.0,
+                                     damp=False):
   """
   Calculate the element-local weak spherical vector laplacian of a physical vector field u.
 
@@ -299,7 +318,9 @@ def horizontal_weak_vector_laplacian(u, grid, a=1.0, nu_div_fact=1.0, damp=False
 
 
 @jit
-def horizontal_weak_divergence(u, grid, a=1.0):
+def horizontal_weak_divergence(u,
+                               grid,
+                               a=1.0):
   """
   Calculates weak spherical horizontal divergence of the vector u, given in spherical coordinates.
 
@@ -333,7 +354,8 @@ def horizontal_weak_divergence(u, grid, a=1.0):
 
 
 @jit
-def contravariant_to_physical(u, grid):
+def contravariant_to_physical(u,
+                              grid):
   """
   Convert a vector given in contravariant coordinates on the local
   reference element to physical coordinates.
@@ -359,7 +381,8 @@ def contravariant_to_physical(u, grid):
 
 
 @jit
-def physical_to_contravariant(u, grid):
+def physical_to_contravariant(u,
+                              grid):
   """
   Convert a vector given in physical coordinates to contravariant
   coordinates on the reference domain.
@@ -385,7 +408,8 @@ def physical_to_contravariant(u, grid):
 
 
 @jit
-def physical_to_covariant(u, grid):
+def physical_to_covariant(u,
+                          grid):
   """
   Convert a vector given in physical coordinates to covariant
   coordinates on the reference domain.
@@ -411,7 +435,9 @@ def physical_to_covariant(u, grid):
 
 
 @jit
-def inner_product(f, g, grid):
+def inner_product(f,
+                  g,
+                  grid):
   """
   Calculate the Spectral Element discrete (processor-local) inner product of
   two scalars.

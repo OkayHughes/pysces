@@ -4,7 +4,9 @@ from ..operations_2d.operators import horizontal_gradient, horizontal_weak_lapla
 
 
 @jit
-def horizontal_divergence_3d(vector, h_grid, physics_config):
+def horizontal_divergence_3d(vector,
+                             h_grid,
+                             physics_config):
   """
   [Description]
 
@@ -32,7 +34,9 @@ def horizontal_divergence_3d(vector, h_grid, physics_config):
 
 
 @jit
-def horizontal_vorticity_3d(vector, h_grid, physics_config):
+def horizontal_vorticity_3d(vector,
+                            h_grid,
+                            physics_config):
   """
   [Description]
 
@@ -60,7 +64,9 @@ def horizontal_vorticity_3d(vector, h_grid, physics_config):
 
 
 @jit
-def horizontal_weak_laplacian_3d(scalar, h_grid, physics_config):
+def horizontal_weak_laplacian_3d(scalar,
+                                 h_grid,
+                                 physics_config):
   """
   [Description]
 
@@ -88,7 +94,9 @@ def horizontal_weak_laplacian_3d(scalar, h_grid, physics_config):
 
 
 @jit
-def horizontal_weak_vector_laplacian_3d(vector, h_grid, physics_config):
+def horizontal_weak_vector_laplacian_3d(vector,
+                                        h_grid,
+                                        physics_config):
   """
   [Description]
 
@@ -116,7 +124,9 @@ def horizontal_weak_vector_laplacian_3d(vector, h_grid, physics_config):
 
 
 @jit
-def horizontal_gradient_3d(scalar, h_grid, physics_config):
+def horizontal_gradient_3d(scalar,
+                           h_grid,
+                           physics_config):
   """
   [Description]
 

@@ -1,16 +1,25 @@
 from ...config import jnp, jit, np, device_wrapper
-from ..utils_3d import vel_model_to_interface, model_to_interface, interface_to_model, interface_to_model_vec
-from ..utils_3d import z_from_phi, g_from_z, g_from_phi, sphere_dot
-from .thermodynamics import get_mu, get_balanced_phi, get_p_mid
+from ..utils_3d import (midlevel_to_interface_vel,
+                        midlevel_to_interface,
+
+                        interface_to_midlevel,
+                        interface_to_midlevel_vec)
+from ..utils_3d import phi_to_z, z_to_g, phi_to_g, physical_dot_product
+from .thermodynamics import eval_mu, eval_balanced_geopotential, eval_midlevel_pressure
 from ..operators_3d import horizontal_gradient_3d, horizontal_vorticity_3d, horizontal_divergence_3d
-from ..model_state import wrap_dynamics_struct
+from ..model_state import wrap_dynamics
 from ..model_state import project_scalar_3d
 from functools import partial
 from ...model_info import hydrostatic_models, deep_atmosphere_models
 
 
 @partial(jit, static_argnames=["model"])
-def init_common_variables(dynamics, static_forcing, h_grid, v_grid, physics_config, model):
+def init_common_variables(dynamics,
+                          static_forcing,
+                          h_grid,
+                          v_grid,
+                          physics_config,
+                          model):
   """
   [Description]
 
@@ -34,11 +43,11 @@ def init_common_variables(dynamics, static_forcing, h_grid, v_grid, physics_conf
       when a key error
   """
   if model in hydrostatic_models:
-    p_mid = get_p_mid(dynamics, v_grid)
-    phi_i = get_balanced_phi(static_forcing["phi_surf"],
-                             p_mid,
-                             dynamics["theta_v_d_mass"],
-                             physics_config)
+    p_mid = eval_midlevel_pressure(dynamics, v_grid)
+    phi_i = eval_balanced_geopotential(static_forcing["phi_surf"],
+                                       p_mid,
+                                       dynamics["theta_v_d_mass"],
+                                       physics_config)
   else:
     phi_i = dynamics["phi_i"]
     w_i = dynamics["w_i"]
@@ -48,20 +57,20 @@ def init_common_variables(dynamics, static_forcing, h_grid, v_grid, physics_conf
   radius_earth = physics_config["radius_earth"]
   theta_v_d_mass = dynamics["theta_v_d_mass"]
 
-  d_mass_i = model_to_interface(d_mass)
-  phi = interface_to_model(phi_i)
-  pnh, exner, r_hat_i, mu = get_mu(dynamics, phi_i, v_grid, physics_config, model)
+  d_mass_i = midlevel_to_interface(d_mass)
+  phi = interface_to_midlevel(phi_i)
+  pnh, exner, r_hat_i, mu = eval_mu(dynamics, phi_i, v_grid, physics_config, model)
   if model in deep_atmosphere_models:
-    r_hat_m = interface_to_model(r_hat_i)
-    z = z_from_phi(phi_i, physics_config, model)
-    r_m = interface_to_model(z + radius_earth)
-    g = g_from_z(z, physics_config, model)
+    r_hat_m = interface_to_midlevel(r_hat_i)
+    z = phi_to_z(phi_i, physics_config, model)
+    r_m = interface_to_midlevel(z + radius_earth)
+    g = z_to_g(z, physics_config, model)
   else:
     r_hat_m = device_wrapper(jnp.ones((1, 1, 1, 1)))
     r_m = radius_earth * device_wrapper(jnp.ones((1, 1, 1, 1)))
     g = physics_config["gravity"] * device_wrapper(jnp.ones((1, 1, 1, 1)))
-  if model not in  hydrostatic_models:
-    w_m = interface_to_model(w_i)
+  if model not in hydrostatic_models:
+    w_m = interface_to_midlevel(w_i)
     grad_w_i = horizontal_gradient_3d(w_i, h_grid, physics_config)
   else:
     w_m = None
@@ -70,11 +79,14 @@ def init_common_variables(dynamics, static_forcing, h_grid, v_grid, physics_conf
   grad_exner = horizontal_gradient_3d(exner, h_grid, physics_config) / r_hat_m
   theta_v = theta_v_d_mass / d_mass
   grad_phi_i = horizontal_gradient_3d(phi_i, h_grid, physics_config)
-  v_over_r_hat_i = vel_model_to_interface(u / r_hat_m[:, :, :, np.newaxis],
-                                          d_mass, d_mass_i)
+  v_over_r_hat_i = midlevel_to_interface_vel(u / r_hat_m[:, :, :, np.newaxis],
+                                             d_mass,
+                                             d_mass_i)
   div_dp = horizontal_divergence_3d(d_mass[:, :, :, :, np.newaxis] * u /
-                                r_hat_m[:, :, :, :, np.newaxis], h_grid, physics_config)
-  u_i = vel_model_to_interface(u, d_mass, d_mass_i)
+                                    r_hat_m[:, :, :, :, np.newaxis],
+                                    h_grid,
+                                    physics_config)
+  u_i = midlevel_to_interface_vel(u, d_mass, d_mass_i)
   common_variables = {"phi_i": phi_i,
                       "phi": phi,
                       "d_mass_i": d_mass_i,
@@ -94,7 +106,7 @@ def init_common_variables(dynamics, static_forcing, h_grid, v_grid, physics_conf
                       "u_i": u_i,
                       "u": u,
                       "theta_v_d_mass": theta_v_d_mass,
-                      "d_mass": d_mass,}
+                      "d_mass": d_mass}
   if model not in hydrostatic_models:
     common_variables["w_i"] = w_i
     common_variables["w_m"] = w_m
@@ -107,7 +119,9 @@ def init_common_variables(dynamics, static_forcing, h_grid, v_grid, physics_conf
 
 
 @jit
-def vorticity_term(common_variables, h_grid, config):
+def eval_vorticity_term(common_variables,
+                        h_grid,
+                        config):
   """
   [Description]
 
@@ -140,7 +154,9 @@ def vorticity_term(common_variables, h_grid, config):
 
 
 @jit
-def grad_kinetic_energy_h_term(common_variables, h_grid, config):
+def eval_grad_kinetic_energy_h_term(common_variables,
+                                    h_grid,
+                                    config):
   """
   [Description]
 
@@ -170,7 +186,9 @@ def grad_kinetic_energy_h_term(common_variables, h_grid, config):
 
 
 @jit
-def grad_kinetic_energy_v_term(common_variables, h_grid, config):
+def eval_grad_kinetic_energy_v_term(common_variables,
+                                    h_grid,
+                                    config):
   """
   [Description]
 
@@ -194,13 +212,13 @@ def grad_kinetic_energy_v_term(common_variables, h_grid, config):
       when a key error
   """
   w_i = common_variables["w_i"]
-  w_sq_m = interface_to_model(w_i * w_i) / 2.0
+  w_sq_m = interface_to_midlevel(w_i * w_i) / 2.0
   w2_grad_sph = horizontal_gradient_3d(w_sq_m, h_grid, config) / common_variables["r_hat_m"]
   return -w2_grad_sph
 
 
 @jit
-def w_vorticity_correction_term(common_variables):
+def eval_w_vorticity_correction_term(common_variables):
   """
   [Description]
 
@@ -223,14 +241,14 @@ def w_vorticity_correction_term(common_variables):
   KeyError
       when a key error
   """
-  w_grad_w_m = interface_to_model_vec(common_variables["w_i"][:, :, :, :, np.newaxis] *
-                                      common_variables["grad_w_i"])
+  w_grad_w_m = interface_to_midlevel_vec(common_variables["w_i"][:, :, :, :, np.newaxis] *
+                                         common_variables["grad_w_i"])
   w_grad_w_m /= common_variables["r_hat_m"][:, :, :, :, np.newaxis]
   return w_grad_w_m
 
 
 @jit
-def u_metric_term(common_variables):
+def eval_u_metric_term(common_variables):
   """
   [Description]
 
@@ -258,7 +276,7 @@ def u_metric_term(common_variables):
 
 
 @jit
-def u_nct_term(common_variables):
+def eval_u_nct_term(common_variables):
   """
   [Description]
 
@@ -287,7 +305,9 @@ def u_nct_term(common_variables):
 
 
 @jit
-def pgrad_pressure_term(common_variables, h_grid, config):
+def eval_pgrad_pressure_term(common_variables,
+                             h_grid,
+                             config):
   """
   [Description]
 
@@ -321,7 +341,7 @@ def pgrad_pressure_term(common_variables, h_grid, config):
 
 
 @jit
-def pgrad_phi_term(common_variables):
+def eval_pgrad_phi_term(common_variables):
   """
   [Description]
 
@@ -344,13 +364,14 @@ def pgrad_phi_term(common_variables):
   KeyError
       when a key error
   """
-  pgf_grad_phi_m = interface_to_model_vec(common_variables["mu"][:, :, :, :, np.newaxis] * common_variables["grad_phi_i"])
+  pgf_grad_phi_m = interface_to_midlevel_vec(common_variables["mu"][:, :, :, :, np.newaxis] *
+                                             common_variables["grad_phi_i"])
   pgf_grad_phi_m /= common_variables["r_hat_m"][:, :, :, :, np.newaxis]
   return -pgf_grad_phi_m
 
 
 @jit
-def w_advection_term(common_variables):
+def eval_w_advection_term(common_variables):
   """
   [Description]
 
@@ -381,7 +402,7 @@ def w_advection_term(common_variables):
 
 
 @jit
-def w_metric_term(common_variables):
+def eval_w_metric_term(common_variables):
   """
   [Description]
 
@@ -404,14 +425,14 @@ def w_metric_term(common_variables):
   KeyError
       when a key error
   """
-  v_sq_over_r_i = vel_model_to_interface(common_variables["u"]**2 / common_variables["r_m"],
-                                         common_variables["d_mass"],
-                                         common_variables["d_mass_i"])
+  v_sq_over_r_i = midlevel_to_interface_vel(common_variables["u"]**2 / common_variables["r_m"],
+                                            common_variables["d_mass"],
+                                            common_variables["d_mass_i"])
   return (v_sq_over_r_i[:, :, :, :, 0] + v_sq_over_r_i[:, :, :, :, 1])
 
 
 @jit
-def w_nct_term(common_variables):
+def eval_w_nct_term(common_variables):
   """
   [Description]
 
@@ -439,7 +460,7 @@ def w_nct_term(common_variables):
 
 
 @jit
-def w_buoyancy_term(common_variables):
+def eval_w_buoyancy_term(common_variables):
   """
   [Description]
 
@@ -466,7 +487,7 @@ def w_buoyancy_term(common_variables):
 
 
 @jit
-def phi_advection_term(common_variables):
+def eval_phi_advection_term(common_variables):
   """
   [Description]
 
@@ -497,7 +518,7 @@ def phi_advection_term(common_variables):
 
 
 @jit
-def phi_acceleration_v_term(common_variables):
+def eval_phi_acceleration_v_term(common_variables):
   """
   [Description]
 
@@ -524,7 +545,9 @@ def phi_acceleration_v_term(common_variables):
 
 
 @jit
-def theta_v_divergence_term(common_variables, h_grid, config):
+def eval_theta_v_divergence_term(common_variables,
+                                 h_grid,
+                                 config):
   """
   [Description]
 
@@ -564,7 +587,7 @@ def theta_v_divergence_term(common_variables, h_grid, config):
 
 
 @jit
-def d_mass_divergence_term(common_variables):
+def eval_d_mass_divergence_term(common_variables):
   """
   [Description]
 
@@ -591,7 +614,12 @@ def d_mass_divergence_term(common_variables):
 
 
 @partial(jit, static_argnames=["model"])
-def explicit_tendency(dynamics, static_forcing, h_grid, v_grid, config, model):
+def eval_explicit_tendency(dynamics,
+                           static_forcing,
+                           h_grid,
+                           v_grid,
+                           config,
+                           model):
   """
   [Description]
 
@@ -615,44 +643,53 @@ def explicit_tendency(dynamics, static_forcing, h_grid, v_grid, config, model):
       when a key error
   """
 
-  common_variables = init_common_variables(dynamics, static_forcing, h_grid,
-                                           v_grid, config,
+  common_variables = init_common_variables(dynamics,
+                                           static_forcing,
+                                           h_grid,
+                                           v_grid,
+                                           config,
                                            model)
 
-  u_tend = (vorticity_term(common_variables, h_grid, config) +
-            grad_kinetic_energy_h_term(common_variables, h_grid, config) +
-            pgrad_pressure_term(common_variables, h_grid, config) +
-            pgrad_phi_term(common_variables))
+  u_tend = (eval_vorticity_term(common_variables, h_grid, config) +
+            eval_grad_kinetic_energy_h_term(common_variables, h_grid, config) +
+            eval_pgrad_pressure_term(common_variables, h_grid, config) +
+            eval_pgrad_phi_term(common_variables))
 
   if model not in hydrostatic_models:
-    u_tend += (grad_kinetic_energy_v_term(common_variables, h_grid, config) +
-               w_vorticity_correction_term(common_variables))
-    w_tend = (w_advection_term(common_variables) +
-              w_buoyancy_term(common_variables))
-    phi_tend = (phi_advection_term(common_variables) +
-                phi_acceleration_v_term(common_variables))
+    u_tend += (eval_grad_kinetic_energy_v_term(common_variables, h_grid, config) +
+               eval_w_vorticity_correction_term(common_variables))
+    w_tend = (eval_w_advection_term(common_variables) +
+              eval_w_buoyancy_term(common_variables))
+    phi_tend = (eval_phi_advection_term(common_variables) +
+                eval_phi_acceleration_v_term(common_variables))
   else:
     w_tend = None
     phi_tend = None
 
   if model in deep_atmosphere_models:
-      u_tend += (u_metric_term(common_variables) +
-                 u_nct_term(common_variables))
-      w_tend += (w_metric_term(common_variables) +
-                 w_nct_term(common_variables))
+      u_tend += (eval_u_metric_term(common_variables) +
+                 eval_u_nct_term(common_variables))
+      w_tend += (eval_w_metric_term(common_variables) +
+                 eval_w_nct_term(common_variables))
 
-  theta_v_d_mass_tend = theta_v_divergence_term(common_variables, h_grid, config)
-  d_mass_tend = d_mass_divergence_term(common_variables)
-  return wrap_dynamics_struct(u_tend,
-                              theta_v_d_mass_tend,
-                              d_mass_tend,
-                              model,
-                              phi_i=phi_tend,
-                              w_i=w_tend)
+  theta_v_d_mass_tend = eval_theta_v_divergence_term(common_variables, h_grid, config)
+  d_mass_tend = eval_d_mass_divergence_term(common_variables)
+  return wrap_dynamics(u_tend,
+                       theta_v_d_mass_tend,
+                       d_mass_tend,
+                       model,
+                       phi_i=phi_tend,
+                       w_i=w_tend)
 
 
 @partial(jit, static_argnames=["dims", "model"])
-def calc_energy_quantities(dynamics, static_forcing, h_grid, v_grid, config, dims, model):
+def eval_energy_quantities(dynamics,
+                           static_forcing,
+                           h_grid,
+                           v_grid,
+                           config,
+                           dims,
+                           model):
   """
   [Description]
 
@@ -675,8 +712,11 @@ def calc_energy_quantities(dynamics, static_forcing, h_grid, v_grid, config, dim
   KeyError
       when a key error
   """
-  common_variables = init_common_variables(dynamics, static_forcing, h_grid,
-                                           v_grid, config,
+  common_variables = init_common_variables(dynamics,
+                                           static_forcing,
+                                           h_grid,
+                                           v_grid,
+                                           config,
                                            model)
 
   # !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -693,35 +733,35 @@ def calc_energy_quantities(dynamics, static_forcing, h_grid, v_grid, config, dim
   w_i = dynamics["w_i"]
   u1 = u[:, :, :, :, 0]
   u2 = u[:, :, :, :, 1]
-  u_sq = sphere_dot(u, u)
+  u_sq = physical_dot_product(u, u)
   g = common_variables["g"]
   mu = common_variables["mu"]
   exner = common_variables["exner"]
   phi = common_variables["phi"]
 
-  grad_kinetic_energy_h = grad_kinetic_energy_h_term(common_variables, h_grid, config)
-  d_mass_divergence = d_mass_divergence_term(common_variables)
-  phi_acceleration_v = phi_acceleration_v_term(common_variables)
-  w_buoyancy = w_buoyancy_term(common_variables)
-  pgrad_pressure = pgrad_pressure_term(common_variables, h_grid, config)
-  pgrad_phi = pgrad_phi_term(common_variables)
-  theta_v_divergence = theta_v_divergence_term(common_variables, h_grid, config)
-  w_vorticity = w_vorticity_correction_term(common_variables)
-  w_advection = w_advection_term(common_variables)
-  u_metric = u_metric_term(common_variables)
-  w_metric = w_metric_term(common_variables)
-  u_nct = u_nct_term(common_variables)
-  w_nct = w_nct_term(common_variables)
-  grad_kinetic_energy_v = grad_kinetic_energy_v_term(common_variables, h_grid, config)
-  vorticity = vorticity_term(common_variables, h_grid, config)
-  phi_advection = phi_advection_term(common_variables)
+  grad_kinetic_energy_h = eval_grad_kinetic_energy_h_term(common_variables, h_grid, config)
+  d_mass_divergence = eval_d_mass_divergence_term(common_variables)
+  phi_acceleration_v = eval_phi_acceleration_v_term(common_variables)
+  w_buoyancy = eval_w_buoyancy_term(common_variables)
+  pgrad_pressure = eval_pgrad_pressure_term(common_variables, h_grid, config)
+  pgrad_phi = eval_pgrad_phi_term(common_variables)
+  theta_v_divergence = eval_theta_v_divergence_term(common_variables, h_grid, config)
+  w_vorticity = eval_w_vorticity_correction_term(common_variables)
+  w_advection = eval_w_advection_term(common_variables)
+  u_metric = eval_u_metric_term(common_variables)
+  w_metric = eval_w_metric_term(common_variables)
+  u_nct = eval_u_nct_term(common_variables)
+  w_nct = eval_w_nct_term(common_variables)
+  grad_kinetic_energy_v = eval_grad_kinetic_energy_v_term(common_variables, h_grid, config)
+  vorticity = eval_vorticity_term(common_variables, h_grid, config)
+  phi_advection = eval_phi_advection_term(common_variables)
 
-  ke_ke_1_a = jnp.sum(d_mass * sphere_dot(u, grad_kinetic_energy_h), axis=-1)
+  ke_ke_1_a = jnp.sum(d_mass * physical_dot_product(u, grad_kinetic_energy_h), axis=-1)
   ke_ke_1_b = jnp.sum(1.0 / 2.0 * u_sq * project_scalar_3d(d_mass_divergence, h_grid, dims), axis=-1)
 
   ke_ke_2_a = jnp.sum(d_mass * (u1 * grad_kinetic_energy_v[:, :, :, :, 0] +
-                             u2 * grad_kinetic_energy_v[:, :, :, :, 1]), axis=-1)
-  ke_ke_2_b = jnp.sum(1.0 / 2.0 * interface_to_model(w_i**2) * d_mass_divergence, axis=-1)
+                                u2 * grad_kinetic_energy_v[:, :, :, :, 1]), axis=-1)
+  ke_ke_2_b = jnp.sum(1.0 / 2.0 * interface_to_midlevel(w_i**2) * d_mass_divergence, axis=-1)
 
   ke_pe_1_a = jnp.sum(d_mass_i_integral * w_i * (w_buoyancy - mu * g), axis=-1)
   ke_pe_1_b = jnp.sum(d_mass_i_integral * phi_acceleration_v, axis=-1)
@@ -730,15 +770,15 @@ def calc_energy_quantities(dynamics, static_forcing, h_grid, v_grid, config, dim
   ke_ie_1_b = jnp.sum(d_mass_i_integral * w_i * (w_buoyancy + g), axis=-1)
 
   ke_ie_2_a = jnp.sum(d_mass * (u1 * pgrad_pressure[:, :, :, :, 0] +
-                             u2 * pgrad_pressure[:, :, :, :, 1]), axis=-1)
+                                u2 * pgrad_pressure[:, :, :, :, 1]), axis=-1)
   ke_ie_2_b = jnp.sum(config["cp"] * exner * theta_v_divergence, axis=-1)
 
   ke_ie_3_a = jnp.sum(d_mass * (u1 * pgrad_phi[:, :, :, :, 0] +
-                             u2 * pgrad_phi[:, :, :, :, 1]), axis=-1)
+                                u2 * pgrad_phi[:, :, :, :, 1]), axis=-1)
   ke_ie_3_b = jnp.sum(d_mass_i_integral * -mu * phi_advection, axis=-1)
 
   ke_ke_3_a = jnp.sum(d_mass * (u1 * w_vorticity[:, :, :, :, 0] +
-                             u2 * w_vorticity[:, :, :, :, 1]), axis=-1)
+                                u2 * w_vorticity[:, :, :, :, 1]), axis=-1)
   ke_ke_3_b = jnp.sum(d_mass_i_integral * w_i * w_advection, axis=-1)
 
   ke_ke_4_a = jnp.sum(d_mass * u1 * vorticity[:, :, :, :, 0], axis=-1)
@@ -748,22 +788,22 @@ def calc_energy_quantities(dynamics, static_forcing, h_grid, v_grid, config, dim
   pe_pe_1_b = jnp.sum(d_mass_i_integral * phi_advection, axis=-1)
 
   ke_ke_5_a = jnp.sum(d_mass * (u1 * u_metric[:, :, :, :, 0] +
-                             u2 * u_metric[:, :, :, :, 1]), axis=-1)
+                                u2 * u_metric[:, :, :, :, 1]), axis=-1)
   ke_ke_5_b = jnp.sum(d_mass_i_integral * w_i * w_metric, axis=-1)
 
   ke_ke_6_a = jnp.sum(d_mass * (u1 * u_nct[:, :, :, :, 0] +
-                             u2 * u_nct[:, :, :, :, 1]), axis=-1)
+                                u2 * u_nct[:, :, :, :, 1]), axis=-1)
   ke_ke_6_b = jnp.sum(d_mass_i_integral * w_i * w_nct, axis=-1)
 
-  tends = explicit_tendency(dynamics, static_forcing, h_grid, v_grid, config, model)
+  tends = eval_explicit_tendency(dynamics, static_forcing, h_grid, v_grid, config, model)
   u_tend = tends["u"]
 
   ke_tend_emp = jnp.sum(d_mass * (u1 * u_tend[:, :, :, :, 0] +
-                               u2 * u_tend[:, :, :, :, 1]), axis=-1)
+                                  u2 * u_tend[:, :, :, :, 1]), axis=-1)
   ke_tend_emp += jnp.sum(d_mass_i_integral * w_i * tends["w_i"], axis=-1)
 
   ke_tend_emp += jnp.sum(u_sq / 2.0 * tends["d_mass"], axis=-1)
-  ke_tend_emp += jnp.sum(interface_to_model(w_i**2) / 2.0 * tends["d_mass"], axis=-1)
+  ke_tend_emp += jnp.sum(interface_to_midlevel(w_i**2) / 2.0 * tends["d_mass"], axis=-1)
 
   pe_tend_emp = jnp.sum(phi * tends["d_mass"], axis=-1)
   pe_tend_emp += jnp.sum(d_mass_i_integral * tends["phi_i"], axis=-1)
@@ -789,7 +829,11 @@ def calc_energy_quantities(dynamics, static_forcing, h_grid, v_grid, config, dim
 
 
 @partial(jit, static_argnames=["model"])
-def correct_state(dynamics, static_forcing, dt, config, model):
+def correct_state(dynamics,
+                  static_forcing,
+                  dt,
+                  config,
+                  model):
   """
   [Description]
 
@@ -814,11 +858,11 @@ def correct_state(dynamics, static_forcing, dt, config, model):
   """
   if model in hydrostatic_models:
     return dynamics
-  u_lowest_new, w_lowest_new, mu_update = lower_boundary_correction(dynamics,
-                                                                    static_forcing,
-                                                                    dt,
-                                                                    config,
-                                                                    model)
+  u_lowest_new, w_lowest_new, mu_update = eval_lower_boundary_correction(dynamics,
+                                                                         static_forcing,
+                                                                         dt,
+                                                                         config,
+                                                                         model)
   u_new = jnp.concatenate((dynamics["u"][:, :, :, :-1, :],
                            u_lowest_new[:, :, :, np.newaxis, :]), axis=-2)
   if model not in hydrostatic_models:
@@ -826,16 +870,20 @@ def correct_state(dynamics, static_forcing, dt, config, model):
                              w_lowest_new[:, :, :, np.newaxis]), axis=-1)
   else:
     w_new = dynamics["w_i"]
-  return wrap_dynamics_struct(u_new,
-                              dynamics["theta_v_d_mass"],
-                              dynamics["d_mass"],
-                              model,
-                              phi_i=dynamics["phi_i"],
-                              w_i=w_new,)
+  return wrap_dynamics(u_new,
+                       dynamics["theta_v_d_mass"],
+                       dynamics["d_mass"],
+                       model,
+                       phi_i=dynamics["phi_i"],
+                       w_i=w_new)
 
 
 @partial(jit, static_argnames=["model"])
-def lower_boundary_correction(dynamics, static_forcing, dt, config, model):
+def eval_lower_boundary_correction(dynamics,
+                                   static_forcing,
+                                   dt,
+                                   config,
+                                   model):
   """
   [Description]
 
@@ -867,7 +915,7 @@ def lower_boundary_correction(dynamics, static_forcing, dt, config, model):
     u_lowest = dynamics["u"][:, :, :, -1, :]
     w_lowest = dynamics["w_i"][:, :, :, -1]
     grad_phi_surf = static_forcing["grad_phi_surf"]
-    g_surf = g_from_phi(static_forcing["phi_surf"], config, model)
+    g_surf = phi_to_g(static_forcing["phi_surf"], config, model)
     mu_surf = ((u_lowest[:, :, :, 0] * grad_phi_surf[:, :, :, 0] +
                 u_lowest[:, :, :, 1] * grad_phi_surf[:, :, :, 1]) / g_surf - w_lowest)
     mu_surf /= (g_surf + 1.0 / (2.0 * g_surf) * (grad_phi_surf[:, :, :, 0]**2 +

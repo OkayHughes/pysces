@@ -1,7 +1,7 @@
 from ..config import np
 
 
-def unit_sphere_to_cart(latlon):
+def unit_sphere_to_cart_coords(latlon):
   lat = np.take(latlon, 0, axis=-1)
   lon = np.take(latlon, 1, axis=-1)
   cos_lat = np.cos(lat)
@@ -11,7 +11,7 @@ def unit_sphere_to_cart(latlon):
   return cart
 
 
-def cart_to_unit_sphere(xyz):
+def cart_to_unit_sphere_coords(xyz):
   latlon = np.stack((np.asin(xyz[:, :, :, 2]),
                      np.mod(np.atan2(xyz[:, :, :, 1],
                                      xyz[:, :, :, 0]) + 2 * np.pi,

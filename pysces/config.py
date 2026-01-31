@@ -4,7 +4,6 @@ import numpy as np
 from json import loads
 from typing import Hashable
 from mpi4py import MPI
-from dataclasses import dataclass
 
 
 def get_config_filepath():
@@ -79,19 +78,27 @@ if wrapper_type == "jax" and use_wrapper:
 
   from jax.tree_util import Partial as partial
 
-  def vmap_1d_apply(func, vector, in_axis, out_axis):
+  def vmap_1d_apply(func,
+                    vector,
+                    in_axis,
+                    out_axis):
       return jax.vmap(func, in_axes=(in_axis), out_axes=(out_axis))(vector)
 
-  def flip(array, axis):
+  def flip(array,
+           axis):
     return jnp.flip(array, axis=axis)
 
-  def remainder(array, divisor):
+  def remainder(array,
+                divisor):
     return jnp.mod(array, divisor)
 
-  def take_along_axis(array, idxs, axis):
+  def take_along_axis(array,
+                      idxs,
+                      axis):
     return jnp.take_along_axis(array, idxs, axis=axis)
 
-  def cast_type(arr, dtype):
+  def cast_type(arr,
+                dtype):
     return arr.astype(dtype)
 
 elif wrapper_type == "torch" and use_wrapper:
@@ -105,7 +112,8 @@ elif wrapper_type == "torch" and use_wrapper:
   else:
     default_dtype = jnp.float32
 
-  def device_wrapper(x, dtype=default_dtype):
+  def device_wrapper(x,
+                     dtype=default_dtype):
     return jnp.tensor(x, dtype=dtype).to(device)
 
   def device_unwrapper(x):
@@ -119,25 +127,34 @@ elif wrapper_type == "torch" and use_wrapper:
 
   from functools import partial
 
-  def vmap_1d_apply(func, vector, in_axis, out_axis):
+  def vmap_1d_apply(func,
+                    vector,
+                    in_axis,
+                    out_axis):
     return torch.vmap(func, in_dims=(in_axis), out_dims=(out_axis))(vector)
 
-  def flip(array, axis):
+  def flip(array,
+           axis):
     return jnp.flip(array, dims=(axis,))
 
-  def remainder(array, divisor):
+  def remainder(array,
+                divisor):
     return torch.remainder(array, divisor)
 
-  def take_along_axis(array, idxs, axis):
+  def take_along_axis(array,
+                      idxs,
+                      axis):
     return torch.take_along_dim(array, idxs, dim=axis)
 
-  def cast_type(arr, dtype):
+  def cast_type(arr,
+                dtype):
     return arr.type(dtype)
 
 else:
   import numpy as jnp
 
-  def device_wrapper(x, dtype=np.float64):
+  def device_wrapper(x,
+                     dtype=np.float64):
     return np.array(x, dtype=dtype)
 
   def device_unwrapper(x):
@@ -151,23 +168,31 @@ else:
 
   from functools import partial
 
-  def vmap_1d_apply(func, scalar, in_axis, out_axis):
+  def vmap_1d_apply(func,
+                    scalar,
+                    in_axis,
+                    out_axis):
     levs = []
     for lev_idx in range(scalar.shape[in_axis]):
       scalar_2d = scalar.take(indices=lev_idx, axis=in_axis)
       levs.append(func(scalar_2d))
     return np.stack(levs, axis=out_axis)
 
-  def flip(array, axis):
+  def flip(array,
+           axis):
     return jnp.flip(array, axis=axis)
 
-  def remainder(array, divisor):
+  def remainder(array,
+                divisor):
     return jnp.mod(array, divisor)
 
-  def take_along_axis(array, idxs, axis):
+  def take_along_axis(array,
+                      idxs,
+                      axis):
     return jnp.take_along_axis(array, idxs, axis=axis)
 
-  def cast_type(arr, dtype):
+  def cast_type(arr,
+                dtype):
     return arr.astype(dtype)
 
 mpi_comm = MPI.COMM_WORLD

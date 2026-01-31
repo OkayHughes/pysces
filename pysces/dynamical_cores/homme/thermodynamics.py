@@ -1,10 +1,11 @@
 from ...config import jnp, jit, np, flip
-from ..utils_3d import model_to_interface, get_delta, r_hat_from_phi
+from ..utils_3d import midlevel_to_interface, interface_to_delta, phi_to_r_hat
 from functools import partial
 from ...model_info import hydrostatic_models, deep_atmosphere_models
 
+
 @jit
-def get_r_hat_sq_avg(r_hat_i):
+def eval_r_hat_sq_avg(r_hat_i):
   """
   [Description]
 
@@ -34,7 +35,10 @@ def get_r_hat_sq_avg(r_hat_i):
 
 
 @jit
-def p_exner_nonhydrostatic(theta_v_d_mass, d_phi, r_hat_sq_avg, config):
+def eval_pressure_exner_nonhydrostatic(theta_v_d_mass,
+                                       d_phi,
+                                       r_hat_sq_avg,
+                                       config):
   """
   [Description]
 
@@ -60,14 +64,17 @@ def p_exner_nonhydrostatic(theta_v_d_mass, d_phi, r_hat_sq_avg, config):
   p0 = config["p0"]
   nh_pressure_over_exner = -config["Rgas"] * theta_v_d_mass / d_phi
   nh_pressure_over_exner /= r_hat_sq_avg
-  nh_pressure = p0 * (nh_pressure_over_exner / p0)**(1.0 /
-                                     (1.0 - config["Rgas"] /
-                                      config["cp"]))
+  exponent = (1.0 / (1.0 - config["Rgas"] / config["cp"]))
+  nh_pressure = p0 * (nh_pressure_over_exner / p0)**exponent
   return nh_pressure, nh_pressure / nh_pressure_over_exner
 
 
 @partial(jit, static_argnames=["model"])
-def get_mu(state, phi_i, v_grid, config, model):
+def eval_mu(state,
+            phi_i,
+            v_grid,
+            config,
+            model):
   """
   [Description]
 
@@ -92,34 +99,36 @@ def get_mu(state, phi_i, v_grid, config, model):
   """
   # note: assumes that phi_i is in hydrostatic balance.
   theta_v_d_mass = state["theta_v_d_mass"]
-  d_phi = get_delta(phi_i)
+  d_phi = interface_to_delta(phi_i)
   if model in deep_atmosphere_models:
-    r_hat_i = r_hat_from_phi(phi_i, config, model)
-    r_hat_sq_avg = get_r_hat_sq_avg(r_hat_i)
+    r_hat_i = phi_to_r_hat(phi_i, config, model)
+    r_hat_sq_avg = eval_r_hat_sq_avg(r_hat_i)
   else:
     r_hat_i = 1.0
     r_hat_sq_avg = 1.0
-  p_model, exner = p_exner_nonhydrostatic(theta_v_d_mass, d_phi, r_hat_sq_avg, config)
+  p_model, exner = eval_pressure_exner_nonhydrostatic(theta_v_d_mass, d_phi, r_hat_sq_avg, config)
   if model in hydrostatic_models:
     d_nh_pressure_d_mass = jnp.ones_like(phi_i)
   else:
     p_top = v_grid["hybrid_a_i"][0] * v_grid["reference_surface_mass"]
     if model in deep_atmosphere_models:
       p_top /= r_hat_i[:, :, :, 0]**2
-    d_mass_i = model_to_interface(state["d_mass"])
+    d_mass_i = midlevel_to_interface(state["d_mass"])
     d_nh_pressure_d_mass_top = 2 * (p_model[:, :, :, 0] - p_top) / d_mass_i[:, :, :, 0]
     d_nh_pressure_d_mass_bottom = jnp.ones_like(p_model[:, :, :, 0])
-    d_nh_pressure_d_mass_int = get_delta(p_model) / d_mass_i[:, :, :, 1:-1]
+    d_nh_pressure_d_mass_int = interface_to_delta(p_model) / d_mass_i[:, :, :, 1:-1]
     d_nh_pressure_d_mass = jnp.concatenate((d_nh_pressure_d_mass_top[:, :, :, np.newaxis],
-                                d_nh_pressure_d_mass_int,
-                                d_nh_pressure_d_mass_bottom[:, :, :, np.newaxis]), axis=-1)
+                                            d_nh_pressure_d_mass_int,
+                                            d_nh_pressure_d_mass_bottom[:, :, :, np.newaxis]),
+                                           axis=-1)
     if model in deep_atmosphere_models:
       d_nh_pressure_d_mass *= r_hat_i**2
   return p_model, exner, r_hat_i, d_nh_pressure_d_mass
 
 
 @jit
-def get_p_mid(state, v_grid):
+def eval_midlevel_pressure(state,
+                           v_grid):
   """
   [Description]
 
@@ -148,7 +157,10 @@ def get_p_mid(state, v_grid):
 
 
 @jit
-def get_balanced_phi(phi_surf, p_mid, theta_v_d_mass, physics_config):
+def eval_balanced_geopotential(phi_surf,
+                               p_mid,
+                               theta_v_d_mass,
+                               physics_config):
   """
   [Description]
 
@@ -172,8 +184,9 @@ def get_balanced_phi(phi_surf, p_mid, theta_v_d_mass, physics_config):
       when a key error
   """
   # p = get_p_mid(state, v_grid, config)
+  exponent = (physics_config["Rgas"] / physics_config["cp"] - 1.0)
   d_phi = physics_config["Rgas"] * (theta_v_d_mass *
-                                    (p_mid / physics_config["p0"])**(physics_config["Rgas"] / physics_config["cp"] - 1.0) / physics_config["p0"])
+                                    (p_mid / physics_config["p0"])**exponent / physics_config["p0"])
   d_phi_augment = flip(jnp.concatenate((d_phi[:, :, :, :-1],
                                         (d_phi[:, :, :, -1] + phi_surf)[:, :, :, np.newaxis]),
                                        axis=-1), -1)

@@ -1,7 +1,7 @@
 from ..config import device_wrapper, np, jnp
 
 
-def get_galewsky_config(model_config):
+def init_galewsky_config(model_config):
   config = {}
   config["deg"] = 100
   pts, weights = device_wrapper(np.polynomial.legendre.leggauss(config["deg"]))
@@ -24,7 +24,8 @@ def get_galewsky_config(model_config):
   return config
 
 
-def galewsky_u(lat, config):
+def eval_galewsky_u(lat,
+                    config):
   u = jnp.zeros_like(lat)
   mask = jnp.logical_and(lat > config["phi0"], lat < config["phi1"])
   u = jnp.where(mask, config["u_max"] / config["e_norm"] *
@@ -32,19 +33,23 @@ def galewsky_u(lat, config):
   return u
 
 
-def galewsky_wind(lat, lon, config):
-  u = jnp.stack((galewsky_u(lat, config),
+def eval_galewsky_wind(lat,
+                       lon,
+                       config):
+  u = jnp.stack((eval_galewsky_u(lat, config),
                  jnp.zeros_like(lat)), axis=-1)
   return u
 
 
-def galewsky_h(lat, lon, config):
+def eval_galewsky_h(lat,
+                    lon,
+                    config):
   quad_amount = lat + jnp.pi / 2.0
   weights_quad = quad_amount.reshape([*lat.shape, 1]) * config["weights"].reshape((*[1 for _ in lat.shape],
                                                                                    config["deg"]))
   phi_quad = quad_amount.reshape([*lat.shape, 1]) * config["pts"].reshape((*[1 for _ in lat.shape],
                                                                            config["deg"])) - np.pi / 2
-  u_quad = galewsky_u(phi_quad, config)
+  u_quad = eval_galewsky_u(phi_quad, config)
   f = 2.0 * config["angular_freq_earth"] * jnp.sin(phi_quad)
   integrand = config["radius_earth"] * u_quad * (f + jnp.tan(phi_quad) / config["radius_earth"] * u_quad)
   h = config["h0"] - 1.0 / config["gravity"] * jnp.sum(integrand * weights_quad, axis=-1)
@@ -53,5 +58,7 @@ def galewsky_h(lat, lon, config):
   return h + h_prime
 
 
-def galewsky_hs(lat, lon, config):
+def eval_galewsky_hs(lat,
+                     lon,
+                     config):
   return jnp.zeros_like(lat)

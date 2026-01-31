@@ -1,66 +1,117 @@
-from .config import jnp, is_main_proc
-from .dynamical_cores.hyperviscosity import get_ref_states
-from .dynamical_cores.time_stepping import advance_dynamics_euler, advance_hypervis_euler, advance_dynamics_ullrich_5stage, advance_sponge_euler
+from .dynamical_cores.time_stepping import (advance_dynamics_euler,
+                                            advance_hypervis_euler,
+                                            advance_dynamics_ullrich_5stage,
+                                            advance_sponge_euler)
 from .dynamical_cores.model_state import remap_dynamics
-from .distributed_memory.global_communication import global_sum
 from .time_step import time_step_options
-from .dynamical_cores.model_state import advance_dynamics, advance_simple_tracers, wrap_model_state, check_dynamics_nan, check_tracers_nan
+from .dynamical_cores.model_state import (sum_dynamics_series,
+                                          advance_tracers,
+                                          wrap_model_state,
+                                          check_dynamics_nan,
+                                          check_tracers_nan)
 from .dynamical_cores.physics_dynamics_coupling import coupling_types
-from .model_info import thermodynamic_variable_names, hydrostatic_models, cam_se_models
-from sys import stdout
 
 
-def advance_coupling_step(state_in, h_grid, v_grid, physics_config, diffusion_config, timestep_config, dims, model, physics_forcing=None):
+def advance_coupling_step(state_in,
+                          h_grid,
+                          v_grid,
+                          physics_config,
+                          diffusion_config,
+                          timestep_config,
+                          dims,
+                          model,
+                          physics_forcing=None):
   physics_dynamics_coupling = timestep_config["physics_dynamics_coupling"]
 
   dynamics_state = state_in["dynamics"]
   tracer_state = state_in["tracers"]
+  static_forcing = state_in["static_forcing"]
+  dribble_dynamics = (physics_dynamics_coupling == coupling_types.dribble_all or
+                      physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics)
 
-  if (physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics or 
-      physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics):
-    tracer_state = advance_simple_tracers([tracer_state, physics_forcing["tracers"]], [1.0, timestep_config["physics_dt"]], model)
-  
+  if (physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics):
+    tracer_state = advance_tracers([tracer_state, physics_forcing["tracers"]],
+                                   [1.0, timestep_config["physics_dt"]],
+                                   model)
+
   if physics_dynamics_coupling == coupling_types.lump_all:
-    dynamics_state = advance_dynamics([dynamics_state, physics_forcing["dynamics"]], [1.0, timestep_config["physics_dt"]], model)
-    tracer_state = advance_simple_tracers([tracer_state, physics_forcing["tracers"]], [1.0, timestep_config["physics_dt"]], model)
+    dynamics_state = sum_dynamics_series([dynamics_state, physics_forcing["dynamics"]],
+                                         [1.0, timestep_config["physics_dt"]],
+                                         model)
+    tracer_state = advance_tracers([tracer_state, physics_forcing["tracers"]],
+                                   [1.0, timestep_config["physics_dt"]],
+                                   model)
 
   for q_split in range(timestep_config["tracer_subcycle"]):
     dynamics_state = remap_dynamics(dynamics_state,
+                                    state_in["static_forcing"],
                                     v_grid,
                                     physics_config,
                                     len(v_grid["hybrid_b_m"]),
                                     model)
-    if (physics_dynamics_coupling == coupling_types.dribble_all or 
-        physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics):
-      dynamics_state = advance_dynamics([dynamics_state, physics_forcing["dynamics"]], [1.0, timestep_config["tracer_advection"]["dt"]], model)
+    if dribble_dynamics:
+      dynamics_state = sum_dynamics_series([dynamics_state, physics_forcing["dynamics"]],
+                                           [1.0, timestep_config["tracer_advection"]["dt"]],
+                                           model)
     if physics_dynamics_coupling == coupling_types.dribble_all:
-      tracer_state = advance_simple_tracers([tracer_state, physics_forcing["tracers"]], [1.0, timestep_config["physics_dt"]], model)
+      tracer_state = advance_tracers([tracer_state, physics_forcing["tracers"]],
+                                     [1.0, timestep_config["physics_dt"]],
+                                     model)
 
     for n_split in range(timestep_config["dynamics_subcycle"]):
       if timestep_config["dynamics"]["step_type"] == time_step_options.Euler:
-        dynamics_next = advance_dynamics_euler(dynamics_state, h_grid, v_grid, physics_config, timestep_config, dims, model)
+        dynamics_next = advance_dynamics_euler(dynamics_state,
+                                               static_forcing,
+                                               h_grid,
+                                               v_grid,
+                                               physics_config,
+                                               timestep_config,
+                                               dims,
+                                               model)
       elif timestep_config["dynamics"]["step_type"] == time_step_options.RK3_5STAGE:
-        dynamics_next = advance_dynamics_ullrich_5stage(dynamics_state, h_grid, v_grid, physics_config, timestep_config, dims, model)
+        dynamics_next = advance_dynamics_ullrich_5stage(dynamics_state,
+                                                        static_forcing,
+                                                        h_grid,
+                                                        v_grid,
+                                                        physics_config,
+                                                        timestep_config,
+                                                        dims,
+                                                        model)
+
       else:
         raise ValueError("Unknown dynamics timestep type")
       if "disable_diffusion" not in diffusion_config.keys():
         if timestep_config["hyperviscosity"]["step_type"] == time_step_options.Euler:
-          dynamics_next= advance_hypervis_euler(dynamics_next, state_in["static_forcing"], h_grid, v_grid,
-                                                physics_config, diffusion_config, timestep_config, dims, model)
+          dynamics_next = advance_hypervis_euler(dynamics_next,
+                                                 static_forcing,
+                                                 h_grid,
+                                                 v_grid,
+                                                 physics_config,
+                                                 diffusion_config,
+                                                 timestep_config,
+                                                 dims,
+                                                 model)
         if "enable_sponge_layer" in diffusion_config.keys():
-          dynamics_next = advance_sponge_euler(dynamics_next, h_grid, physics_config, diffusion_config, timestep_config, dims, model)
+          dynamics_next = advance_sponge_euler(dynamics_next,
+                                               h_grid,
+                                               physics_config,
+                                               diffusion_config,
+                                               timestep_config,
+                                               dims,
+                                               model)
 
       assert not check_dynamics_nan(dynamics_next, model)
       assert not check_tracers_nan(tracer_state, model)
 
       dynamics_state, dynamics_next = dynamics_next, dynamics_state
   dynamics_state = remap_dynamics(dynamics_state,
+                                  static_forcing,
                                   v_grid,
                                   physics_config,
                                   len(v_grid["hybrid_b_m"]),
                                   model)
   return wrap_model_state(dynamics_state,
-                          state_in["static_forcing"],
+                          static_forcing,
                           tracer_state)
 
 
@@ -74,9 +125,13 @@ def validate_custom_configuration(state_in,
   pass
 
 
-def init_simulator(h_grid, v_grid, physics_config,
-                   diffusion_config, timestep_config,
-                   dims, model):
+def init_simulator(h_grid,
+                   v_grid,
+                   physics_config,
+                   diffusion_config,
+                   timestep_config,
+                   dims,
+                   model):
   """
   [Description]
 
@@ -103,9 +158,15 @@ def init_simulator(h_grid, v_grid, physics_config,
     state_n = state_in
     t = 0.0
     while True:
-      state_n = advance_coupling_step(state_n, h_grid, v_grid,
-                                      physics_config, diffusion_config, timestep_config,
-                                      dims, model, physics_forcing=physics_forcing)
-      t += timestep_config["physics_dt"]["dt"]
+      state_n = advance_coupling_step(state_n,
+                                      h_grid,
+                                      v_grid,
+                                      physics_config,
+                                      diffusion_config,
+                                      timestep_config,
+                                      dims,
+                                      model,
+                                      physics_forcing=physics_forcing)
+      t += timestep_config["physics_dt"]
       physics_forcing = yield t, state_n
   return simulator

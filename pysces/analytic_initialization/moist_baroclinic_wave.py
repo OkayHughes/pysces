@@ -6,42 +6,43 @@ perturbation_opts = Enum('perturbation_type',
                           ("exponential", 2),
                           ("streamfunction", 3)])
 
-def get_umjs_config(T0E=310,
-                    T0P=240,
-                    B=2.0,
-                    K=3.0,
-                    lapse=0.005,
-                    pertu0=0.5,
-                    pertr=1.0 / 6.0,
-                    pertup=1.0,
-                    pertexpr=0.1,
-                    pertlon=jnp.pi / 9.0,
-                    pertlat=2.0 * jnp.pi / 9.0,
-                    pertz=15000,
-                    moistqlat=2.0 * jnp.pi / 9.0,
-                    moistqp=34000.0,
-                    moisttr=0.1,
-                    moistq0=0.018,
-                    moistqr=0.9,
-                    moisteps=0.622,
-                    moistT0=273.16,
-                    moistE0Ast=610.78,
-                    p0=1e5,
-                    radius_earth=6371e3,
-                    period_earth=7.292e-5,
-                    Rgas=287.1,
-                    R_water_vapor=461.50,
-                    gravity=9.81,
-                    model_config=None,
-                    alpha=0.5,
-                    mountain_heights=[2000.0, 2000.0],
-                    mountain_lats=[jnp.pi / 4.0, jnp.pi / 4.0],
-                    mountain_lons=[(7.0 / 9.0) * jnp.pi,
-                                   0.4 * jnp.pi],
-                    mountain_lat_widths=[40.0 * jnp.pi / 180.0,
-                                         40.0 * jnp.pi / 180.0],
-                    mountain_lon_widths=[7.0 * jnp.pi / 180.0,
-                                         7.0 * jnp.pi / 180.0]):
+
+def init_baroclinic_wave_config(T0E=310,
+                                T0P=240,
+                                B=2.0,
+                                K=3.0,
+                                lapse=0.005,
+                                pertu0=0.5,
+                                pertr=1.0 / 6.0,
+                                pertup=1.0,
+                                pertexpr=0.1,
+                                pertlon=jnp.pi / 9.0,
+                                pertlat=2.0 * jnp.pi / 9.0,
+                                pertz=15000,
+                                moistqlat=2.0 * jnp.pi / 9.0,
+                                moistqp=34000.0,
+                                moisttr=0.1,
+                                moistq0=0.018,
+                                moistqr=0.9,
+                                moisteps=0.622,
+                                moistT0=273.16,
+                                moistE0Ast=610.78,
+                                p0=1e5,
+                                radius_earth=6371e3,
+                                period_earth=7.292e-5,
+                                Rgas=287.1,
+                                R_water_vapor=461.50,
+                                gravity=9.81,
+                                model_config=None,
+                                alpha=0.5,
+                                mountain_heights=[2000.0, 2000.0],
+                                mountain_lats=[jnp.pi / 4.0, jnp.pi / 4.0],
+                                mountain_lons=[(7.0 / 9.0) * jnp.pi,
+                                               0.4 * jnp.pi],
+                                mountain_lat_widths=[40.0 * jnp.pi / 180.0,
+                                                     40.0 * jnp.pi / 180.0],
+                                mountain_lon_widths=[7.0 * jnp.pi / 180.0,
+                                                     7.0 * jnp.pi / 180.0]):
   """
   [Description]
 
@@ -113,41 +114,45 @@ def get_umjs_config(T0E=310,
           }
 
 
-def get_T0(config):
+def eval_T0(config):
   return (config["alpha"] * config["T0E"] +
           (1.0 - config["alpha"]) * config["T0P"])
 
 
-def get_constH(config):
-  return config["Rgas"] * get_T0(config) / config["gravity"]
+def eval_constH(config):
+  return config["Rgas"] * eval_T0(config) / config["gravity"]
 
 
-def get_constA(config):
+def eval_constA(config):
   return 1.0 / config["lapse"]
 
 
-def get_constB(config):
-  T0 = get_T0(config)
+def eval_constB(config):
+  T0 = eval_T0(config)
   return (T0 - config["T0P"]) / (T0 * config["T0P"])
 
 
-def get_scaledZ(z, config):
-  return z / (config["B"] * get_constH(config))
+def eval_scaledZ(z,
+                 config):
+  return z / (config["B"] * eval_constH(config))
 
 
-def get_inttau2(z, config):
-  return (get_constC(config) * z *
-          jnp.exp(-get_scaledZ(z, config)**2))
+def eval_inttau2(z,
+                 config):
+  return (eval_constC(config) * z *
+          jnp.exp(-eval_scaledZ(z, config)**2))
 
 
-def get_constC(config):
+def eval_constC(config):
   T0E = config["T0E"]
   T0P = config["T0P"]
   return (0.5 * (config["K"] + 2.0) *
           (T0E - T0P) / (T0E * T0P))
 
 
-def get_r_hat(z, config, deep=False):
+def eval_r_hat(z,
+               config,
+               deep=False):
   # note: should be separate from model code.
   # so constant-g equation set can be used
   if deep:
@@ -157,7 +162,10 @@ def get_r_hat(z, config, deep=False):
   return r_hat
 
 
-def get_z_surface(lat, lon, config, mountain=False):
+def eval_z_surface(lat,
+                   lon,
+                   config,
+                   mountain=False):
   """
   [Description]
 
@@ -200,7 +208,10 @@ def get_z_surface(lat, lon, config, mountain=False):
   return zs
 
 
-def evaluate_pressure_temperature(z, lat, config, deep=False):
+def eval_pressure_temperature(z,
+                              lat,
+                              config,
+                              deep=False):
   """
   [Description]
 
@@ -225,11 +236,11 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
   """
   lapse = config["lapse"]
   K = config["K"]
-  T0 = get_T0(config)
-  constA = get_constA(config)
-  constB = get_constB(config)
-  constC = get_constC(config)
-  scaledZ = get_scaledZ(z, config)
+  T0 = eval_T0(config)
+  constA = eval_constA(config)
+  constB = eval_constB(config)
+  constC = eval_constC(config)
+  scaledZ = eval_scaledZ(z, config)
 
   # note: this can be optimized for numpy so
   # scaledZ**2 quantities are not recomputed
@@ -240,9 +251,9 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 
   inttau1 = (constA * (jnp.exp(lapse * z / T0) - device_wrapper(1.0)) +
              constB * z * jnp.exp(-scaledZ**2))
-  inttau2 = get_inttau2(z, config)
+  inttau2 = eval_inttau2(z, config)
 
-  r_hat = get_r_hat(z, config, deep=deep)
+  r_hat = eval_r_hat(z, config, deep=deep)
 
   inttermT = ((r_hat * jnp.cos(lat)[:, :, :, np.newaxis])**K -
               K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, np.newaxis])**(K + 2))
@@ -253,7 +264,11 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
   return pressure, temperature
 
 
-def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
+def eval_surface_state(lat,
+                       lon,
+                       config,
+                       deep=False,
+                       mountain=False):
   """
   [Description]
 
@@ -276,13 +291,21 @@ def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
   KeyError
       when a key error
   """
-  z_surface = get_z_surface(lat, lon, config, mountain=mountain)
-  p_surface = evaluate_pressure_temperature(z_surface[:, :, :, np.newaxis],
-                                            lat, config, deep=deep)[0][:, :, :, 0]
+  z_surface = eval_z_surface(lat, lon, config, mountain=mountain)
+  p_surface = eval_pressure_temperature(z_surface[:, :, :, np.newaxis],
+                                        lat,
+                                        config,
+                                        deep=deep)[0][:, :, :, 0]
   return z_surface, p_surface
 
 
-def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type=perturbation_opts.none):
+def eval_state(lat,
+               lon,
+               z,
+               config,
+               deep=False,
+               moist=False,
+               pert_type=perturbation_opts.none):
   """
   [Description]
 
@@ -306,12 +329,12 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type=pertu
       when a key error
   """
   K = config["K"]
-  inttau2 = get_inttau2(z, config)
-  r_hat = get_r_hat(z, config, deep=deep)
+  inttau2 = eval_inttau2(z, config)
+  r_hat = eval_r_hat(z, config, deep=deep)
   cos_lat = jnp.cos(lat)[:, :, :, np.newaxis]
   inttermU = ((r_hat * cos_lat)**(K - 1.0) -
               (r_hat * cos_lat)**(K + 1.0))
-  pressure, virtual_temperature = evaluate_pressure_temperature(z, lat, config, deep=deep)
+  pressure, virtual_temperature = eval_pressure_temperature(z, lat, config, deep=deep)
   bigU = (config["gravity"] / config["radius_earth"] * K *
           inttau2 * inttermU * virtual_temperature)
 
@@ -335,20 +358,22 @@ def evaluate_state(lat, lon, z, config, deep=False, moist=False, pert_type=pertu
   # todo: handle pert
   if pert_type == perturbation_opts.exponential:
     print("using exponential perturbation type")
-    u += evaluate_exponential(lat, lon, z, config)
+    u += eval_exponential(lat, lon, z, config)
   elif pert_type == perturbation_opts.streamfunction:
     print("using streamfunction perturbation type")
     eps = 1e-5
-    sf_lat_above = evaluate_streamfunction(lat + eps, lon, z, config)
-    sf_lat_below = evaluate_streamfunction(lat - eps, lon, z, config)
-    sf_lon_above = evaluate_streamfunction(lat, lon + eps, z, config)
-    sf_lon_below = evaluate_streamfunction(lat, lon - eps, z, config)
+    sf_lat_above = eval_streamfunction(lat + eps, lon, z, config)
+    sf_lat_below = eval_streamfunction(lat - eps, lon, z, config)
+    sf_lon_above = eval_streamfunction(lat, lon + eps, z, config)
+    sf_lon_below = eval_streamfunction(lat, lon - eps, z, config)
     u += - (sf_lat_above - sf_lat_below) / (2 * eps)
     v += (sf_lon_above - sf_lon_below) / (2 * eps)
   return u, v, pressure, virtual_temperature, q_vapor
 
 
-def great_circle_dist(lat, lon, config):
+def eval_great_circle_dist(lat,
+                           lon,
+                           config):
   """
   [Description]
 
@@ -379,7 +404,8 @@ def great_circle_dist(lat, lon, config):
                      jnp.cos(lon - config["pertlon"])))
 
 
-def taper_fn(z, config):
+def eval_taper_fn(z,
+                  config):
   """
   [Description]
 
@@ -409,7 +435,10 @@ def taper_fn(z, config):
                    jnp.zeros_like(z))
 
 
-def evaluate_exponential(lat, lon, z, config):
+def eval_exponential(lat,
+                     lon,
+                     z,
+                     config):
   """
   [Description]
 
@@ -432,8 +461,8 @@ def evaluate_exponential(lat, lon, z, config):
   KeyError
       when a key error
   """
-  greatcircle_dist = great_circle_dist(lat, lon, config)[:, :, :, np.newaxis]
-  taper = taper_fn(z, config)
+  greatcircle_dist = eval_great_circle_dist(lat, lon, config)[:, :, :, np.newaxis]
+  taper = eval_taper_fn(z, config)
 
   pert_inside_circle = (config["pertup"] *
                         taper *
@@ -443,7 +472,10 @@ def evaluate_exponential(lat, lon, z, config):
                    jnp.zeros_like(z))
 
 
-def evaluate_streamfunction(lat, lon, z, config):
+def eval_streamfunction(lat,
+                        lon,
+                        z,
+                        config):
   """
   [Description]
 
@@ -466,8 +498,8 @@ def evaluate_streamfunction(lat, lon, z, config):
   KeyError
       when a key error
   """
-  greatcircle_dist = great_circle_dist(lat, lon, config)
-  taper = taper_fn(z, config)
+  greatcircle_dist = eval_great_circle_dist(lat, lon, config)
+  taper = eval_taper_fn(z, config)
   pert_inside_circle = jnp.cos(0.5 * jnp.pi * greatcircle_dist)
   return jnp.where(greatcircle_dist < 1.0,
                    -config["pertu0"] * config["pertr"] * taper * pert_inside_circle**4,

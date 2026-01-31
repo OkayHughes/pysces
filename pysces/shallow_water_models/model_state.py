@@ -3,7 +3,9 @@ from ..distributed_memory.global_assembly import project_scalar_global
 from functools import partial
 
 
-def create_state_struct(u, h, hs):
+def wrap_model_state(u,
+                     h,
+                     hs):
   """
   [Description]
 
@@ -31,8 +33,10 @@ def create_state_struct(u, h, hs):
           "hs": hs}
 
 
-@partial(jit, static_argnames=["dims", "scaled"])
-def project_state(state, grid, dims, scaled=True):
+@partial(jit, static_argnames=["dims"])
+def project_model_state(state,
+                        grid,
+                        dims):
   """
   [Description]
 
@@ -56,12 +60,13 @@ def project_state(state, grid, dims, scaled=True):
       when a key error
   """
   u, v, h = project_scalar_global([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]],
-                                  grid, dims, two_d=True, scaled=scaled)
-  return create_state_struct(jnp.stack((u, v), axis=-1), h, state["hs"])
+                                  grid, dims, two_d=True)
+  return wrap_model_state(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 
 @jit
-def advance_state(states_in, coeffs):
+def sum_state_series(states_in,
+                     coeffs):
   """
   [Description]
 
@@ -84,13 +89,13 @@ def advance_state(states_in, coeffs):
   KeyError
       when a key error
   """
-  state_res = create_state_struct(states_in[0]["u"] * coeffs[0],
-                                  states_in[0]["h"] * coeffs[0],
-                                  states_in[0]["hs"])
+  state_res = wrap_model_state(states_in[0]["u"] * coeffs[0],
+                               states_in[0]["h"] * coeffs[0],
+                               states_in[0]["hs"])
   for state_idx in range(1, len(coeffs)):
     state = states_in[state_idx]
     coeff = coeffs[state_idx]
-    state_res = create_state_struct(state_res["u"] + state["u"] * coeff,
-                                    state_res["h"] + state["h"] * coeff,
-                                    state_res["hs"])
+    state_res = wrap_model_state(state_res["u"] + state["u"] * coeff,
+                                 state_res["h"] + state["h"] * coeff,
+                                 state_res["hs"])
   return state_res
