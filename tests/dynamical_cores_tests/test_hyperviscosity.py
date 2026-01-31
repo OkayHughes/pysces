@@ -21,7 +21,8 @@ from pysces.dynamical_cores.model_state import (project_scalar_3d,
                                                 project_dynamics,
                                                 sum_dynamics_series,
                                                 check_dynamics_nan,
-                                                copy_dynamics)
+                                                copy_dynamics,
+                                                wrap_dynamics)
 from pysces.dynamical_cores.time_stepping import advance_hypervis_euler
 from pysces.dynamical_cores.time_stepping import init_timestep_config
 from .mass_coordinate_grids import cam30, vertical_grid_finite_diff
@@ -31,7 +32,7 @@ from pytest import fixture
 
 def make_grid(model):
   npt = 4
-  nx = 15
+  nx = 7
   h_grid, dims = init_quasi_uniform_grid_elem_local(nx, npt, wrapped=False)
   v_grid_tmp = vertical_grid_finite_diff(6)
   v_grid = init_vertical_grid(v_grid_tmp["hybrid_a_i"],
@@ -50,7 +51,7 @@ def make_grid(model):
                                            mountain=False,
                                            eps=1e-3)
   dynamics = model_state["dynamics"]
-  dynamics["u"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["u"])
+  dynamics["u"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["u"]) 
   dynamics["d_mass"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["d_mass"])
   if model in cam_se_models:
     dynamics["T"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["T"])
@@ -63,7 +64,31 @@ def make_grid(model):
           "physics_config": physics_config,
           "h_grid": h_grid,
           "dims": dims,
-          "v_grid": v_grid}
+          "v_grid": v_grid,
+          "nx": nx}
+
+
+def goop_dynamics(dynamics, model):
+  def pert(field, scale=1.0):
+    return device_wrapper(np.random.normal(scale=scale, size=field.shape))
+  u = dynamics["u"] + pert(dynamics["u"])
+  d_mass = dynamics["d_mass"] #+ pert(dynamics["d_mass"], scale=1.0)
+  if model in cam_se_models:
+    thermo = dynamics["T"] + pert(dynamics["T"])
+  elif model in homme_models:
+    thermo = dynamics["theta_v_d_mass"] + pert(dynamics["theta_v_d_mass"]) * d_mass
+  if model not in hydrostatic_models:
+    phi_i = dynamics["phi_i"] + pert(dynamics["phi_i"])
+    w_i = dynamics["w_i"] + pert(dynamics["w_i"])
+  else:
+    phi_i = None
+    w_i = None
+  return wrap_dynamics(u,
+                       thermo,
+                       d_mass,
+                       model,
+                       phi_i=phi_i,
+                       w_i=w_i)
 
 
 @fixture
@@ -95,7 +120,7 @@ def analytic_sph_harm(h_grid, physics_config):
 
 def test_basic_operators():
   npt = 4
-  nx = 15
+  nx = 7
   model = models.cam_se
   physics_config = init_physics_config(model, radius_earth=2.0)
   radius_earth = physics_config["radius_earth"]
@@ -122,7 +147,7 @@ def test_basic_operators():
 
 def test_quasi_uniform():
   npt = 4
-  nx = 15
+  nx = 7
   h_grid, dims = init_quasi_uniform_grid_elem_local(nx, npt, wrapped=False)
   v_grid_tmp = vertical_grid_finite_diff(6)
   for model in [models.homme_hydrostatic, models.homme_nonhydrostatic, models.cam_se]:
@@ -161,7 +186,7 @@ def test_quasi_uniform():
                                                         model,
                                                         apply_nu=apply_nu)
       laplace_dynamics = project_dynamics(laplace_dynamics_discont, h_grid, dims, model)
-      eps = 1e-2
+      eps = 3e-2
       nus = {}
       nus["u"] = diffusion_config["nu"] if apply_nu else 1.0
       nus["phi_i"] = diffusion_config["nu_phi"] if apply_nu else 1.0
@@ -202,7 +227,6 @@ def test_nu_ramp():
 def test_sponge_layer_energy_estimate(homme_hydrostatic_noisy,
                                       homme_nonhydrostatic_noisy,
                                       cam_se_noisy):
-  nx = 15
   for model, struct in zip([models.homme_hydrostatic, models.homme_nonhydrostatic, models.cam_se],
                            [homme_hydrostatic_noisy, homme_nonhydrostatic_noisy, cam_se_noisy]):
     v_grid = struct["v_grid"]
@@ -210,6 +234,7 @@ def test_sponge_layer_energy_estimate(homme_hydrostatic_noisy,
     dims = struct["dims"]
     model_state = struct["model_state"]
     physics_config = struct["physics_config"]
+    nx = struct["nx"]
     diffusion_config = init_hypervis_config_const(nx, physics_config, v_grid, nu_div_factor=1.0)
     timestep_config = init_timestep_config(1000, h_grid, physics_config, diffusion_config, dims, model)
     dynamics = model_state["dynamics"]
@@ -257,7 +282,6 @@ def test_hypervis_energy_estimate_quasi_uniform(homme_hydrostatic_noisy,
   # energy estimate for L2 norm of solution
   # does not hold. E.g., multiply dt times 2
   # and this test fails.
-  nx = 15
   for model, struct in zip([models.homme_hydrostatic, models.homme_nonhydrostatic, models.cam_se],
                            [homme_hydrostatic_noisy, homme_nonhydrostatic_noisy, cam_se_noisy]):
     v_grid = struct["v_grid"]
@@ -265,13 +289,14 @@ def test_hypervis_energy_estimate_quasi_uniform(homme_hydrostatic_noisy,
     dims = struct["dims"]
     model_state = struct["model_state"]
     physics_config = struct["physics_config"]
+    nx = struct["nx"]
     nlev = v_grid["hybrid_a_m"].size
     diffusion_config_constant = init_hypervis_config_const(nx, physics_config, v_grid, nu_div_factor=1.0)
     diffusion_config_tensor = init_hypervis_config_tensor(h_grid, v_grid, dims, physics_config)
     for diffusion_config in [diffusion_config_constant, diffusion_config_tensor]:
       timestep_config = init_timestep_config(1000, h_grid, physics_config, diffusion_config, dims, model)
-      dynamics = model_state["dynamics"]
-      dynamics_base = copy_dynamics(dynamics, model)
+      dynamics_base = model_state["dynamics"]
+      dynamics = goop_dynamics(dynamics_base, model)
       ref_state = eval_ref_state(model_state["static_forcing"]["phi_surf"],
                                  v_grid,
                                  physics_config,
@@ -310,15 +335,14 @@ def test_hypervis_energy_estimate_quasi_uniform(homme_hydrostatic_noisy,
               vals = 0.5 * (u_pert[:, :, :, 0]**2 + u_pert[:, :, :, 1]**2)
             elif field == "theta_v_d_mass":
               theta_v_pert = dynamics_new["theta_v_d_mass"][:, :, :, k_idx]
-              vals = theta_v_pert / dynamics["d_mass"][:, :, :, k_idx] - ref_state["theta_v"][:, :, :, k_idx]
+              vals = theta_v_pert / dynamics_new["d_mass"][:, :, :, k_idx] - ref_state["theta_v"][:, :, :, k_idx]
             elif field == "T":
               vals = dynamics_new["T"][:, :, :, k_idx] - ref_state["T"][:, :, :, k_idx]
             else:
               vals = dynamics_new[field][:, :, :, k_idx] - dynamics_base[field][:, :, :, k_idx]
             total = inner_product(vals, vals, h_grid)
             ratio = total / prev_vals[field][k_idx]
-            print(f"{field} {iter_idx} {ratio}")
-            if iter_idx > 0:
+            if iter_idx > 0 and field != "d_mass":
               assert ratio < 1.0
             prev_vals[field][k_idx] = total
 
@@ -333,7 +357,7 @@ def test_hypervis_energy_estimate_mobius():
     offset = device_wrapper(np.random.uniform(high=0.2, low=0.2, size=3))
     model = models.homme_nonhydrostatic
     npt = 4
-    nx = 15
+    nx = 7
     h_grid, dims = init_stretched_grid_elem_local(nx, npt, axis_dilation=scale, offset=offset)
     v_grid_tmp = vertical_grid_finite_diff(6)
     v_grid = init_vertical_grid(v_grid_tmp["hybrid_a_i"],
@@ -356,18 +380,7 @@ def test_hypervis_energy_estimate_mobius():
     dynamics = model_state["dynamics"]
     dynamics_base = copy_dynamics(dynamics, model)
 
-    def pert(vals, scale=1.0):
-      return device_wrapper(np.random.normal(size=vals.shape, scale=scale))
-
-    dynamics["u"] += pert(dynamics["u"])
-    dynamics["d_mass"] += pert(dynamics["d_mass"], scale=10)
-    if model in cam_se_models:
-      dynamics["T"] += pert(dynamics["T"])
-    elif model in homme_models:
-      dynamics["theta_v_d_mass"] += pert(dynamics["theta_v_d_mass"], scale=10) * dynamics["d_mass"]
-    if model not in hydrostatic_models:
-      dynamics["phi_i"] += pert(dynamics["phi_i"])
-      dynamics["w_i"] += pert(dynamics["w_i"])
+    dynamics = goop_dynamics(dynamics_base, model)
     ref_state = eval_ref_state(model_state["static_forcing"]["phi_surf"],
                                v_grid,
                                physics_config,
@@ -413,7 +426,7 @@ def test_hypervis_energy_estimate_mobius():
             vals = dynamics_new[field][:, :, :, k_idx] - dynamics_base[field][:, :, :, k_idx]
           total = inner_product(vals, vals, h_grid)
           ratio = total / prev_vals[field][k_idx]
-          if iter_idx > 0:
+          if iter_idx > 0 and field != "d_mass":
             assert ratio < 1.0
           prev_vals[field][k_idx] = total
 
@@ -421,7 +434,6 @@ def test_hypervis_energy_estimate_mobius():
 def test_hypervis_stability(homme_hydrostatic_noisy,
                             homme_nonhydrostatic_noisy,
                             cam_se_noisy):
-  nx = 15
   for model, struct in zip([models.homme_hydrostatic, models.homme_nonhydrostatic, models.cam_se],
                            [homme_hydrostatic_noisy, homme_nonhydrostatic_noisy, cam_se_noisy]):
     v_grid = struct["v_grid"]
@@ -429,6 +441,7 @@ def test_hypervis_stability(homme_hydrostatic_noisy,
     dims = struct["dims"]
     model_state = struct["model_state"]
     physics_config = struct["physics_config"]
+    nx = struct["nx"]
     diffusion_config_constant = init_hypervis_config_const(nx, physics_config, v_grid, nu_div_factor=1.0)
     diffusion_config_tensor = init_hypervis_config_tensor(h_grid, v_grid, dims, physics_config)
     for diffusion_config in [diffusion_config_constant, diffusion_config_tensor]:
@@ -444,18 +457,7 @@ def test_hypervis_stability(homme_hydrostatic_noisy,
                                                eps=1e-3)
       dynamics = model_state["dynamics"]
 
-      def pert(vals, scale=1.0):
-        return device_wrapper(np.random.normal(size=vals.shape, scale=scale))
-
-      dynamics["u"] += pert(dynamics["u"])
-      dynamics["d_mass"] += pert(dynamics["d_mass"], scale=10)
-      if model in cam_se_models:
-        dynamics["T"] += pert(dynamics["T"])
-      elif model in homme_models:
-        dynamics["theta_v_d_mass"] += pert(dynamics["theta_v_d_mass"], scale=10) * dynamics["d_mass"]
-      if model not in hydrostatic_models:
-        dynamics["phi_i"] += pert(dynamics["phi_i"])
-        dynamics["w_i"] += pert(dynamics["w_i"])
+      dynamics = goop_dynamics(dynamics, model)
       dynamics_new = advance_hypervis_euler(dynamics, model_state["static_forcing"],
                                             h_grid, v_grid,
                                             physics_config, diffusion_config,

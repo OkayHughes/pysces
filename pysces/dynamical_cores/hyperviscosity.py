@@ -385,6 +385,7 @@ def eval_hypervis_terms(dynamics,
       when a key error
   """
   ref_state = eval_ref_state(static_forcing["phi_surf"], v_grid, physics_config, diffusion_config, model)
+  d_mass_pert = dynamics["d_mass"] - ref_state["d_mass"]
   if model not in hydrostatic_models:
     phi_i_pert = dynamics["phi_i"] - ref_state["phi_i"]
     w_i = dynamics["w_i"]
@@ -399,7 +400,7 @@ def eval_hypervis_terms(dynamics,
 
   hypervis_state = wrap_dynamics(dynamics["u"],
                                  thermo_var,
-                                 dynamics["d_mass"],
+                                 d_mass_pert,
                                  model,
                                  phi_i=phi_i_pert,
                                  w_i=w_i)
