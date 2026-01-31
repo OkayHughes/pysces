@@ -1,4 +1,4 @@
-from .config import jnp, device_wrapper, np
+from .config import jnp, device_wrapper, np, DEBUG
 from .dynamical_cores.homme.homme_state import init_model_struct as init_model_struct_homme
 from .dynamical_cores.cam_se.se_state import init_model_struct as init_model_struct_se
 from .dynamical_cores.homme.thermodynamics import eval_balanced_geopotential
@@ -87,6 +87,8 @@ def z_from_p_monotonic_dry(pressures,
   KeyError
       when a key error
   """
+  if DEBUG:
+    print(f"Calculating z levels for {pressures.size} dry mass values. This may take a while.")
   p_top = eval_top_interface_mass(v_grid)
   z_top = z_from_p_monotonic_moist(p_top * jnp.ones_like(pressures), p_moist_given_z, eps)
 
@@ -105,7 +107,6 @@ def z_from_p_monotonic_dry(pressures,
                                     z_guesses - frac * z_top,
                                     z_guesses + frac * z_top), z_guesses)
     not_converged = jnp.logical_not(jnp.abs((p_dry_given_z(z_guesses) - pressures)) / pressures < eps)
-    print(ct)
     frac *= 0.5
     if ct > 30:
       break
@@ -139,7 +140,6 @@ def z_from_p_monotonic_moist(pressures,
   KeyError
       when a key error
   """
-
   z_guesses = 0.0 * p_given_z(z_top * jnp.ones_like(pressures))
   not_converged = jnp.logical_not(jnp.abs((p_given_z(z_guesses) - pressures)) / pressures < eps)
   frac = 1.0
