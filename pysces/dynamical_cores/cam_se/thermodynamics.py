@@ -11,7 +11,7 @@ def eval_sum_species(moisture_species_per_dry_mass):
 def eval_cp_moist(moisture_species_per_dry_mass,
                   cp_dry,
                   physics_config):
-  sum_cp = cp_dry
+  sum_cp = 1.0 * cp_dry
   for species_name in moisture_species_per_dry_mass.keys():
     sum_cp += physics_config["moisture_species_cp"][species_name] * moisture_species_per_dry_mass[species_name]
   return sum_cp
@@ -50,7 +50,7 @@ def eval_virtual_temperature(temperature,
                              sum_species,
                              R_dry,
                              physics_config):
-  Rgas_total = jnp.copy(R_dry)
+  Rgas_total = 1.0 * R_dry
   for species_name in moisture_species_per_dry_mass.keys():
       Rgas_total += moisture_species_per_dry_mass[species_name] * physics_config["moisture_species_Rgas"][species_name]
   virtual_temperature = temperature * Rgas_total / (R_dry * sum_species)
