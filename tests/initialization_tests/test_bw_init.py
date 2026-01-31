@@ -47,11 +47,11 @@ def test_moist_shallow():
   face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
   vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
   grid, dims = init_grid_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, npt)
-  config_moist = init_baroclinic_wave_state(pertu0=0.0,
-                                            pertup=0.0)
-  config_pseudo_moist = init_baroclinic_wave_state(pertu0=0.0,
-                                                   pertup=0.0,
-                                                   moistq0=0.0)
+  config_moist = init_baroclinic_wave_config(pertu0=0.0,
+                                             pertup=0.0)
+  config_pseudo_moist = init_baroclinic_wave_config(pertu0=0.0,
+                                                    pertup=0.0,
+                                                    moistq0=0.0)
   lat = grid["physical_coords"][:, :, :, 0]
   lon = grid["physical_coords"][:, :, :, 1]
   for z in jnp.linspace(0, 40e3, 10):
@@ -79,11 +79,11 @@ def test_deep():
   lon = grid["physical_coords"][:, :, :, 1]
   eps = device_wrapper(1e-3)
   for alpha in [0.4, 0.5, 0.8]:
-    config_deep = init_baroclinic_wave_state(pertu0=0.0,
-                                             pertup=0.0,
-                                             radius_earth=6371e3 / 20.0,
-                                             period_earth=7.292e-5 * 20.0,
-                                             alpha=alpha)
+    config_deep = init_baroclinic_wave_config(pertu0=0.0,
+                                              pertup=0.0,
+                                              radius_earth=6371e3 / 20.0,
+                                              period_earth=7.292e-5 * 20.0,
+                                              alpha=alpha)
     for z in jnp.linspace(0, 40e3, 10):
       z_above = device_wrapper((z + eps) * jnp.ones((*lat.shape, 1)))
       pressure_above, _ = eval_pressure_temperature(z_above, lat, config_deep, deep=True)
