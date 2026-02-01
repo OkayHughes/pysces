@@ -1,5 +1,5 @@
 from ..config import jit, jnp, DEBUG
-from .model_state import project_dynamics, sum_dynamics_series
+from .model_state import project_dynamics, sum_dynamics_series, sum_consistency_struct
 from .homme.explicit_terms import eval_explicit_tendency as eval_explicit_tendency_homme
 from .cam_se.explicit_terms import eval_explicit_tendency as eval_explicit_tendency_se
 from .homme.explicit_terms import correct_state
@@ -23,23 +23,23 @@ def dynamics_tendency(dynamics,
                       moisture_species=None,
                       dry_air_species=None):
   if model in cam_se_models:
-    dynamics_tend = eval_explicit_tendency_se(dynamics,
-                                              static_forcing,
-                                              moisture_species,
-                                              dry_air_species,
-                                              h_grid,
-                                              v_grid,
-                                              physics_config,
-                                              model)
+    dynamics_tend, tracer_consist = eval_explicit_tendency_se(dynamics,
+                                                              static_forcing,
+                                                              moisture_species,
+                                                              dry_air_species,
+                                                              h_grid,
+                                                              v_grid,
+                                                              physics_config,
+                                                              model)
   elif model in homme_models:
-    dynamics_tend = eval_explicit_tendency_homme(dynamics,
-                                                 static_forcing,
-                                                 h_grid,
-                                                 v_grid,
-                                                 physics_config,
-                                                 model)
+    dynamics_tend, tracer_consist = eval_explicit_tendency_homme(dynamics,
+                                                                 static_forcing,
+                                                                 h_grid,
+                                                                 v_grid,
+                                                                 physics_config,
+                                                                 model)
   dynamics_tend_c0 = project_dynamics(dynamics_tend, h_grid, dims, model)
-  return dynamics_tend_c0
+  return dynamics_tend_c0, tracer_consist
 
 
 @partial(jit, static_argnames=["model"])
@@ -54,15 +54,6 @@ def enforce_conservation(dynamics,
     dynamics_conserve = correct_state(dynamics, static_forcing, dt, physics_config, model)
   dynamics_conserve = dynamics
   return dynamics_conserve
-
-
-#
-# def accumulate_avg_explicit_terms(averaging_weight, state_c0, tracer_struct):
-#   return wrap_tracer_avg_struct(tracer_struct["avg_u"] + averaging_weight *
-#                                 state_c0["u"] *
-#                                 state_c0["d_mass"][:, :, :, :, jnp.newaxis],
-#                                 tracer_struct["avg_d_mass"],
-#                                 tracer_struct["avg_d_mass_dissip"])
 
 
 def eval_cfl_3d(h_grid,
@@ -151,9 +142,11 @@ def init_timestep_config(dt_coupling,
   return frozendict(tracer_advection=frozendict(step_type=tracer_tstep_type,
                                                 dt=dt_tracer),
                     dynamics=frozendict(step_type=dynamics_tstep_type,
-                                        dt=dt_dynamics),
+                                        dt=dt_dynamics,
+                                        tracer_consistency_frac=1.0 / tracer_subcycle),
                     hyperviscosity=frozendict(step_type=hypervis_tstep_type,
-                                              dt=dt_hypervis),
+                                              dt=dt_hypervis,
+                                              tracer_consistency_frac=1.0 / (tracer_subcycle * dynamics_subcycle)),
                     sponge=frozendict(step_type=sponge_tstep_type,
                                       dt=dt_sponge),
                     physics_dt=dt_coupling,
@@ -198,15 +191,15 @@ def advance_dynamics_euler(dynamics_in,
       when a key error
   """
   dt = timestep_config["dynamics"]["dt"]
-  dynamics_tend_cont = dynamics_tendency(dynamics_in,
-                                         static_forcing,
-                                         h_grid,
-                                         v_grid,
-                                         physics_config,
-                                         dims,
-                                         model,
-                                         moisture_species=moisture_species,
-                                         dry_air_species=dry_air_species)
+  dynamics_tend_cont, tracer_consist = dynamics_tendency(dynamics_in,
+                                                         static_forcing,
+                                                         h_grid,
+                                                         v_grid,
+                                                         physics_config,
+                                                         dims,
+                                                         model,
+                                                         moisture_species=moisture_species,
+                                                         dry_air_species=dry_air_species)
   dynamics_out_discont = sum_dynamics_series([dynamics_in, dynamics_tend_cont],
                                              [1.0, dt],
                                              model)
@@ -215,7 +208,11 @@ def advance_dynamics_euler(dynamics_in,
                                            dt,
                                            physics_config,
                                            model)
-  return dynamics_out_cont
+  tracer_consist = sum_consistency_struct(tracer_consist,
+                                          tracer_consist,
+                                          0.0,
+                                          1.0 / timestep_config["dynamics_subcycle"])
+  return dynamics_out_cont, tracer_consist
 
 
 @partial(jit, static_argnames=["dims", "model", "timestep_config"])
@@ -251,18 +248,29 @@ def advance_hypervis_euler(dynamics,
       when a key error
   """
   state_out = dynamics
-  for _ in range(timestep_config["hypervis_subcycle"]):
-    hypervis_rhs = eval_hypervis_terms(state_out,
-                                       static_forcing,
-                                       h_grid,
-                                       v_grid,
-                                       dims,
-                                       physics_config,
-                                       diffusion_config,
-                                       model)
+  tracer_consist_frac = 1.0 / (timestep_config["dynamics_subcycle"] * timestep_config["hypervis_subcycle"])
+  for subcycle_idx in range(timestep_config["hypervis_subcycle"]):
+    hypervis_rhs, tracer_consist = eval_hypervis_terms(state_out,
+                                                       static_forcing,
+                                                       h_grid,
+                                                       v_grid,
+                                                       dims,
+                                                       physics_config,
+                                                       diffusion_config,
+                                                       model)
+    if subcycle_idx > 0:
+      tracer_consist_total = sum_consistency_struct(tracer_consist_total,
+                                                    tracer_consist,
+                                                    1.0,
+                                                    tracer_consist_frac)
+    else:
+      tracer_consist_total = sum_consistency_struct(tracer_consist,
+                                                    tracer_consist,
+                                                    tracer_consist_frac,
+                                                    0.0)
     state_out = sum_dynamics_series([state_out, hypervis_rhs], [1.0, timestep_config["hyperviscosity"]["dt"]], model)
   # Todo: figure out lower boundary correction.
-  return state_out
+  return state_out, tracer_consist_total
 
 
 @partial(jit, static_argnames=["dims", "model", "timestep_config"])
@@ -341,15 +349,16 @@ def advance_dynamics_ullrich_5stage(dynamics_in,
       when a key error
   """
   dt = timestep_config["dynamics"]["dt"]
-  dynamics_tend = dynamics_tendency(dynamics_in,
-                                    static_forcing,
-                                    h_grid,
-                                    v_grid,
-                                    physics_config,
-                                    dims,
-                                    model,
-                                    moisture_species=moisture_species,
-                                    dry_air_species=dry_air_species)
+  tracer_consist_frac = 1.0 / timestep_config["dynamics_subcycle"]
+  dynamics_tend, tracer_consist_0 = dynamics_tendency(dynamics_in,
+                                                      static_forcing,
+                                                      h_grid,
+                                                      v_grid,
+                                                      physics_config,
+                                                      dims,
+                                                      model,
+                                                      moisture_species=moisture_species,
+                                                      dry_air_species=dry_air_species)
   dynamics_keep = sum_dynamics_series([dynamics_in, dynamics_tend], [1.0, dt / 5.0], model)
   dynamics_keep = enforce_conservation(dynamics_keep,
                                        static_forcing,
@@ -357,15 +366,15 @@ def advance_dynamics_ullrich_5stage(dynamics_in,
                                        physics_config,
                                        model)
 
-  dynamics_tend = dynamics_tendency(dynamics_keep,
-                                    static_forcing,
-                                    h_grid,
-                                    v_grid,
-                                    physics_config,
-                                    dims,
-                                    model,
-                                    moisture_species=moisture_species,
-                                    dry_air_species=dry_air_species)
+  dynamics_tend, _ = dynamics_tendency(dynamics_keep,
+                                       static_forcing,
+                                       h_grid,
+                                       v_grid,
+                                       physics_config,
+                                       dims,
+                                       model,
+                                       moisture_species=moisture_species,
+                                       dry_air_species=dry_air_species)
   dynamics_tmp = sum_dynamics_series([dynamics_in, dynamics_tend],
                                      [1.0, dt / 5.0],
                                      model)
@@ -375,15 +384,15 @@ def advance_dynamics_ullrich_5stage(dynamics_in,
                                       physics_config,
                                       model)
 
-  dynamics_tend = dynamics_tendency(dynamics_tmp,
-                                    static_forcing,
-                                    h_grid,
-                                    v_grid,
-                                    physics_config,
-                                    dims,
-                                    model,
-                                    moisture_species=moisture_species,
-                                    dry_air_species=dry_air_species)
+  dynamics_tend, _ = dynamics_tendency(dynamics_tmp,
+                                       static_forcing,
+                                       h_grid,
+                                       v_grid,
+                                       physics_config,
+                                       dims,
+                                       model,
+                                       moisture_species=moisture_species,
+                                       dry_air_species=dry_air_species)
   dynamics_tmp = sum_dynamics_series([dynamics_in, dynamics_tend],
                                      [1.0, dt / 3.0],
                                      model)
@@ -393,15 +402,15 @@ def advance_dynamics_ullrich_5stage(dynamics_in,
                                       physics_config,
                                       model)
 
-  dynamics_tend = dynamics_tendency(dynamics_tmp,
-                                    static_forcing,
-                                    h_grid,
-                                    v_grid,
-                                    physics_config,
-                                    dims,
-                                    model,
-                                    moisture_species=moisture_species,
-                                    dry_air_species=dry_air_species)
+  dynamics_tend, _ = dynamics_tendency(dynamics_tmp,
+                                       static_forcing,
+                                       h_grid,
+                                       v_grid,
+                                       physics_config,
+                                       dims,
+                                       model,
+                                       moisture_species=moisture_species,
+                                       dry_air_species=dry_air_species)
   dynamics_tmp = sum_dynamics_series([dynamics_in, dynamics_tend],
                                      [1.0, 2.0 * dt / 3.0],
                                      model)
@@ -411,15 +420,15 @@ def advance_dynamics_ullrich_5stage(dynamics_in,
                                       physics_config,
                                       model)
 
-  dynamics_tend = dynamics_tendency(dynamics_tmp,
-                                    static_forcing,
-                                    h_grid,
-                                    v_grid,
-                                    physics_config,
-                                    dims,
-                                    model,
-                                    moisture_species=moisture_species,
-                                    dry_air_species=dry_air_species)
+  dynamics_tend, tracer_consist_1 = dynamics_tendency(dynamics_tmp,
+                                                      static_forcing,
+                                                      h_grid,
+                                                      v_grid,
+                                                      physics_config,
+                                                      dims,
+                                                      model,
+                                                      moisture_species=moisture_species,
+                                                      dry_air_species=dry_air_species)
   final_state = sum_dynamics_series([dynamics_in,
                                      dynamics_keep,
                                      dynamics_tend],
@@ -432,4 +441,8 @@ def advance_dynamics_ullrich_5stage(dynamics_in,
                                      2.0 * dt / 3.0,
                                      physics_config,
                                      model)
-  return final_state
+  tracer_consist_total = sum_consistency_struct(tracer_consist_0,
+                                                tracer_consist_1,
+                                                1.0 / 4.0 * tracer_consist_frac,
+                                                3.0 / 4.0 * tracer_consist_frac)
+  return final_state, tracer_consist_total

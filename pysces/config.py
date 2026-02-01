@@ -33,9 +33,9 @@ def parse_config_file():
     assert os.path.isfile(config_filename)
   except AssertionError:
     write_config()
-    raise IOError(("Config file is not written, writing serial numpy config file\n"
-                   "Run program again if this is acceptable, or run pysces.set_config\n"
-                   "with the appropriate computing environment configuration"))
+    print ("Config file is not written, writing serial numpy config file\n"
+           "Run program again if this is acceptable, or run pysces.set_config\n"
+           "with the appropriate computing environment configuration")
   with open(config_filename, "r") as f:
     config_vars = loads(f.read())
   return config_vars

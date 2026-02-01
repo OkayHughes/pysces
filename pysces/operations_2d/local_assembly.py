@@ -115,6 +115,34 @@ def segment_sum(data,
   return s
 
 
+def segment_max(data,
+                segment_ids,
+                N):
+  """
+  A function that provides a numpy equivalent of the `segment_sum` function
+  from Jax and TensorFlow.
+
+  Parameters
+  ----------
+  data : Array[tuple[point_idx], Float]
+      The floating point values to sum over
+  segment_ids : Array[tuple[point_idx], Int]
+      The indices in the result array into which to sum data.
+      That is, `result[segment_idx[p]] += data[p]
+  N: int
+      The number of bins in which to sum
+
+  Returns
+  -------
+  s: Array[tuple[N], Float]
+      arrays into which segments have been summed.
+  """
+  data = np.asarray(data)
+  s = np.copy(data)
+  np.max.at(s, segment_ids, data)
+  return s
+
+
 @partial(jit, static_argnames=["dims"])
 def project_scalar_wrapper(f,
                            grid,
@@ -159,6 +187,48 @@ def project_scalar_wrapper(f,
     scaled_f += segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
   return scaled_f * grid["mass_matrix_denominator"]
 
+
+@partial(jit, static_argnames=["dims"])
+def max_scalar(f,
+               grid,
+               dims):
+  """
+  """
+  (_, rows, cols) = grid["assembly_triple"]
+
+  relevant_data = (f).flatten().take(cols)
+  if use_wrapper and wrapper_type == "jax":
+    scaled_f = scaled_f.flatten().at[rows].max(relevant_data)
+    scaled_f = scaled_f.reshape(dims["shape"])
+  elif use_wrapper and wrapper_type == "torch":
+    pass
+    # scaled_f = scaled_f.flatten()
+    # scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
+    # scaled_f = scaled_f.reshape(dims["shape"])
+  else:
+    scaled_f = segment_max(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  return scaled_f 
+
+@partial(jit, static_argnames=["dims"])
+def min_scalar(f,
+               grid,
+               dims):
+  """
+  """
+  (_, rows, cols) = grid["assembly_triple"]
+
+  relevant_data = (-f).flatten().take(cols)
+  if use_wrapper and wrapper_type == "jax":
+    scaled_f = scaled_f.flatten().at[rows].max(relevant_data)
+    scaled_f = scaled_f.reshape(dims["shape"])
+  elif use_wrapper and wrapper_type == "torch":
+    pass
+    # scaled_f = scaled_f.flatten()
+    # scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
+    # scaled_f = scaled_f.reshape(dims["shape"])
+  else:
+    scaled_f = segment_max(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  return -scaled_f 
 
 project_scalar = project_scalar_wrapper
 

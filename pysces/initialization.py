@@ -19,7 +19,6 @@ from .analytic_initialization.moist_baroclinic_wave import (eval_surface_state,
                                                             eval_pressure_temperature,
                                                             perturbation_opts)
 
-
 gauss_points = (jnp.array([-0.97390652851717,
                            -0.865063366689,
                            -0.67940956829902,

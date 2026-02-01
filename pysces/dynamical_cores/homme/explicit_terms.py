@@ -7,7 +7,7 @@ from ..utils_3d import (midlevel_to_interface_vel,
 from ..utils_3d import phi_to_z, z_to_g, phi_to_g, physical_dot_product
 from .thermodynamics import eval_mu, eval_balanced_geopotential, eval_midlevel_pressure
 from ..operators_3d import horizontal_gradient_3d, horizontal_vorticity_3d, horizontal_divergence_3d
-from ..model_state import wrap_dynamics
+from ..model_state import wrap_dynamics, wrap_consistency_struct_dynamics
 from ..model_state import project_scalar_3d
 from functools import partial
 from ...model_info import hydrostatic_models, deep_atmosphere_models
@@ -613,6 +613,12 @@ def eval_d_mass_divergence_term(common_variables):
   return -common_variables["div_d_mass"]
 
 
+@jit
+def eval_tracer_velocity_term(common_variables):
+  return (common_variables["d_mass"][:, :, :, :, jnp.newaxis] *
+          common_variables["u"] / common_variables["r_hat_m"])
+
+
 @partial(jit, static_argnames=["model"])
 def eval_explicit_tendency(dynamics,
                            static_forcing,
@@ -674,12 +680,14 @@ def eval_explicit_tendency(dynamics,
 
   theta_v_d_mass_tend = eval_theta_v_divergence_term(common_variables, h_grid, config)
   d_mass_tend = eval_d_mass_divergence_term(common_variables)
-  return wrap_dynamics(u_tend,
-                       theta_v_d_mass_tend,
-                       d_mass_tend,
-                       model,
-                       phi_i=phi_tend,
-                       w_i=w_tend)
+  dynamics = wrap_dynamics(u_tend,
+                           theta_v_d_mass_tend,
+                           d_mass_tend,
+                           model,
+                           phi_i=phi_tend,
+                           w_i=w_tend)
+  tracer_consistency = wrap_consistency_struct_dynamics(eval_tracer_velocity_term(common_variables))
+  return dynamics, tracer_consistency
 
 
 @partial(jit, static_argnames=["dims", "model"])

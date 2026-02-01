@@ -93,9 +93,7 @@ def advance_tracers(tracer_states,
 
 
 @jit
-def wrap_tracer_avg(avg_u,
-                    avg_d_mass,
-                    avg_d_mass_dissip):
+def wrap_tracer_consist_dynamics(u_d_mass_tendency):
   """
   [Description]
 
@@ -118,9 +116,48 @@ def wrap_tracer_avg(avg_u,
   KeyError
       when a key error
   """
-  return {"avg_v": avg_u,
-          "avg_d_mass": avg_d_mass,
-          "avg_d_mass_dissip": avg_d_mass_dissip}
+  return {"u_d_mass_tendency": u_d_mass_tendency}
+
+
+@jit
+def wrap_tracer_consist_begin(d_mass):
+  return {"begin_tracer_d_mass": d_mass}
+
+@jit
+def wrap_tracer_consist_hypervis(d_mass_val,
+                                     d_mass_tend):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  return {"d_mass_tendency": d_mass_tend,
+          "d_mass_val": d_mass_val}
+
+
+@jit
+def sum_consistency_struct(struct_1, struct_2, coeff_1, coeff_2):
+  res = {}
+  for field in struct_1.keys():
+    res[field] = struct_1[field] * coeff_1 + struct_2[field] * coeff_2
+  return res
 
 
 @partial(jit, static_argnames=["model"])
@@ -219,7 +256,7 @@ def copy_model_state(state,
 
 
 @partial(jit, static_argnames=["model"])
-def wrap_tracers(moisture_species,
+def _wrap_tracer_like(moisture_species,
                  tracers,
                  model,
                  dry_air_species=None):
@@ -232,6 +269,34 @@ def wrap_tracers(moisture_species,
   else:
     tracer_struct["dry_mixing_ratio"] = 1.0
   return tracer_struct
+
+
+@partial(jit, static_argnames=["model"])
+def wrap_tracers(moisture_species,
+                 tracers,
+                 model,
+                 dry_air_species=None):
+  tracer_struct = _wrap_tracer_like(moisture_species,
+                                    tracers,
+                                    model,
+                                    dry_air_species=dry_air_species)
+  if model in moist_mixing_ratio_models:
+    tracer_struct["moist_mixing_ratio"] = 1.0
+  else:
+    tracer_struct["dry_mixing_ratio"] = 1.0
+  return tracer_struct
+
+@partial(jit, static_argnames=["model"])
+def wrap_tracer_mass(moisture_species_mass,
+                     tracers_mass,
+                     model,
+                     dry_air_species_mass=None):
+  tracer_mass = _wrap_tracer_like(moisture_species_mass,
+                                    tracers_mass,
+                                    model,
+                                    dry_air_species=dry_air_species_mass)
+  tracer_mass["mass_quantity"] = 1.0
+  return tracer_mass
 
 
 @jit
