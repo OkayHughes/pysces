@@ -60,6 +60,7 @@ def nx15_np4_dry_homme_nonhydro():
   npt = 4
   return quasi_uniform_test_states(nx, npt, models.homme_nonhydrostatic)
 
+
 @fixture
 def nx7_np4_dry_se():
   nx = 7

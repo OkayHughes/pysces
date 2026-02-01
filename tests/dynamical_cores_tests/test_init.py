@@ -159,17 +159,11 @@ def test_init_moist():
                                              moist=True,
                                              eps=1e-8)
     z_surf, ps = eval_surface_state(lat, lon, test_config, mountain=mountain)
-    phi_surf = model_config["gravity"] * z_surf
-    grad_phi_surf = horizontal_gradient(phi_surf,
-                                        h_grid, a=model_config["radius_earth"])
-    grad_phi_surf_cont = jnp.stack((project_scalar(grad_phi_surf[:, :, :, 0], h_grid, dims),
-                                    project_scalar(grad_phi_surf[:, :, :, 1], h_grid, dims)), axis=-1)
-    p_int = surface_mass_to_interface_mass(ps, v_grid)
     # test dry pressure levels ()
     # test correct dry surface mass
     # test correct d mass values
     # test correct tracer_mass value using a moist coordinate
     pressure_moisture = model_state["tracers"]["moisture_species"]["water_vapor"] * model_state["dynamics"]["d_mass"]
-    p_top = v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0] 
+    p_top = v_grid["reference_surface_mass"] * v_grid["hybrid_a_i"][0]
     moist_surface_pressure = jnp.sum(model_state["dynamics"]["d_mass"] + pressure_moisture, axis=-1) + p_top
     assert jnp.max(jnp.abs(ps - moist_surface_pressure)) < 1e-3

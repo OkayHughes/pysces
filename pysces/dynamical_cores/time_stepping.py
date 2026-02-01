@@ -260,10 +260,6 @@ def advance_hypervis_euler(dynamics,
                                        physics_config,
                                        diffusion_config,
                                        model)
-    print(f"u hypervis max {jnp.max(jnp.abs(hypervis_rhs['u']))}")
-    print(f"u max {jnp.max(jnp.abs(state_out['u']))}")
-    print(f"vtheta hypervis max {jnp.max(jnp.abs(hypervis_rhs['theta_v_d_mass']))}")
-    print(f"d_mass hypervis max {jnp.max(jnp.abs(hypervis_rhs['d_mass']))}")
     state_out = sum_dynamics_series([state_out, hypervis_rhs], [1.0, timestep_config["hyperviscosity"]["dt"]], model)
   # Todo: figure out lower boundary correction.
   return state_out

@@ -65,7 +65,7 @@ def test_copy_state():
                         tracers_old["tracers"][species_name])
   assert set(tracers_new["dry_air_species"].keys()) == set(tracers_old["dry_air_species"].keys())
   for species_name in model_state_new["tracers"]["dry_air_species"].keys():
-    assert jnp.allclose(tracers_new[species_name],
+    assert jnp.allclose(tracers_new["dry_air_species"][species_name],
                         tracers_old["dry_air_species"][species_name])
 
 

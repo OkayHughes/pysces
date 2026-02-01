@@ -1,16 +1,9 @@
-from pysces.initialization import init_baroclinic_wave_state
-from .mass_coordinate_grids import cam30
 from pysces.config import jnp
-from pysces.dynamical_cores.physics_config import init_physics_config
-from pysces.analytic_initialization.moist_baroclinic_wave import init_baroclinic_wave_config
 from pysces.time_step import time_step_options
-from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
-from pysces.dynamical_cores.mass_coordinate import init_vertical_grid
-from pysces.dynamical_cores.model_state import sum_dynamics_series, sum_dynamics, copy_dynamics
-from pysces.model_info import models, cam_se_models, homme_models, thermodynamic_variable_names
+from pysces.dynamical_cores.model_state import sum_dynamics, copy_dynamics
+from pysces.model_info import models, cam_se_models, homme_models
 from pysces.dynamical_cores.time_stepping import advance_dynamics_euler, advance_dynamics_ullrich_5stage
 from frozendict import frozendict
-from ..context import get_figdir
 
 
 def get_dummy_time_stepping_config(dynamics_tstep_type=time_step_options.RK3_5STAGE,

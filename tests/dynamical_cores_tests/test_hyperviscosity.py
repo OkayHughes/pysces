@@ -26,7 +26,6 @@ from pysces.dynamical_cores.model_state import (project_scalar_3d,
 from pysces.dynamical_cores.time_stepping import advance_hypervis_euler
 from pysces.dynamical_cores.time_stepping import init_timestep_config
 from .mass_coordinate_grids import cam30, vertical_grid_finite_diff
-from ..context import get_figdir
 from pytest import fixture
 
 
@@ -51,7 +50,7 @@ def make_grid(model):
                                            mountain=False,
                                            eps=1e-3)
   dynamics = model_state["dynamics"]
-  dynamics["u"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["u"]) 
+  dynamics["u"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["u"])
   dynamics["d_mass"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["d_mass"])
   if model in cam_se_models:
     dynamics["T"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["T"])
@@ -72,7 +71,7 @@ def goop_dynamics(dynamics, model):
   def pert(field, scale=1.0):
     return device_wrapper(np.random.normal(scale=scale, size=field.shape))
   u = dynamics["u"] + pert(dynamics["u"])
-  d_mass = dynamics["d_mass"] #+ pert(dynamics["d_mass"], scale=1.0)
+  d_mass = dynamics["d_mass"]  # + pert(dynamics["d_mass"], scale=1.0)
   if model in cam_se_models:
     thermo = dynamics["T"] + pert(dynamics["T"])
   elif model in homme_models:

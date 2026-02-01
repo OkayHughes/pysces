@@ -1,6 +1,7 @@
-from ...config import jnp, np
+from ...config import jnp, np, jit
 
 
+@jit
 def eval_sum_species(moisture_species_per_dry_mass):
   sum_species = jnp.ones_like(next(iter(moisture_species_per_dry_mass.values())))
   for species_name in moisture_species_per_dry_mass.keys():
@@ -8,6 +9,7 @@ def eval_sum_species(moisture_species_per_dry_mass):
   return sum_species
 
 
+@jit
 def eval_cp_moist(moisture_species_per_dry_mass,
                   cp_dry,
                   physics_config):
@@ -17,6 +19,7 @@ def eval_cp_moist(moisture_species_per_dry_mass,
   return sum_cp
 
 
+@jit
 def eval_d_pressure(d_mass,
                     moisture_species_per_dry_mass):
   dp_moist = 1.0 * d_mass
@@ -25,6 +28,7 @@ def eval_d_pressure(d_mass,
   return dp_moist
 
 
+@jit
 def eval_surface_pressure(d_mass,
                           moisture_species_per_dry_mass,
                           p_top):
@@ -32,6 +36,7 @@ def eval_surface_pressure(d_mass,
   return ps
 
 
+@jit
 def eval_interface_pressure(d_pressure,
                             p_top):
   p_int_lower = p_top + jnp.cumsum(d_pressure, axis=3)
@@ -40,11 +45,13 @@ def eval_interface_pressure(d_pressure,
   return p_int
 
 
+@jit
 def eval_midlevel_pressure(p_int):
   p_mid = (p_int[:, :, :, :-1] + p_int[:, :, :, 1:]) / 2.0
   return p_mid
 
 
+@jit
 def eval_virtual_temperature(temperature,
                              moisture_species_per_dry_mass,
                              sum_species,
@@ -57,6 +64,7 @@ def eval_virtual_temperature(temperature,
   return virtual_temperature
 
 
+@jit
 def eval_Rgas_dry(dry_air_species_per_dry_mass,
                   physics_config):
   Rgas_total = jnp.zeros_like(next(iter(dry_air_species_per_dry_mass.values())))
@@ -65,6 +73,7 @@ def eval_Rgas_dry(dry_air_species_per_dry_mass,
   return Rgas_total
 
 
+@jit
 def eval_cp_dry(dry_air_species_per_dry_mass,
                 physics_config):
   cp_total = jnp.zeros_like(next(iter(dry_air_species_per_dry_mass.values())))
@@ -73,6 +82,7 @@ def eval_cp_dry(dry_air_species_per_dry_mass,
   return cp_total
 
 
+@jit
 def eval_exner_function(midpoint_pressure,
                         R_dry,
                         cp_dry,
@@ -80,6 +90,7 @@ def eval_exner_function(midpoint_pressure,
   return (midpoint_pressure / physics_config["p0"])**(R_dry / cp_dry)
 
 
+@jit
 def eval_balanced_geopotential(T_v,
                                dp,
                                p_mid,

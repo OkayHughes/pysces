@@ -1,6 +1,6 @@
-from ..dynamical_cores_tests.mass_coordinate_grids import cam30
+from .mass_coordinate_grids import cam30
 from ..context import get_figdir
-from pysces.config import device_unwrapper, jnp, np, mpi_rank
+from pysces.config import device_unwrapper, jnp, np
 from pysces.analytic_initialization.moist_baroclinic_wave import init_baroclinic_wave_config, perturbation_opts
 from pysces.run_dycore import init_simulator
 from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
@@ -15,7 +15,7 @@ def test_theta_steady_state():
   for model in [models.cam_se, models.homme_hydrostatic]:
     npt = 4
     nx = 15
-    h_grid, dims = init_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
+    h_grid, dims = init_quasi_uniform_grid(nx, npt)
     h_grid = postprocess_grid(h_grid, dims)
     v_grid = init_vertical_grid(cam30["hybrid_a_i"],
                                 cam30["hybrid_b_i"],
@@ -95,7 +95,7 @@ def test_theta_steady_state():
 def test_theta_baro_wave():
   npt = 4
   nx = 15
-  h_grid, dims = init_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
+  h_grid, dims = init_quasi_uniform_grid(nx, npt)
   h_grid = postprocess_grid(h_grid, dims)
   model = models.homme_hydrostatic
   v_grid = init_vertical_grid(cam30["hybrid_a_i"],

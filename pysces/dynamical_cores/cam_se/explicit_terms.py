@@ -1,6 +1,6 @@
 from ..operators_3d import horizontal_gradient_3d, horizontal_vorticity_3d, horizontal_divergence_3d
 from ..utils_3d import physical_dot_product
-from ...config import jnp, np
+from ...config import jnp, np, jit
 from .thermodynamics import (eval_sum_species,
                              eval_midlevel_pressure,
                              eval_interface_pressure,
@@ -12,6 +12,7 @@ from .thermodynamics import eval_cp_dry
 from .thermodynamics import eval_virtual_temperature
 from ..model_state import wrap_dynamics
 from enum import Enum
+from functools import partial
 
 pressure_gradient_options = Enum('pressure_gradient_options',
                                  [("basic", 1),
@@ -19,6 +20,7 @@ pressure_gradient_options = Enum('pressure_gradient_options',
                                   ("corrected_grad_exner", 3)])
 
 
+@partial(jit, static_argnames=["model"])
 def init_common_variables(dynamics,
                           static_forcing,
                           moisture_species,
@@ -71,6 +73,7 @@ def init_common_variables(dynamics,
           "coriolis_param": coriolis_param}
 
 
+@jit
 def eval_temperature_horiz_advection_term(common_variables,
                                           h_grid,
                                           physics_config):
@@ -79,6 +82,7 @@ def eval_temperature_horiz_advection_term(common_variables,
   return -u_dot_grad_temperature
 
 
+@jit
 def eval_temperature_vertical_advection_term(common_variables,
                                              h_grid,
                                              physics_config):
@@ -92,6 +96,7 @@ def eval_temperature_vertical_advection_term(common_variables,
   return common_variables["density_inv"] * vertical_pressure_velocity / cp
 
 
+@jit
 def eval_d_mass_divergence_term(common_variables,
                                 h_grid,
                                 physics_config):
@@ -100,6 +105,7 @@ def eval_d_mass_divergence_term(common_variables,
   return -div_d_mass_u
 
 
+@jit
 def eval_energy_gradient_term(common_variables,
                               h_grid,
                               physics_config):
@@ -109,6 +115,7 @@ def eval_energy_gradient_term(common_variables,
   return -horizontal_gradient_3d(kinetic_energy[:, :, :] + phi, h_grid, physics_config)
 
 
+@jit
 def eval_vorticity_term(common_variables,
                         h_grid,
                         physics_config):
@@ -119,6 +126,7 @@ def eval_vorticity_term(common_variables,
                     -u[:, :, :, :, 0] * (coriolis_parameter[:, :, :, np.newaxis] + vorticity)), axis=-1)
 
 
+@partial(jit, static_argnames=["pgf_formulation"])
 def eval_pressure_gradient_force_term(common_variables,
                                       h_grid,
                                       v_grid,
@@ -162,6 +170,7 @@ def eval_pressure_gradient_force_term(common_variables,
   return pgf_term
 
 
+@partial(jit, static_argnames=["model", "pgf_formulation"])
 def eval_explicit_tendency(dynamics,
                            static_forcing,
                            moist_species,
@@ -171,7 +180,6 @@ def eval_explicit_tendency(dynamics,
                            physics_config,
                            model,
                            pgf_formulation=pressure_gradient_options.corrected_grad_exner):
-
   common_variables = init_common_variables(dynamics,
                                            static_forcing,
                                            moist_species,

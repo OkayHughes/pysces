@@ -113,8 +113,8 @@ def test_galewsky():
   final_state = simulate_shallow_water(T, init_state, grid,
                                        physics_config, diffusion_config, timestep_config,
                                        dims, diffusion=True)
-  mass_init = inner_product(h_init, h_init, grid)
-  mass_final = inner_product(final_state["h"], final_state["h"], grid)
+  # mass_init = inner_product(h_init, h_init, grid)
+  # mass_final = inner_product(final_state["h"], final_state["h"], grid)
 
   # assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
   # assert (not jnp.any(jnp.isnan(final_state["u"])))

@@ -10,6 +10,7 @@ from .dynamical_cores.model_state import (sum_dynamics_series,
                                           check_dynamics_nan,
                                           check_tracers_nan)
 from .dynamical_cores.physics_dynamics_coupling import coupling_types
+from .model_info import cam_se_models
 
 
 def advance_coupling_step(state_in,
@@ -59,6 +60,12 @@ def advance_coupling_step(state_in,
                                      model)
 
     for n_split in range(timestep_config["dynamics_subcycle"]):
+      if model in cam_se_models:
+        moisture_species = tracer_state["moisture_species"]
+        dry_air_species = tracer_state["dry_air_species"]
+      else:
+        moisture_species = None
+        dry_air_species = None
       if timestep_config["dynamics"]["step_type"] == time_step_options.Euler:
         dynamics_next = advance_dynamics_euler(dynamics_state,
                                                static_forcing,
@@ -67,7 +74,9 @@ def advance_coupling_step(state_in,
                                                physics_config,
                                                timestep_config,
                                                dims,
-                                               model)
+                                               model,
+                                               moisture_species=moisture_species,
+                                               dry_air_species=dry_air_species)
       elif timestep_config["dynamics"]["step_type"] == time_step_options.RK3_5STAGE:
         dynamics_next = advance_dynamics_ullrich_5stage(dynamics_state,
                                                         static_forcing,
@@ -76,8 +85,9 @@ def advance_coupling_step(state_in,
                                                         physics_config,
                                                         timestep_config,
                                                         dims,
-                                                        model)
-
+                                                        model,
+                                                        moisture_species=moisture_species,
+                                                        dry_air_species=dry_air_species)
       else:
         raise ValueError("Unknown dynamics timestep type")
       if "disable_diffusion" not in diffusion_config.keys():
