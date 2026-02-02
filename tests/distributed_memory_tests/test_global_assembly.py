@@ -9,7 +9,7 @@ from pysces.distributed_memory.global_communication import (_exchange_buffers_st
 from pysces.distributed_memory.global_assembly import (extract_fields, accumulate_fields, _project_scalar_stub,
                                                        project_scalar_global)
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
-from pysces.horizontal_grid import init_spectral_element_grid, make_grid_mpi_ready
+from pysces.horizontal_grid import make_grid_mpi_ready
 from pysces.mesh_generation.periodic_plane import init_uniform_grid
 from pysces.distributed_memory.processor_decomposition import init_decomp, elem_idx_global_to_proc_idx, global_to_local
 from pysces.config import device_unwrapper, np, use_wrapper, device_wrapper, mpi_size, mpi_rank
@@ -121,6 +121,7 @@ def test_unordered_assembly_triple_stub():
           dims.append(dim)
           total_elems += dim["num_elem"]
         assert (dim_total["num_elem"] == total_elems)
+
         def zeros_f():
           fs = []
           for grid in grids:
@@ -270,7 +271,10 @@ def test_extract_fields_triples():
                 pairs[pair_key] = pair_set.copy()
             for proc_idx in range(nproc):
               grid, dim = make_grid_mpi_ready(grid_total, dim_total, proc_idx, decomp=decomp)
-              grid_nodevice, dim_nodevice = make_grid_mpi_ready(grid_total_nowrapper, dim_total_nowrapper, proc_idx, decomp=decomp)
+              grid_nodevice, _ = make_grid_mpi_ready(grid_total_nowrapper,
+                                                     dim_total_nowrapper,
+                                                     proc_idx,
+                                                     decomp=decomp)
               grids.append(grid)
               grids_nodevice.append(grid_nodevice)
               dims.append(dim)

@@ -431,7 +431,7 @@ def physical_to_covariant(u,
   One typically uses `se_grid.create_spectral_element_grid` to create
   the `grid` argument.
   """
-  return jnp.einsum("fijs,fijsg->fijg", flip(u, -1), grid["contra_to_physical"]) 
+  return jnp.einsum("fijs,fijsg->fijg", flip(u, -1), grid["contra_to_physical"])
 
 
 @jit
@@ -469,8 +469,7 @@ def inner_product(f,
   the `grid` argument.
   """
   integrand = f * g * (grid["metric_determinant"] *
-                          grid["gll_weights"][np.newaxis, :, np.newaxis] *
-                          grid["gll_weights"][np.newaxis, np.newaxis, :])
+                       grid["gll_weights"][np.newaxis, :, np.newaxis] *
+                       grid["gll_weights"][np.newaxis, np.newaxis, :])
   masked_integrand = jnp.where(grid["ghost_mask"] > 0.5, integrand, 0.0)
   return jnp.sum(masked_integrand)
-

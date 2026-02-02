@@ -3,8 +3,8 @@ from pysces.mesh_generation.cubed_sphere import init_cube_topo
 from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
 from pysces.distributed_memory.processor_decomposition import init_decomp, local_to_global
-from pysces.horizontal_grid import (triage_vert_redundancy_flat, reorder_parallel_axis, init_assembly_global,
-                                    init_assembly_local, init_spectral_element_grid, make_grid_mpi_ready)
+from pysces.horizontal_grid import (triage_vert_redundancy_flat, init_assembly_global,
+                                    init_assembly_local, make_grid_mpi_ready)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np
 from ..context import test_npts
@@ -28,7 +28,7 @@ def test_vert_triage_artificial():
                      [np.array([vert_red_gll_flat[k_idx][1][0] for k_idx in range(num_red)], dtype=np.int64),
                       np.array([vert_red_gll_flat[k_idx][1][1] for k_idx in range(num_red)], dtype=np.int64),
                       np.array([vert_red_gll_flat[k_idx][1][2] for k_idx in range(num_red)], dtype=np.int64)]]
-                     
+
   for proc_idx in range(nproc):
     vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(assembly_triple, proc_idx, decomp)
     vert_locals.append(vert_red_flat_to_hierarchy(vert_red_local))
@@ -154,7 +154,6 @@ def test_vert_red_triage():
 
 def test_assembly_init():
   se_grid, dims = init_test_grid()
-  npt = dims["npt"]
   assert np.allclose(np.sum(se_grid["metric_determinant"] *
                             (se_grid["gll_weights"][np.newaxis, :, np.newaxis] *
                              se_grid["gll_weights"][np.newaxis, np.newaxis, :])), 8.0)
@@ -206,7 +205,11 @@ def test_triples_order():
         dims = []
         for proc_idx in range(nproc):
           grid, dim = make_grid_mpi_ready(grid_total, dim_total, proc_idx, decomp, wrapped=True)
-          grid_nowrapper, dim_nowrapper = make_grid_mpi_ready(grid_total_n, dim_total_n, proc_idx, decomp, wrapped=False)
+          grid_nowrapper, dim_nowrapper = make_grid_mpi_ready(grid_total_n,
+                                                              dim_total_n,
+                                                              proc_idx,
+                                                              decomp,
+                                                              wrapped=False)
           grids.append(grid)
           grids_nowrapper.append(grid_nowrapper)
           dims.append(dim)

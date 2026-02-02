@@ -29,7 +29,8 @@ def test_hypervisc_tensor_algebraic():
   visc_tensor, _ = eval_hypervis_tensor(grid["metric_inverse"], grid["contra_to_physical"], hypervis_scaling=0.0)
   shucked_tensor = jnp.einsum("fijsr,fijmr->fijsm", visc_tensor, grid["physical_to_contra"])
   shucked_tensor = jnp.einsum("fijsm,fijns->fijmn", shucked_tensor, grid["physical_to_contra"])
-  assert jnp.max(jnp.abs(get_global_array(shucked_tensor, dims) - get_global_array(grid["metric_inverse"], dims))) < 1e-8
+  assert jnp.max(jnp.abs(get_global_array(shucked_tensor, dims) -
+                         get_global_array(grid["metric_inverse"], dims))) < 1e-8
 
   shucked_tensor = jnp.einsum("fijnm,fijnc->fijmc", shucked_tensor, evecs)
   shucked_tensor = jnp.einsum("fijmc,fijmd->fijdc", shucked_tensor, evecs)

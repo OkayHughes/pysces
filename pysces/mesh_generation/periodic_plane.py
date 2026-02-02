@@ -1,6 +1,5 @@
-from ..config import np, use_wrapper, mpi_size
+from ..config import np, use_wrapper
 from ..spectral import init_spectral
-from ..distributed_memory.processor_decomposition import init_decomp
 from ..horizontal_grid import init_spectral_element_grid
 from .mesh import vert_red_hierarchy_to_flat
 
@@ -171,11 +170,6 @@ def metric_terms_to_grid(physical_coords,
 
   spectrals = init_spectral(npt)
   NELEM = physical_coords.shape[0]
-  if proc_idx is None:
-    proc_idx = 0
-    decomp = init_decomp(NELEM, 1)
-  else:
-    decomp = init_decomp(NELEM, mpi_size)
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 

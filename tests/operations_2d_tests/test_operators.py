@@ -1,6 +1,5 @@
-from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper, get_global_array
+from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
 from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
-from pysces.horizontal_grid import get_global_grid
 from pysces.operations_2d.local_assembly import project_scalar
 from pysces.operations_2d.operators import (horizontal_gradient,
                                             horizontal_divergence,
@@ -59,7 +58,8 @@ def test_vector_identites_rand_sphere():
     for nx in [30, 31]:
       grid, dims = init_quasi_uniform_grid(nx, npt)
       for _ in range(10):
-        fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape), elem_sharding_axis=0)
+        rand = np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape)
+        fn = device_wrapper(rand, elem_sharding_axis=0)
         fn = project_scalar(fn, grid, dims)
         grad = horizontal_gradient(fn, grid)
         vort = horizontal_vorticity(grad, grid)
@@ -92,7 +92,7 @@ def test_vector_identites_rand_plane():
       grad = jnp.stack((project_scalar(grad[:, :, :, 0], grid, dims),
                         project_scalar(grad[:, :, :, 1], grid, dims)), axis=-1)
       vort = project_scalar(vort, grid, dims)
-      
+
       iprod_vort = inner_product(vort, vort, grid)
       assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
       v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))

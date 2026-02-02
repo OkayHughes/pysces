@@ -5,7 +5,7 @@ from pysces.analytic_initialization.moist_baroclinic_wave import init_baroclinic
 from pysces.run_dycore import init_simulator
 from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
 from pysces.dynamical_cores.mass_coordinate import init_vertical_grid
-from pysces.horizontal_grid import smooth_tensor, make_grid_mpi_ready
+from pysces.horizontal_grid import make_grid_mpi_ready
 from pysces.model_info import models, cam_se_models, homme_models
 from pysces.dynamical_cores.model_config import init_default_config, hypervis_opts
 from pysces.initialization import init_baroclinic_wave_state

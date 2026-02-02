@@ -1,5 +1,4 @@
-from ..config import np, DEBUG, use_wrapper, mpi_size
-from ..distributed_memory.processor_decomposition import init_decomp
+from ..config import np, DEBUG, use_wrapper
 from .bilinear_utils import eval_bilinear_mapping, eval_bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral

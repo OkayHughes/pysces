@@ -58,11 +58,11 @@ def test_projection():
       face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
       vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
       raw_grid, dims = init_grid_from_topo(face_connectivity,
-                                       face_mask,
-                                       face_position_2d,
-                                       vert_redundancy,
-                                       npt,
-                                       wrapped=use_wrapper)
+                                           face_mask,
+                                           face_position_2d,
+                                           vert_redundancy,
+                                           npt,
+                                           wrapped=use_wrapper)
       grid = shard_grid(raw_grid, dims)
       grid_nowrapper, _ = init_grid_from_topo(face_connectivity,
                                               face_mask,
@@ -75,7 +75,9 @@ def test_projection():
         axis_1 = jnp.eye(field.shape[0])[f, :].squeeze()
         axis_2 = jnp.eye(field.shape[1])[i, :].squeeze()
         axis_3 = jnp.eye(field.shape[2])[j, :].squeeze()
-        return axis_1[:, jnp.newaxis, jnp.newaxis] * axis_2[jnp.newaxis, :, jnp.newaxis] * axis_3[jnp.newaxis, jnp.newaxis, :]
+        return (axis_1[:, jnp.newaxis, jnp.newaxis] *
+                axis_2[jnp.newaxis, :, jnp.newaxis] *
+                axis_3[jnp.newaxis, jnp.newaxis, :])
 
       vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vertex_redundancy"])
       for face_idx in range(grid["physical_coords"].shape[0]):
@@ -107,8 +109,10 @@ def test_projection_equiv():
                                                        vert_redundancy,
                                                        npt, wrapped=use_wrapper)
       grid_wrapped = shard_grid(grid_wrapped, dims_wrapped)
-      fn = device_wrapper(jnp.cos(grid_wrapped["physical_coords"][:, :, :, 1]) * jnp.cos(grid_wrapped["physical_coords"][:, :, :, 0]))
-      assert (np.allclose(get_global_array(project_scalar(fn, grid_wrapped, dims_wrapped), dims_wrapped), get_global_array(fn, dims_wrapped)))
+      fn = device_wrapper(jnp.cos(grid_wrapped["physical_coords"][:, :, :, 1]) *
+                          jnp.cos(grid_wrapped["physical_coords"][:, :, :, 0]))
+      assert (np.allclose(get_global_array(project_scalar(fn, grid_wrapped, dims_wrapped), dims_wrapped),
+                          get_global_array(fn, dims_wrapped)))
       ones = jnp.ones_like(grid_wrapped["metric_determinant"])
       ones_out = project_scalar(device_wrapper(ones), grid_wrapped, dims_wrapped)
       assert (np.allclose(get_global_array(ones_out, dims_wrapped), get_global_array(ones, dims_wrapped)))
@@ -122,10 +126,10 @@ def test_projection_equiv_rand():
       face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
       vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
       raw_grid, dims = init_grid_from_topo(face_connectivity,
-                                       face_mask,
-                                       face_position_2d,
-                                       vert_redundancy,
-                                       npt, wrapped=False)
+                                           face_mask,
+                                           face_position_2d,
+                                           vert_redundancy,
+                                           npt, wrapped=False)
       grid_wrapped, dims_wrapped = init_grid_from_topo(face_connectivity,
                                                        face_mask,
                                                        face_position_2d,
@@ -136,5 +140,7 @@ def test_projection_equiv_rand():
       for _ in range(20):
         fn_rand = np.random.uniform(size=grid_wrapped["physical_coords"][:, :, :, 1].shape)
         assert np.allclose(get_global_array(project_scalar_wrapper(device_wrapper(fn_rand, elem_sharding_axis=0),
-                                                                    grid_wrapped, dims_wrapped), dims_wrapped),
+                                                                   grid_wrapped,
+                                                                   dims_wrapped),
+                                            dims_wrapped),
                            project_scalar_for(fn_rand[:dims["num_elem"], :, :], raw_grid))
