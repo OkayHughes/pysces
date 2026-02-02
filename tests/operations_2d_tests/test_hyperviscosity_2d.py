@@ -1,7 +1,7 @@
 from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
 from pysces.mesh_generation.element_local_metric import (init_quasi_uniform_grid_elem_local,
                                                          init_stretched_grid_elem_local)
-from pysces.horizontal_grid import eval_hypervis_tensor, postprocess_grid
+from pysces.horizontal_grid import eval_hypervis_tensor, get_global_array, smooth_tensor
 from pysces.operations_2d.operators import horizontal_weak_laplacian
 from pysces.operations_2d.local_assembly import project_scalar
 from pysces.config import np, jnp, device_wrapper
@@ -25,18 +25,18 @@ def test_hypervisc_tensor_algebraic():
   nx = 31
   npt = 4
   grid, dims = init_quasi_uniform_grid_elem_local(nx, npt)
-  evals, evecs = np.linalg.eigh(grid["metric_inverse"])
+  evals, evecs = jnp.linalg.eigh(grid["metric_inverse"])
   visc_tensor, _ = eval_hypervis_tensor(grid["metric_inverse"], grid["contra_to_physical"], hypervis_scaling=0.0)
-  shucked_tensor = np.einsum("fijsr,fijmr->fijsm", visc_tensor, grid["physical_to_contra"])
-  shucked_tensor = np.einsum("fijsm,fijns->fijmn", shucked_tensor, grid["physical_to_contra"])
-  assert jnp.max(jnp.abs(shucked_tensor - grid["metric_inverse"])) < 1e-8
+  shucked_tensor = jnp.einsum("fijsr,fijmr->fijsm", visc_tensor, grid["physical_to_contra"])
+  shucked_tensor = jnp.einsum("fijsm,fijns->fijmn", shucked_tensor, grid["physical_to_contra"])
+  assert jnp.max(jnp.abs(get_global_array(shucked_tensor, dims) - get_global_array(grid["metric_inverse"], dims))) < 1e-8
 
-  shucked_tensor = np.einsum("fijnm,fijnc->fijmc", shucked_tensor, evecs)
-  shucked_tensor = np.einsum("fijmc,fijmd->fijdc", shucked_tensor, evecs)
+  shucked_tensor = jnp.einsum("fijnm,fijnc->fijmc", shucked_tensor, evecs)
+  shucked_tensor = jnp.einsum("fijmc,fijmd->fijdc", shucked_tensor, evecs)
   diag_evals = np.zeros_like(shucked_tensor)
   diag_evals[:, :, :, 0, 0] = evals[:, :, :, 0]
   diag_evals[:, :, :, 1, 1] = evals[:, :, :, 1]
-  assert jnp.max(jnp.abs(diag_evals - shucked_tensor)) < 1e-8
+  assert jnp.max(jnp.abs(diag_evals[:dims["num_elem"], :, :, :, :] - get_global_array(shucked_tensor, dims))) < 1e-8
 
 
 def test_hyperviscosity_sphere_harmonics_mobius():
@@ -49,7 +49,7 @@ def test_hyperviscosity_sphere_harmonics_mobius():
   grid_uniform, dims = init_quasi_uniform_grid_elem_local(nx, npt)
 
   for grid, label in zip([grid_uniform, grid_squish], ["uniform", "squish"]):
-    grid = postprocess_grid(grid, dims)
+    grid = smooth_tensor(grid, dims)
 
     # need to check nu_tensor = 3.4e-8 with tensor HV leads to identical scaling as nu_const = 1e15 on ne30 grid
     # evaluate that hv_conversion = ( (np-1)*dx_unit_sphere / 2 )^{hv_scaling} * rearth^4

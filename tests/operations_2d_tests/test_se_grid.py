@@ -3,8 +3,8 @@ from pysces.mesh_generation.cubed_sphere import init_cube_topo
 from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy, vert_red_hierarchy_to_flat
 from pysces.distributed_memory.processor_decomposition import init_decomp, local_to_global
-from pysces.horizontal_grid import (triage_vert_redundancy_flat, subset_var, init_assembly_global,
-                                    init_assembly_local, init_spectral_element_grid,)
+from pysces.horizontal_grid import (triage_vert_redundancy_flat, reorder_parallel_axis, init_assembly_global,
+                                    init_assembly_local, init_spectral_element_grid, make_grid_mpi_ready)
 from ..handmade_grids import vert_locals_ref, vert_recvs_ref, vert_sends_ref, vert_redundancy_gll, init_test_grid
 from pysces.config import np
 from ..context import test_npts
@@ -19,9 +19,18 @@ def test_vert_triage_artificial():
   vert_locals = []
   vert_sends = []
   vert_recvs = []
+  vert_red_gll_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
+  num_red = len(vert_red_gll_flat)
+  assembly_triple = [np.array([0 for _ in range(num_red)]),
+                     [np.array([vert_red_gll_flat[k_idx][0][0] for k_idx in range(num_red)], dtype=np.int64),
+                      np.array([vert_red_gll_flat[k_idx][0][1] for k_idx in range(num_red)], dtype=np.int64),
+                      np.array([vert_red_gll_flat[k_idx][0][2] for k_idx in range(num_red)], dtype=np.int64)],
+                     [np.array([vert_red_gll_flat[k_idx][1][0] for k_idx in range(num_red)], dtype=np.int64),
+                      np.array([vert_red_gll_flat[k_idx][1][1] for k_idx in range(num_red)], dtype=np.int64),
+                      np.array([vert_red_gll_flat[k_idx][1][2] for k_idx in range(num_red)], dtype=np.int64)]]
+                     
   for proc_idx in range(nproc):
-    vert_red_gll_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
-    vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(vert_red_gll_flat, proc_idx, decomp)
+    vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(assembly_triple, proc_idx, decomp)
     vert_locals.append(vert_red_flat_to_hierarchy(vert_red_local))
     vert_sends.append(vert_red_send)
     vert_recvs.append(vert_red_receive)
@@ -101,7 +110,7 @@ def test_vert_red_triage():
         vert_sends = []
         vert_recvs = []
         for proc_idx in range(nproc):
-          vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(grid["vertex_redundancy"],
+          vert_red_local, vert_red_send, vert_red_receive = triage_vert_redundancy_flat(grid["assembly_triple"],
                                                                                         proc_idx,
                                                                                         decomp)
           vert_red_local = vert_red_flat_to_hierarchy(vert_red_local)
@@ -164,18 +173,16 @@ def test_assembly_init():
   vert_red_total = flip_triple(se_grid["assembly_triple"])
   ct = len(vert_red_total)
   for proc_idx in range(nproc):
-    vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(se_grid["vertex_redundancy"],
+    vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(se_grid["assembly_triple"],
                                                                                proc_idx, decomp)
-    metdet = subset_var(se_grid["metric_determinant"], proc_idx, decomp, wrapped=False)
-    assembly_triple = init_assembly_local(metdet.shape[0], npt, vert_red_local)
+    se_grid_subset, dims_subset = make_grid_mpi_ready(se_grid, dims, proc_idx, decomp, wrapped=False)
+    assembly_triple = init_assembly_local(vert_red_local)
     ct -= len(flip_triple(assembly_triple))
-    triples_send, triples_receive = init_assembly_global(metdet.shape[0], npt, vert_red_send, vert_red_recv)
+    triples_send, triples_receive = init_assembly_global(vert_red_send, vert_red_recv)
     for remote_proc_idx in triples_send.keys():
       assert (remote_proc_idx in triples_receive.keys())
       # column refers to order of summation, which may not match.
       flip_trip_send = [x for x in flip_triple(triples_send[remote_proc_idx])]
-      print(flip_trip_send)
-      print(triples_send[remote_proc_idx])
       flip_double_send = [(x[0], x[2]) for x in flip_trip_send]
       ct -= len(flip_trip_send)
       flip_trip_recv = [x for x in flip_triple(triples_receive[remote_proc_idx])]
@@ -191,32 +198,15 @@ def test_triples_order():
   for npt in test_npts:
     for nx in range(1, 5):
       for nproc in range(1, 3):
-        grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=False)
+        grid_total, dim_total = init_quasi_uniform_grid(nx, npt, wrapped=True)
+        grid_total_n, dim_total_n = init_quasi_uniform_grid(nx, npt, wrapped=False)
         decomp = init_decomp(dim_total["num_elem"], nproc)
         grids = []
         grids_nowrapper = []
         dims = []
         for proc_idx in range(nproc):
-          grid, dim = init_spectral_element_grid(grid_total["physical_coords"],
-                                                 grid_total["contra_to_physical"],
-                                                 grid_total["physical_to_contra"],
-                                                 grid_total["physical_to_cartesian"],
-                                                 grid_total["recip_metric_determinant"],
-                                                 grid_total["metric_determinant"],
-                                                 grid_total["mass_matrix"],
-                                                 grid_total["mass_matrix_denominator"],
-                                                 grid_total["vertex_redundancy"],
-                                                 proc_idx, decomp, wrapped=True)
-          grid_nowrapper, _ = init_spectral_element_grid(grid_total["physical_coords"],
-                                                         grid_total["contra_to_physical"],
-                                                         grid_total["physical_to_contra"],
-                                                         grid_total["physical_to_cartesian"],
-                                                         grid_total["recip_metric_determinant"],
-                                                         grid_total["metric_determinant"],
-                                                         grid_total["mass_matrix"],
-                                                         grid_total["mass_matrix_denominator"],
-                                                         grid_total["vertex_redundancy"],
-                                                         proc_idx, decomp, wrapped=False)
+          grid, dim = make_grid_mpi_ready(grid_total, dim_total, proc_idx, decomp, wrapped=True)
+          grid_nowrapper, dim_nowrapper = make_grid_mpi_ready(grid_total_n, dim_total_n, proc_idx, decomp, wrapped=False)
           grids.append(grid)
           grids_nowrapper.append(grid_nowrapper)
           dims.append(dim)

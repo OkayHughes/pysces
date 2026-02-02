@@ -60,8 +60,13 @@ else:
   eps = 1e-6
 
 if wrapper_type == "jax" and use_wrapper:
+  num_jax_devices = 4
+else:
+  num_jax_devices = 1
+
+if wrapper_type == "jax" and use_wrapper:
   import os
-  os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+  os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={num_jax_devices}"
 
   import jax.numpy as jnp
   import jax
@@ -74,7 +79,7 @@ if wrapper_type == "jax" and use_wrapper:
   from jax.sharding import PartitionSpec, NamedSharding
   elem_axis_name = "f"
   print(jax.local_devices())
-  device_mesh = jax.make_mesh((2,), (elem_axis_name,))
+  device_mesh = jax.make_mesh((num_jax_devices,), (elem_axis_name,))
 
   def good_sharding(array, elem_sharding_axis):
     spec_names = [None for _ in range(len(array.shape))]
@@ -89,8 +94,18 @@ if wrapper_type == "jax" and use_wrapper:
       x = jax.device_put(x, good_sharding(x, elem_sharding_axis))
     return x
 
+  def get_global_array(x, dims, elem_sharding_axis=0):
+    if dims is not None:
+      slices = [slice(None, None) for _ in range(x.ndim)]
+      slices[elem_sharding_axis] = slice(0, dims["num_elem"])
+      res = jax.device_get(x.at[*slices].get())
+    else:
+      res = x
+    return np.asarray(jax.device_get(res))
+  jit = jax.jit
+
   def device_unwrapper(x):
-    return np.asarray(jax.device_get(x))
+    return np.asarray(x)
   jit = jax.jit
 
   def versatile_assert(should_be_true):
@@ -218,6 +233,9 @@ else:
   def cast_type(arr,
                 dtype):
     return arr.astype(dtype)
+
+  def get_global_array(x, dims, elem_sharding_axis=0):
+    return x
 
 mpi_comm = MPI.COMM_WORLD
 mpi_rank = mpi_comm.Get_rank()

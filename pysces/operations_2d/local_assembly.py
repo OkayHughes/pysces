@@ -4,49 +4,6 @@ from scipy.sparse import coo_array
 from functools import partial
 
 
-def project_scalar_for(f,
-                       grid,
-                       *args):
-  """
-  Project a potentially discontinuous scalar onto the continuous
-  subspace using a for loop, assuming all data is processor-local.
-
-  *This is used for testing. Do not use in performance code*
-
-  Parameters
-  ----------
-  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
-    Scalar field to project
-  grid : `SpectralElementGrid`
-    Spectral element grid struct that contains coordinate and metric data.
-
-  Notes
-  -----
-  This is the most human-readable way to perform projection, and can be used to test
-  if your grid is topologically malformed.
-
-  Returns
-  -------
-  f_cont
-      The globally continous scalar closest in norm to f.
-  """
-  # assumes that values from remote processors have already been accumulated
-  metdet = grid["metric_determinant"]
-  inv_mass_mat = grid["mass_matrix_denominator"]
-  vert_redundancy_gll = grid["vertex_redundancy"]
-  gll_weights = grid["gll_weights"]
-  workspace = f.copy()
-  workspace *= metdet * (gll_weights[np.newaxis, :, np.newaxis] * gll_weights[np.newaxis, np.newaxis, :])
-  for ((local_face_idx, local_i, local_j),
-       (remote_face_id, remote_i, remote_j)) in vert_redundancy_gll:
-    workspace[remote_face_id, remote_i, remote_j] += (metdet[local_face_idx, local_i, local_j] *
-                                                      f[local_face_idx, local_i, local_j] *
-                                                      (gll_weights[local_i] * gll_weights[local_j]))
-  # this line works even for multi-processor decompositions.
-  workspace *= inv_mass_mat
-  return workspace
-
-
 def project_scalar_sparse(f,
                           grid,
                           matrix,
@@ -148,10 +105,8 @@ def project_scalar_wrapper(f,
     relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get()
   elif not use_wrapper:
     relevant_data = scaled_f[cols[0], cols[1], cols[2]]
-
   if use_wrapper and wrapper_type == "jax":
     scaled_f = scaled_f.at[rows[0], rows[1], rows[2]].add(relevant_data)
-    scaled_f = scaled_f.reshape(dims["shape"])
   elif use_wrapper and wrapper_type == "torch":
     # this is broken
     scaled_f = scaled_f.flatten()
@@ -173,15 +128,13 @@ def init_assembly_matrix(NELEM,
   return assembly_matrix
 
 
-def init_assembly_local(NELEM, npt, vert_redundancy_local):
+def init_assembly_local(vert_redundancy_local):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
   # and that remote_face_idx corresponds to processor local
   # ids.
-  index_hack = np.zeros((NELEM, npt, npt), dtype=np.int64)
   # hack: easier than figuring out indexing conventions
-  index_hack = np.arange(index_hack.size).reshape(index_hack.shape)
 
   data = []
   rows = [[], [], []]
@@ -202,18 +155,14 @@ def init_assembly_local(NELEM, npt, vert_redundancy_local):
           [np.array(arr, dtype=np.int64) for arr in cols])
 
 
-def init_assembly_global(NELEM,
-                         npt,
-                         vert_redundancy_send,
+def init_assembly_global(vert_redundancy_send,
                          vert_redundancy_receive):
   # From this moment forward, we assume that
   # vert_redundancy_gll contains only the information
   # for processor-local GLL things,
   # and that remote_face_idx corresponds to processor local
   # ids.
-  index_hack = np.zeros((NELEM, npt, npt), dtype=np.int64)
   # hack: easier than figuring out indexing conventions
-  index_hack = np.arange(index_hack.size, dtype=np.int64).reshape(index_hack.shape)
 
   # convention: when scaled=True, remote values are
   # pre-multiplied by numerator
@@ -250,12 +199,18 @@ def init_assembly_global(NELEM,
   return triples_send, triples_receive
 
 
-def triage_vert_redundancy_flat(vert_redundancy_gll_flat,
+def triage_vert_redundancy_flat(assembly_triple,
                                 proc_idx,
                                 decomp):
   # current understanding: this works because the outer
   # three for loops will iterate in exactly the same order for
   # the sending and recieving processor
+  vert_redundancy_gll_flat = [((assembly_triple[1][0][k_idx],
+                                assembly_triple[1][1][k_idx],
+                                assembly_triple[1][2][k_idx]),
+                               (assembly_triple[2][0][k_idx],
+                                assembly_triple[2][1][k_idx],
+                                assembly_triple[2][2][k_idx])) for k_idx in range(assembly_triple[0].shape[0])]
   vert_redundancy_local = []
   vert_redundancy_send = {}
   vert_redundancy_receive = {}

@@ -1,5 +1,6 @@
-from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper
+from pysces.config import np, jnp, eps, device_wrapper, device_unwrapper, get_global_array
 from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
+from pysces.horizontal_grid import get_global_grid
 from pysces.operations_2d.local_assembly import project_scalar
 from pysces.operations_2d.operators import (horizontal_gradient,
                                             horizontal_divergence,
@@ -16,12 +17,12 @@ def test_vector_identites_sphere():
   for npt in test_npts:
     for nx in [30, 31]:
       grid, dims = init_quasi_uniform_grid(nx, npt)
+
       fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
       grad = horizontal_gradient(fn, grid)
       vort = horizontal_vorticity(grad, grid)
-
       iprod_vort = inner_product(vort, vort, grid)
-      assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
+      assert (np.allclose(iprod_vort, 0.0, atol=eps))
       v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                     jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
 
@@ -58,7 +59,7 @@ def test_vector_identites_rand_sphere():
     for nx in [30, 31]:
       grid, dims = init_quasi_uniform_grid(nx, npt)
       for _ in range(10):
-        fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape))
+        fn = device_wrapper(np.random.normal(scale=10, size=grid["physical_coords"][:, :, :, 0].shape), elem_sharding_axis=0)
         fn = project_scalar(fn, grid, dims)
         grad = horizontal_gradient(fn, grid)
         vort = horizontal_vorticity(grad, grid)
@@ -67,7 +68,7 @@ def test_vector_identites_rand_sphere():
         vort = project_scalar(vort, grid, dims)
         iprod_vort = inner_product(vort, vort, grid)
         assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
-        v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))
+        v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape), elem_sharding_axis=0)
         v = jnp.stack((project_scalar(v[:, :, :, 0], grid, dims),
                       project_scalar(v[:, :, :, 1], grid, dims)), axis=-1)
         div = horizontal_divergence(v, grid)
@@ -91,6 +92,7 @@ def test_vector_identites_rand_plane():
       grad = jnp.stack((project_scalar(grad[:, :, :, 0], grid, dims),
                         project_scalar(grad[:, :, :, 1], grid, dims)), axis=-1)
       vort = project_scalar(vort, grid, dims)
+      
       iprod_vort = inner_product(vort, vort, grid)
       assert (np.allclose(device_unwrapper(iprod_vort), 0.0, atol=eps))
       v = device_wrapper(np.random.normal(scale=1, size=grid["physical_coords"].shape))

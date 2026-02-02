@@ -208,8 +208,6 @@ def metric_terms_to_grid(physical_coords,
                                     mass_mat,
                                     inv_mass_mat,
                                     vert_red_flat,
-                                    proc_idx,
-                                    decomp,
                                     wrapped=wrapped)
 
 
@@ -219,7 +217,7 @@ def init_uniform_grid(nx,
                       length_x=2.0,
                       length_y=2.0,
                       wrapped=use_wrapper,
-                      proc_idx=None):
+                      calc_smooth_tensor=True):
   """
   Generate a uniform doubly periodic
   SpectralElementGrid on an axis-aligned cartesian plane.
@@ -250,5 +248,5 @@ def init_uniform_grid(nx,
                               ref_to_planar,
                               vert_red,
                               npt,
-                              wrapped=wrapped,
-                              proc_idx=proc_idx)
+                              calc_smooth_tensor=calc_smooth_tensor,
+                              wrapped=wrapped)

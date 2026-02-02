@@ -16,6 +16,7 @@ from pysces.mesh_generation.equiangular_metric import init_quasi_uniform_grid
 from pysces.mesh_generation.element_local_metric import init_stretched_grid_elem_local
 from pysces.operations_2d.operators import inner_product, horizontal_vorticity
 from pysces.operations_2d.local_assembly import project_scalar
+from pysces.horizontal_grid import make_grid_mpi_ready
 from ..context import get_figdir, test_division_factor, plot_grid
 from os import makedirs
 from os.path import join
@@ -27,7 +28,8 @@ if DEBUG:
 def test_sw_model():
   npt = 4
   nx = 15
-  grid, dims = init_quasi_uniform_grid(nx, npt, proc_idx=mpi_rank)
+  grid, dims = init_quasi_uniform_grid(nx, npt)
+  grid, dims = make_grid_mpi_ready(grid, dims, mpi_rank)
   physics_config = init_physics_config_shallow_water(alpha=jnp.pi / 4)
   test_config = init_williamson_steady_config(physics_config)
   u_init = device_wrapper(eval_williamson_tc2_u(grid["physical_coords"][:, :, :, 0],
@@ -89,7 +91,8 @@ def test_sw_model():
 def test_galewsky():
   npt = 4
   nx = 31
-  grid, dims = init_stretched_grid_elem_local(nx, npt, proc_idx=mpi_rank, axis_dilation=jnp.array([1.0, 1.5, 1.0]))
+  grid, dims = init_stretched_grid_elem_local(nx, npt, axis_dilation=jnp.array([1.0, 1.5, 1.0]))
+  grid, dims = make_grid_mpi_ready(grid, dims, mpi_rank)
 
   physics_config = init_physics_config_shallow_water()
   test_config = init_galewsky_config(physics_config)

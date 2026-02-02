@@ -1,4 +1,4 @@
-from ..config import np
+from ..config import np, jnp
 
 
 def eval_quasi_uniform_hypervisc_coeff(ne,

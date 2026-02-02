@@ -35,7 +35,7 @@ def sum_into(fijk_field,
 
   """
   if not use_wrapper:
-    np.add.at(fijk_field, (rows[0], rows[1], rows[2]), buffer.T)
+    np.add.at(fijk_field, (rows[0], rows[1], rows[2], slice(None, None)), buffer.T)
   elif wrapper_type == "jax":
     fijk_field = fijk_field.at[rows[0], rows[1], rows[2], :].add(buffer.T)
   elif wrapper_type == "torch":
@@ -261,10 +261,10 @@ def _project_scalar_stub(fs_global,
   data_scaled = []
   local_buffers = []
   for fs_local, grid, dim in zip(fs_global, grids, dims):
-    data_scaled.append([f * grid["mass_matrix"] for f in fs_local])
+    data_scaled.append([(f * grid["mass_matrix"])[:, :, :, np.newaxis] for f in fs_local])
     buffers.append(pack_scalar([(f * grid["mass_matrix"])[:, :, :, np.newaxis]
                                 for f in fs_local], grid))
-    local_buffers.append(extract_fields([(f * grid["mass_matrix"]).reshape((*dim["shape"], 1))
+    local_buffers.append(extract_fields([(f * grid["mass_matrix"])[:, :, :, np.newaxis]
                                          for f in fs_local],
                                         {mpi_rank: grid["assembly_triple"]})[mpi_rank])
 
@@ -272,7 +272,7 @@ def _project_scalar_stub(fs_global,
   for (fs_local, grid, dim, buffer_list) in zip(data_scaled, grids, dims, local_buffers):
     fs_out.append([])
     for f_scaled, buffer in zip(fs_local, buffer_list):
-      fs_out[-1].append(sum_into((f_scaled).reshape((*dim["shape"], 1)), buffer, grid["assembly_triple"][1], dim))
+      fs_out[-1].append(sum_into(f_scaled, buffer, grid["assembly_triple"][1], dim))
 
   buffers = _exchange_buffers_stub(buffers)
 
@@ -328,7 +328,7 @@ def project_scalar_global(fs_in,
   scale = grid["mass_matrix"][:, :, :, np.newaxis]
 
   if two_d:
-    fs = [f.reshape(*dim["shape"], 1) for f in fs_in]
+    fs = [f.reshape(*f.shape, 1) for f in fs_in]
   else:
     fs = fs_in
 
