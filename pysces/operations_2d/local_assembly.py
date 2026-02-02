@@ -145,7 +145,7 @@ def project_scalar_wrapper(f,
 
   scaled_f = f * grid["mass_matrix"]
   if use_wrapper and wrapper_type == "jax":
-    relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get() 
+    relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get()
   elif not use_wrapper:
     relevant_data = scaled_f[cols[0], cols[1], cols[2]]
 

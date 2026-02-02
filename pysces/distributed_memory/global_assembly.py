@@ -1,6 +1,5 @@
-from ..config import (np, jnp,
-                      use_wrapper, wrapper_type, jit,
-                      take_along_axis, mpi_rank)
+from ..config import (np, jnp, use_wrapper,
+                      wrapper_type, jit, mpi_rank)
 from .global_communication import exchange_buffers, _exchange_buffers_stub
 from functools import partial
 
@@ -39,7 +38,6 @@ def sum_into(fijk_field,
     np.add.at(fijk_field, (rows[0], rows[1], rows[2]), buffer.T)
   elif wrapper_type == "jax":
     fijk_field = fijk_field.at[rows[0], rows[1], rows[2], :].add(buffer.T)
-    #fijk_field = fijk_field.reshape((*dims["shape"], fijk_field.shape[-1]))
   elif wrapper_type == "torch":
     ncol = fijk_field.shape[-1]
     fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1]))
@@ -90,13 +88,6 @@ def extract_fields(fijk_fields,
         relevant_data = fijk_fields[field_idx][cols[0], cols[1], cols[2], :]
       else:
         relevant_data = fijk_fields[field_idx].at[cols[0], cols[1], cols[2], :].get()
-      # if not use_wrapper:
-
-      # elif wrapper_type == "jax":
-      
-      # relevant_data = take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])),
-      #                                 cols[:, np.newaxis],
-      #                                 0) * data[:, np.newaxis]
       buffers[remote_proc_idx].append(relevant_data.T)
   return buffers
 
