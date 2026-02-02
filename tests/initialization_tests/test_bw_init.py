@@ -1,4 +1,4 @@
-from pysces.config import np, jnp, device_unwrapper, device_wrapper, use_wrapper, wrapper_type
+from pysces.config import np, jnp, device_unwrapper, device_wrapper, use_wrapper, wrapper_type, get_global_array
 
 from pysces.mesh_generation.cubed_sphere import init_cube_topo
 from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy
@@ -33,8 +33,9 @@ def test_shallow():
     pressure, temperature = eval_pressure_temperature(z_center, lat, config_shallow, deep=False)
     rho = pressure / (config_shallow["Rgas"] * temperature)
     dp_dz = (pressure_above - pressure_below) / (2 * eps)
-    assert (np.max(np.abs(device_unwrapper(z_to_g(z, config_shallow,
-                                                  models.homme_nonhydrostatic) * rho + dp_dz))) < 0.001)
+    diff = z_to_g(z, config_shallow, models.homme_nonhydrostatic) * rho + dp_dz
+    diff = get_global_array(diff, dims)
+    assert (np.max(np.abs(device_unwrapper(diff))) < 0.001)
 
 
 def test_moist_shallow():
@@ -56,11 +57,15 @@ def test_moist_shallow():
   for z in jnp.linspace(0, 40e3, 10):
     z_2d = device_wrapper((z) * jnp.ones((*lat.shape, 1)))
     _, _, _, _, Q = eval_state(lat, lon, z_2d, config_moist, deep=False, moist=True)
+    Q = get_global_array(Q, dims)
     assert jnp.all(Q > 0)
     assert jnp.all(Q <= config_moist["moistq0"])
     # test if we're accidentally returning temperature instead of virtual temperature
     _, _, _, virtual_temp_1, _ = eval_state(lat, lon, z_2d, config_moist, deep=False, moist=True)
     _, _, _, virtual_temp_2, Q = eval_state(lat, lon, z_2d, config_pseudo_moist, deep=False, moist=True)
+    Q = get_global_array(Q, dims)
+    virtual_temp_1 = get_global_array(virtual_temp_1, dims)
+    virtual_temp_2 = get_global_array(virtual_temp_2, dims)
     assert jnp.allclose(Q, 0.0)
     assert jnp.allclose(virtual_temp_1, virtual_temp_2)
 
@@ -94,7 +99,7 @@ def test_deep():
       dp_dz = (pressure_above - pressure_below) / (2 * eps)
       metric_terms = -(u**2 + v**2) / (z_center + config_deep["radius_earth"])
       ncts = -u * 2.0 * config_deep["period_earth"] * jnp.cos(lat)[:, :, :, np.newaxis]
-      assert (np.max(np.abs(device_unwrapper(dp_dz / rho + z_to_g(z_center,
-                                                                  config_deep,
-                                                                  models.homme_nonhydrostatic_deep) +
-                                             metric_terms + ncts))) < 1e-3)
+      g = z_to_g(z_center, config_deep, models.homme_nonhydrostatic_deep)
+      diff = dp_dz / rho + g + metric_terms + ncts
+      diff = get_global_array(diff, dims)
+      assert np.max(np.abs(device_unwrapper(diff)) < 1e-3)

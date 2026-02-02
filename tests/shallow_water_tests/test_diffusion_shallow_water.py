@@ -1,4 +1,4 @@
-from pysces.config import jnp, np, device_wrapper
+from pysces.config import jnp, np, device_wrapper, get_global_array
 from pysces.shallow_water_models.model_state import wrap_model_state
 from pysces.shallow_water_models.constants import init_physics_config_shallow_water
 from pysces.shallow_water_models.hyperviscosity import (init_hypervis_config_const,
@@ -12,14 +12,12 @@ from pysces.shallow_water_models.galewsky_init import (init_galewsky_config,
                                                        eval_galewsky_hs,
                                                        eval_galewsky_h)
 from pysces.mesh_generation.element_local_metric import init_quasi_uniform_grid_elem_local
-from pysces.horizontal_grid import postprocess_grid
 
 
 def test_galewsky():
   npt = 4
   for nx in [7, 15, 31]:
     grid, dims = init_quasi_uniform_grid_elem_local(nx, npt)
-    grid = postprocess_grid(grid, dims)
 
     physics_config = init_physics_config_shallow_water()
     test_config = init_galewsky_config(physics_config)
@@ -50,15 +48,20 @@ def test_galewsky():
 
     def log_assert(quant1, quant2):
       assert np.abs(np.log10(np.abs(quant1)) - np.log10(np.abs(quant2))) < 1.5
-
-    scale_h_uniform = jnp.percentile(np.abs(diffusion_tend_uniform["h"]), px)
-    scale_h_variable = jnp.percentile(np.abs(diffusion_tend_variable_res["h"]), px)
+    diffus_h_unif = get_global_array(diffusion_tend_uniform["h"], dims)
+    diffus_h_var = get_global_array(diffusion_tend_variable_res["h"], dims)
+    scale_h_uniform = jnp.percentile(np.abs(diffus_h_unif), px)
+    scale_h_variable = jnp.percentile(np.abs(diffus_h_var), px)
     log_assert(scale_h_uniform, scale_h_variable)
-    scale_u_uniform = jnp.percentile(np.abs(diffusion_tend_uniform["u"][:, :, :, 0]), px)
-    scale_u_variable = jnp.percentile(np.abs(diffusion_tend_variable_res["u"][:, :, :, 0]), px)
+    diffus_u_unif = get_global_array(diffusion_tend_uniform["u"][:, :, :, 0], dims)
+    diffus_u_var = get_global_array(diffusion_tend_variable_res["u"][:, :, :, 0], dims)
+    scale_u_uniform = jnp.percentile(np.abs(diffus_u_unif), px)
+    scale_u_variable = jnp.percentile(np.abs(diffus_u_var), px)
     log_assert(scale_u_uniform, scale_u_variable)
-    scale_v_uniform = jnp.percentile(np.abs(diffusion_tend_uniform["u"][:, :, :, 1]), px)
-    scale_v_variable = jnp.percentile(np.abs(diffusion_tend_variable_res["u"][:, :, :, 1]), px)
+    diffus_v_unif = get_global_array(diffusion_tend_uniform["u"][:, :, :, 1], dims)
+    diffus_v_var = get_global_array(diffusion_tend_variable_res["u"][:, :, :, 1], dims)
+    scale_v_uniform = jnp.percentile(np.abs(diffus_v_unif), px)
+    scale_v_variable = jnp.percentile(np.abs(diffus_v_var), px)
     log_assert(scale_v_uniform, scale_v_variable)
     for diff_config in [diffusion_config_uniform, diffusion_config_variable_res]:
       timestep_config = init_timestep_config(dt, grid, dims, physics_config,
@@ -66,5 +69,7 @@ def test_galewsky():
       final_state = simulate_shallow_water(T, init_state, grid,
                                            physics_config, diff_config, timestep_config,
                                            dims, diffusion=True)
-      assert not jnp.any(jnp.isnan(final_state["h"]))
-      assert not jnp.any(jnp.isnan(final_state["u"]))
+      h = get_global_array(final_state["h"], dims)
+      u = get_global_array(final_state["u"], dims)
+      assert not jnp.any(jnp.isnan(h))
+      assert not jnp.any(jnp.isnan(u))

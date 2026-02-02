@@ -57,6 +57,8 @@ def test_copy_state():
   tracers_old = model_state["tracers"]
   assert set(tracers_new["moisture_species"].keys()) == set(tracers_old["moisture_species"].keys())
   for species_name in tracers_new["moisture_species"].keys():
+    import jax
+    jax.debug.inspect_array_sharding(tracers_new["moisture_species"][species_name], callback=print)
     assert jnp.allclose(tracers_new["moisture_species"][species_name],
                         tracers_old["moisture_species"][species_name])
   assert set(tracers_new["tracers"].keys()) == set(tracers_old["tracers"].keys())

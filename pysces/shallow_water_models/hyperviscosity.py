@@ -1,10 +1,11 @@
-from ..config import jit, jnp, device_wrapper
+from ..config import jit, jnp, device_wrapper, do_mpi_communication
 from ..operations_2d.operators import horizontal_weak_vector_laplacian, horizontal_weak_laplacian
 from ..operations_2d.tensor_hyperviscosity import (eval_quasi_uniform_hypervisc_coeff,
                                                    eval_variable_resolution_hypervisc_coeff)
 from ..horizontal_grid import eval_global_grid_deformation_metrics
 from .model_state import project_model_state, wrap_model_state
 from ..distributed_memory.global_assembly import project_scalar_global
+from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 
 
@@ -92,12 +93,24 @@ def eval_hypervis_variable_resolution(state_in,
   for cart_idx in range(3):
     components_laplace.append(horizontal_weak_laplacian(u_cart[:, :, :, cart_idx], grid, a=a, apply_tensor=False))
   h_laplace = horizontal_weak_laplacian(state_in["h"], grid, a=a, apply_tensor=False)
-  state_laplace_cont = project_scalar_global([*components_laplace, h_laplace], grid, dims, two_d=True)
+  if do_mpi_communication:
+    state_laplace_cont = project_scalar_global([*components_laplace, h_laplace], grid, dims, two_d=True)
+  else:
+    state_laplace_cont = []
+    for comp in components_laplace:
+      state_laplace_cont.append(project_scalar(comp, grid, dims))
+    state_laplace_cont.append(project_scalar(h_laplace, grid, dims))
   components_biharm = []
   for cart_idx in range(3):
     components_biharm.append(horizontal_weak_laplacian(state_laplace_cont[cart_idx], grid, a=a, apply_tensor=True))
   h_biharm = horizontal_weak_laplacian(state_laplace_cont[3], grid, a=a, apply_tensor=True)
-  state_biharm_cont = project_scalar_global([*components_biharm, h_biharm], grid, dims, two_d=True)
+  if do_mpi_communication:
+    state_biharm_cont = project_scalar_global([*components_biharm, h_biharm], grid, dims, two_d=True)
+  else:
+    state_biharm_cont = []
+    for comp in components_biharm:
+      state_biharm_cont.append(project_scalar(comp, grid, dims))
+    state_biharm_cont.append(project_scalar(h_biharm, grid, dims))
 
   h_biharm_cont = diffusion_config["nu_d_mass"] * state_biharm_cont[3]
   u_cart = jnp.stack(state_biharm_cont[:3], axis=-1)

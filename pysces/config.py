@@ -76,10 +76,10 @@ if wrapper_type == "jax" and use_wrapper:
   if use_double:
     jax.config.update("jax_enable_x64", True)
 
-  from jax.sharding import PartitionSpec, NamedSharding
+  from jax.sharding import PartitionSpec, NamedSharding, AxisType
   elem_axis_name = "f"
   print(jax.local_devices())
-  device_mesh = jax.make_mesh((num_jax_devices,), (elem_axis_name,))
+  device_mesh = jax.make_mesh((num_jax_devices,), (elem_axis_name,), axis_types=(AxisType.Explicit,))
 
   def good_sharding(array, elem_sharding_axis):
     spec_names = [None for _ in range(len(array.shape))]

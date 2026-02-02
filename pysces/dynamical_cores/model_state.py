@@ -1,7 +1,8 @@
-from ..config import jnp, jit, flip, np
+from ..config import jnp, jit, flip, np, do_mpi_communication, vmap_1d_apply
 from functools import partial
 from ..operations_2d.operators import horizontal_gradient
 from ..distributed_memory.global_assembly import project_scalar_global
+from ..operations_2d.local_assembly import project_scalar
 from ..model_info import (f_plane_models,
                           deep_atmosphere_models,
                           thermodynamic_variable_names,
@@ -254,8 +255,12 @@ def init_static_forcing(phi_surf,
                         model,
                         f_plane_center=jnp.pi / 4.0):
   grad_phi_surf_discont = horizontal_gradient(phi_surf, h_grid, a=physics_config["radius_earth"])
-  grad_phi_surf = jnp.stack([project_scalar_global([grad_phi_surf_discont[:, :, :, 0]], h_grid, dims)[0],
-                             project_scalar_global([grad_phi_surf_discont[:, :, :, 1]], h_grid, dims)[0]], axis=-1)
+  if do_mpi_communication:
+    grad_phi_surf = jnp.stack([project_scalar_global([grad_phi_surf_discont[:, :, :, 0]], h_grid, dims)[0],
+                              project_scalar_global([grad_phi_surf_discont[:, :, :, 1]], h_grid, dims)[0]], axis=-1)
+  else:
+    grad_phi_surf = jnp.stack([project_scalar(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
+                              project_scalar(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)], axis=-1)
   if model in f_plane_models:
     coriolis_param = 2.0 * physics_config["period_earth"] * (jnp.sin(f_plane_center) *
                                                              jnp.ones_like(h_grid["physical_coords"][:, :, :, 0]))
@@ -317,10 +322,15 @@ def project_dynamics(dynamics_in,
 def project_scalar_3d(variable,
                       h_grid,
                       dims):
-  return project_scalar_global([variable],
-                               h_grid,
-                               dims,
-                               two_d=False)[0]
+  if do_mpi_communication:
+    variable_cont = project_scalar_global([variable],
+                                          h_grid,
+                                          dims,
+                                          two_d=False)[0]
+  else:
+    op_2d = partial(project_scalar, grid=h_grid, dims=dims)
+    variable_cont = vmap_1d_apply(op_2d, variable, -1, -1)
+  return variable_cont
 
 
 @jit

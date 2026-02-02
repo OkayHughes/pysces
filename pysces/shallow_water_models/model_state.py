@@ -1,5 +1,6 @@
-from ..config import jit, jnp
+from ..config import jit, jnp, do_mpi_communication
 from ..distributed_memory.global_assembly import project_scalar_global
+from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 
 
@@ -59,8 +60,13 @@ def project_model_state(state,
   KeyError
       when a key error
   """
-  u, v, h = project_scalar_global([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]],
-                                  grid, dims, two_d=True)
+  if do_mpi_communication:
+    u, v, h = project_scalar_global([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state["h"][:, :, :]],
+                                    grid, dims, two_d=True)
+  else:
+    u = project_scalar(state["u"][:, :, :, 0], grid, dims)
+    v = project_scalar(state["u"][:, :, :, 1], grid, dims)
+    h = project_scalar(state["h"][:, :, :], grid, dims)
   return wrap_model_state(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 

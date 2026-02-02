@@ -4,7 +4,7 @@ from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import init_grid_from_topo
 from pysces.dynamical_cores.model_state import project_scalar_3d
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
-from pysces.operations_2d.local_assembly import project_scalar_for
+from ..operations_2d_tests.test_local_assembly import project_scalar_for
 
 
 def is_3d_field_c0(field, h_grid):
@@ -12,9 +12,9 @@ def is_3d_field_c0(field, h_grid):
   for lev_idx in range(field.shape[-1]):
     rows = h_grid["assembly_triple"][1]
     cols = h_grid["assembly_triple"][2]
-    lev_slice = jnp.take(field, lev_idx, axis=-1).flatten()
-    row_vals = jnp.take(lev_slice, rows, axis=0)
-    col_vals = jnp.take(lev_slice, cols, axis=0)
+    lev_slice = jnp.take(field, lev_idx, axis=-1)
+    row_vals = lev_slice[rows[0], rows[1], rows[2]]
+    col_vals = lev_slice[cols[0], cols[1], cols[2]]
     is_c0 = is_c0 and jnp.allclose(row_vals, col_vals)
   return is_c0
 
