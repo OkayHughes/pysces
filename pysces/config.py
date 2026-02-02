@@ -53,24 +53,44 @@ wrapper_type = config_vars["wrapper_type"]
 use_cpu = config_vars["use_cpu"]
 use_double = config_vars["use_double"]
 
+
 if use_double:
   eps = 1e-11
 else:
   eps = 1e-6
 
 if wrapper_type == "jax" and use_wrapper:
+  import os
+  os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+
   import jax.numpy as jnp
   import jax
+
   if use_cpu:
     jax.config.update("jax_default_device", jax.devices("cpu")[0])
   if use_double:
     jax.config.update("jax_enable_x64", True)
 
-  def device_wrapper(x, dtype=jnp.float64):
-    return jnp.array(x, dtype=dtype)
+  from jax.sharding import PartitionSpec, NamedSharding
+  elem_axis_name = "f"
+  print(jax.local_devices())
+  device_mesh = jax.make_mesh((2,), (elem_axis_name,))
+
+  def good_sharding(array, elem_sharding_axis):
+    spec_names = [None for _ in range(len(array.shape))]
+    spec_names[elem_sharding_axis] = elem_axis_name
+    return NamedSharding(device_mesh, PartitionSpec(*spec_names))
+
+  def device_wrapper(x,
+                     dtype=jnp.float64,
+                     elem_sharding_axis=None):
+    x = jnp.array(x, dtype=dtype)
+    if elem_sharding_axis is not None:
+      x = jax.device_put(x, good_sharding(x, elem_sharding_axis))
+    return x
 
   def device_unwrapper(x):
-    return np.asarray(x)
+    return np.asarray(jax.device_get(x))
   jit = jax.jit
 
   def versatile_assert(should_be_true):
@@ -100,6 +120,8 @@ if wrapper_type == "jax" and use_wrapper:
   def cast_type(arr,
                 dtype):
     return arr.astype(dtype)
+  
+
 
 elif wrapper_type == "torch" and use_wrapper:
   import torch as jnp
@@ -113,7 +135,8 @@ elif wrapper_type == "torch" and use_wrapper:
     default_dtype = jnp.float32
 
   def device_wrapper(x,
-                     dtype=default_dtype):
+                     dtype=default_dtype,
+                     elem_sharding_axis=None):
     return jnp.tensor(x, dtype=dtype).to(device)
 
   def device_unwrapper(x):
@@ -154,7 +177,8 @@ else:
   import numpy as jnp
 
   def device_wrapper(x,
-                     dtype=np.float64):
+                     dtype=np.float64,
+                     elem_sharding_axis=None):
     return np.array(x, dtype=dtype)
 
   def device_unwrapper(x):

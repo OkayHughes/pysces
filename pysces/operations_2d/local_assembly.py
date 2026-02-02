@@ -87,9 +87,9 @@ def project_scalar_sparse(f,
   return ret * grid["mass_matrix_denominator"]
 
 
-def segment_sum(data,
-                segment_ids,
-                N):
+def segment_sum(field,
+                data,
+                segment_ids):
   """
   A function that provides a numpy equivalent of the `segment_sum` function
   from Jax and TensorFlow.
@@ -110,9 +110,7 @@ def segment_sum(data,
       arrays into which segments have been summed.
   """
   data = np.asarray(data)
-  s = np.zeros(N, dtype=data.dtype)
-  np.add.at(s, segment_ids, data)
-  return s
+  np.add.at(field, (segment_ids[0], segment_ids[1], segment_ids[2]), data)
 
 
 @partial(jit, static_argnames=["dims"])
@@ -146,17 +144,21 @@ def project_scalar_wrapper(f,
   (data, rows, cols) = grid["assembly_triple"]
 
   scaled_f = f * grid["mass_matrix"]
-  relevant_data = (scaled_f).flatten().take(cols) * data
+  if use_wrapper and wrapper_type == "jax":
+    relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get() 
+  elif not use_wrapper:
+    relevant_data = scaled_f[cols[0], cols[1], cols[2]]
 
   if use_wrapper and wrapper_type == "jax":
-    scaled_f = scaled_f.flatten().at[rows].add(relevant_data)
+    scaled_f = scaled_f.at[rows[0], rows[1], rows[2]].add(relevant_data)
     scaled_f = scaled_f.reshape(dims["shape"])
   elif use_wrapper and wrapper_type == "torch":
+    # this is broken
     scaled_f = scaled_f.flatten()
     scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
     scaled_f = scaled_f.reshape(dims["shape"])
   else:
-    scaled_f += segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+    segment_sum(scaled_f, relevant_data, rows)
   return scaled_f * grid["mass_matrix_denominator"]
 
 
@@ -182,19 +184,22 @@ def init_assembly_local(NELEM, npt, vert_redundancy_local):
   index_hack = np.arange(index_hack.size).reshape(index_hack.shape)
 
   data = []
-  rows = []
-  cols = []
+  rows = [[], [], []]
+  cols = [[], [], []]
 
   for ((local_face_idx, local_i, local_j),
        (remote_face_id, remote_i, remote_j)) in vert_redundancy_local:
     data.append(1.0)
-    rows.append(index_hack[remote_face_id, remote_i, remote_j])
-    cols.append(index_hack[local_face_idx, local_i, local_j])
-
+    rows[0].append(remote_face_id)
+    rows[1].append(remote_i)
+    rows[2].append(remote_j)
+    cols[0].append(local_face_idx)
+    cols[1].append(local_i)
+    cols[2].append(local_j)
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
   return (np.array(data, dtype=np.float64),
-          np.array(rows, dtype=np.int64),
-          np.array(cols, dtype=np.int64))
+          [np.array(arr, dtype=np.int64) for arr in rows],
+          [np.array(arr, dtype=np.int64) for arr in cols])
 
 
 def init_assembly_global(NELEM,
@@ -220,19 +225,27 @@ def init_assembly_global(NELEM,
                                                  [False, True]):
     for source_proc_idx in vert_redundancy.keys():
       data = []
-      rows = []
-      cols = []
+      rows = [[], [], []]
+      cols = [[], [], []]
       for col_idx, (target_local_idx, target_i, target_j) in enumerate(vert_redundancy[source_proc_idx]):
         data.append(1.0)
         if transpose:
-          cols.append(index_hack[target_local_idx, target_i, target_j])
-          rows.append(col_idx)
+          cols[0].append(target_local_idx)
+          cols[1].append(target_i)
+          cols[2].append(target_j)
+          rows[0].append(col_idx)
+          rows[1].append(col_idx)
+          rows[2].append(col_idx)
         else:
-          rows.append(index_hack[target_local_idx, target_i, target_j])
-          cols.append(col_idx)
+          rows[0].append(target_local_idx)
+          rows[1].append(target_i)
+          rows[2].append(target_j)
+          cols[0].append(col_idx)
+          cols[1].append(col_idx)
+          cols[2].append(col_idx)
       triples[source_proc_idx] = (np.array(data, dtype=np.float64),
-                                  np.array(rows, dtype=np.int64),
-                                  np.array(cols, dtype=np.int64))
+                                  [np.array(arr, dtype=np.int64) for arr in rows],
+                                  [np.array(arr, dtype=np.int64) for arr in cols])
   # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
   return triples_send, triples_receive
 

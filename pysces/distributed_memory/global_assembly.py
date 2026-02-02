@@ -36,13 +36,10 @@ def sum_into(fijk_field,
 
   """
   if not use_wrapper:
-    for k_idx in range(fijk_field.shape[-1]):
-      res = fijk_field[:, :, :, k_idx].flatten()
-      np.add.at(res, rows, buffer[k_idx, :])
-      fijk_field[:, :, :, k_idx] = res.reshape(fijk_field.shape[:-1])
+    np.add.at(fijk_field, (rows[0], rows[1], rows[2]), buffer.T)
   elif wrapper_type == "jax":
-    fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1])).at[rows, :].add(buffer.T)
-    fijk_field = fijk_field.reshape((*dims["shape"], fijk_field.shape[-1]))
+    fijk_field = fijk_field.at[rows[0], rows[1], rows[2], :].add(buffer.T)
+    #fijk_field = fijk_field.reshape((*dims["shape"], fijk_field.shape[-1]))
   elif wrapper_type == "torch":
     ncol = fijk_field.shape[-1]
     fijk_field = fijk_field.reshape((-1, fijk_field.shape[-1]))
@@ -89,9 +86,17 @@ def extract_fields(fijk_fields,
     buffers[remote_proc_idx] = []
     for field_idx in range(len(fijk_fields)):
       (data, rows, cols) = triples_send[remote_proc_idx]
-      relevant_data = take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])),
-                                      cols[:, np.newaxis],
-                                      0) * data[:, np.newaxis]
+      if not use_wrapper:
+        relevant_data = fijk_fields[field_idx][cols[0], cols[1], cols[2], :]
+      else:
+        relevant_data = fijk_fields[field_idx].at[cols[0], cols[1], cols[2], :].get()
+      # if not use_wrapper:
+
+      # elif wrapper_type == "jax":
+      
+      # relevant_data = take_along_axis(fijk_fields[field_idx].reshape((-1, fijk_fields[field_idx].shape[-1])),
+      #                                 cols[:, np.newaxis],
+      #                                 0) * data[:, np.newaxis]
       buffers[remote_proc_idx].append(relevant_data.T)
   return buffers
 

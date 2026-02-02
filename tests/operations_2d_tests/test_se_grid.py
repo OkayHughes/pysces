@@ -154,8 +154,12 @@ def test_assembly_init():
 
   def flip_triple(triple):
     return [x for x in zip(triple[0],
-                           triple[1],
-                           triple[2])]
+                           [fij for fij in zip(triple[1][0],
+                                               triple[1][1],
+                                               triple[1][2])],
+                           [fij for fij in zip(triple[2][0],
+                                               triple[2][1],
+                                               triple[2][2])])]
 
   vert_red_total = flip_triple(se_grid["assembly_triple"])
   ct = len(vert_red_total)
@@ -170,6 +174,8 @@ def test_assembly_init():
       assert (remote_proc_idx in triples_receive.keys())
       # column refers to order of summation, which may not match.
       flip_trip_send = [x for x in flip_triple(triples_send[remote_proc_idx])]
+      print(flip_trip_send)
+      print(triples_send[remote_proc_idx])
       flip_double_send = [(x[0], x[2]) for x in flip_trip_send]
       ct -= len(flip_trip_send)
       flip_trip_recv = [x for x in flip_triple(triples_receive[remote_proc_idx])]
@@ -231,23 +237,36 @@ def test_triples_order():
             for k_idx in range(list(local_triples_send[remote_proc_idx][0].shape)[0]):
               f_idx, i_idx, j_idx = local_vert_red_send[remote_proc_idx][k_idx]
               # test that vert_red_send struct and triples_send point to coincident local points
+              def unwrap_rowcol(rowcol, k_idx):
+                f_out = rowcol[0][k_idx]
+                i_out = rowcol[1][k_idx]
+                j_out = rowcol[2][k_idx]
+                return f_out, i_out, j_out
+              f_out, i_out, j_out = unwrap_rowcol(local_triples_send[remote_proc_idx][2], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
-                                 local_coords[:, :, :, 0].flatten()[local_triples_send[remote_proc_idx][2][k_idx]]))
+                                 local_coords[f_out, i_out, j_out, 0]))
+              f_out, i_out, j_out = unwrap_rowcol(local_triples_send[remote_proc_idx][2], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
-                                 local_coords[:, :, :, 1].flatten()[local_triples_send[remote_proc_idx][2][k_idx]]))
+                                 local_coords[f_out, i_out, j_out, 1]))
+              f_out, i_out, j_out = unwrap_rowcol(remote_triples_recv[local_proc_idx][1], k_idx)
               # test that local vert_red_send struct and remote triples_recv point to coincident points
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
-                                 remote_coords[:, :, :, 0].flatten()[remote_triples_recv[local_proc_idx][1][k_idx]]))
+                                 remote_coords[f_out, i_out, j_out, 0]))
+              f_out, i_out, j_out = unwrap_rowcol(remote_triples_recv[local_proc_idx][1], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
-                                 remote_coords[:, :, :, 1].flatten()[remote_triples_recv[local_proc_idx][1][k_idx]]))
+                                 remote_coords[f_out, i_out, j_out, 1]))
               f_idx, i_idx, j_idx = local_vert_red_recv[remote_proc_idx][k_idx]
               # test that vert_red_recv struct and triples_recv point to coincident local points
+              f_out, i_out, j_out = unwrap_rowcol(local_triples_recv[remote_proc_idx][1], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
-                                 local_coords[:, :, :, 0].flatten()[local_triples_recv[remote_proc_idx][1][k_idx]]))
+                                 local_coords[f_out, i_out, j_out, 0]))
+              f_out, i_out, j_out = unwrap_rowcol(local_triples_recv[remote_proc_idx][1], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
-                                 local_coords[:, :, :, 1].flatten()[local_triples_recv[remote_proc_idx][1][k_idx]]))
+                                 local_coords[f_out, i_out, j_out, 1]))
               # test that local vert_red_recv struct and remote triples_send point to coincident points
+              f_out, i_out, j_out = unwrap_rowcol(remote_triples_send[local_proc_idx][2], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
-                                 remote_coords[:, :, :, 0].flatten()[remote_triples_send[local_proc_idx][2][k_idx]]))
+                                 remote_coords[f_out, i_out, j_out, 0]))
+              f_out, i_out, j_out = unwrap_rowcol(remote_triples_send[local_proc_idx][2], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 1],
-                                 remote_coords[:, :, :, 1].flatten()[remote_triples_send[local_proc_idx][2][k_idx]]))
+                                 remote_coords[f_out, i_out, j_out, 1]))

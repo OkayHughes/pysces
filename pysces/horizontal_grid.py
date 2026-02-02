@@ -19,6 +19,7 @@ def subset_var(var, proc_idx, decomp, element_reordering=None, wrapped=use_wrapp
     var_np = var
   var_subset = np.take(var_np, element_reordering[decomp[proc_idx][0]:decomp[proc_idx][1]], axis=0)
   if wrapped:
+    import jax
     var_out = device_wrapper(var_subset, dtype=dtype)
   else:
     var_out = var_subset
@@ -72,13 +73,13 @@ def init_spectral_element_grid(latlon,
 
   for proc_idx_recv in triples_recv.keys():
     triples_recv[proc_idx_recv] = (wrapper(triples_recv[proc_idx_recv][0]),
-                                   wrapper(triples_recv[proc_idx_recv][1], dtype=jnp.int64),
-                                   wrapper(triples_recv[proc_idx_recv][2], dtype=jnp.int64))
+                                   [wrapper(arr, dtype=jnp.int64) for arr in triples_recv[proc_idx_recv][1]],
+                                   [wrapper(arr, dtype=jnp.int64) for arr in triples_recv[proc_idx_recv][2]])
 
   for proc_idx_send in triples_send.keys():
     triples_send[proc_idx_send] = (wrapper(triples_send[proc_idx_send][0]),
-                                   wrapper(triples_send[proc_idx_send][1], dtype=jnp.int64),
-                                   wrapper(triples_send[proc_idx_send][2], dtype=jnp.int64))
+                                   [wrapper(arr, dtype=jnp.int64) for arr in triples_send[proc_idx_send][1]],
+                                   [wrapper(arr, dtype=jnp.int64) for arr in triples_send[proc_idx_send][2]])
   viscosity_tensor, hypervis_scaling = eval_hypervis_tensor(met_inv, gll_to_sphere_jacobian)
   ret = {"physical_coords": subset_wrapper(latlon),
          "physical_to_cartesian": subset_wrapper(physical_coords_to_cartesian),
@@ -93,12 +94,11 @@ def init_spectral_element_grid(latlon,
          "derivative_matrix": wrapper(spectrals["deriv"]),
          "gll_weights": wrapper(spectrals["gll_weights"]),
          "assembly_triple": (wrapper(assembly_triple[0]),
-                             wrapper(assembly_triple[1], dtype=jnp.int64),
-                             wrapper(assembly_triple[2], dtype=jnp.int64)),
+                             [wrapper(arr, dtype=jnp.int64) for arr in assembly_triple[1]],
+                             [wrapper(arr, dtype=jnp.int64) for arr in assembly_triple[2]]),
          "hypervis_scaling": wrapper(hypervis_scaling),
          "triples_send": triples_send,
-         "triples_receive": triples_recv
-         }
+         "triples_receive": triples_recv}
   metdet = ret["metric_determinant"]
   # if use_wrapper and wrapper_type == "torch":
   #   from .config import torch

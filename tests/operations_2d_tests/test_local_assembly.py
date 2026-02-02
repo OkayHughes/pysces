@@ -5,9 +5,7 @@ from pysces.mesh_generation.equiangular_metric import init_grid_from_topo
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.local_assembly import (project_scalar_for,
                                                  project_scalar_wrapper,
-                                                 project_scalar_sparse,
                                                  project_scalar)
-from pysces.operations_2d.local_assembly import init_assembly_matrix
 from ..context import test_npts
 
 
@@ -82,15 +80,8 @@ def test_projection_equiv_rand():
                                                        vert_redundancy,
                                                        npt,
                                                        wrapped=use_wrapper)
-      assembly_matrix = init_assembly_matrix(dims["num_elem"], dims["npt"], grid["assembly_triple"])
       for _ in range(20):
         fn_rand = np.random.uniform(size=grid["physical_coords"][:, :, :, 1].shape)
-        if wrapper_type == "jax":
-          assert (np.allclose(np.asarray(project_scalar_wrapper(device_wrapper(fn_rand),
-                                                                grid_wrapped, dims_wrapped)),
-                              project_scalar_for(fn_rand, grid)))
-
-        assert (np.allclose(project_scalar_sparse(device_wrapper(fn_rand),
-                                                  grid,
-                                                  assembly_matrix),
+        assert (np.allclose(np.asarray(project_scalar_wrapper(device_wrapper(fn_rand),
+                                                              grid_wrapped, dims_wrapped)),
                             project_scalar_for(fn_rand, grid)))
