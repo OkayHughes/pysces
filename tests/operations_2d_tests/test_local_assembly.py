@@ -1,4 +1,4 @@
-from pysces.config import np, device_wrapper, use_wrapper, wrapper_type
+from pysces.config import np, device_wrapper, use_wrapper
 from pysces.mesh_generation.cubed_sphere import init_cube_topo
 from pysces.mesh_generation.mesh import init_element_corner_vert_redundancy
 from pysces.mesh_generation.equiangular_metric import init_grid_from_topo

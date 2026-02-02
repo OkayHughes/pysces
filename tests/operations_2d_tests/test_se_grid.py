@@ -237,11 +237,13 @@ def test_triples_order():
             for k_idx in range(list(local_triples_send[remote_proc_idx][0].shape)[0]):
               f_idx, i_idx, j_idx = local_vert_red_send[remote_proc_idx][k_idx]
               # test that vert_red_send struct and triples_send point to coincident local points
+
               def unwrap_rowcol(rowcol, k_idx):
                 f_out = rowcol[0][k_idx]
                 i_out = rowcol[1][k_idx]
                 j_out = rowcol[2][k_idx]
                 return f_out, i_out, j_out
+
               f_out, i_out, j_out = unwrap_rowcol(local_triples_send[remote_proc_idx][2], k_idx)
               assert(np.allclose(local_coords[f_idx, i_idx, j_idx, 0],
                                  local_coords[f_out, i_out, j_out, 0]))
