@@ -59,16 +59,18 @@ with PyTorch as a backend, but we don't typically optimize for PyTorch performan
 The view of the maintainer is that since the training data 
 used to train LLMS was obtained without the consent of the people who made it, 
 LLMs trained on this data are structurally incapable
-of determining when they are commiting plagiarism or theft.
+of determining when they are commiting plagiarism or theft. Contributing 
+LLM generated code should be treated with the utmost care and consideration
+for other people.
 
-Imagine that a guest at your dinner party shows up with a bottle of wine
+<!-- Imagine that a guest at your dinner party shows up with a bottle of wine
 that they stole from their brother-in-law's house. You won't know
 that it was stolen unless they brag to you about it.
 Analogously, we cannot necessarily know whether you used an LLM
 to generate code that you're trying to commit, but you should feel
 about the same way about contributing LLM-generated code as you
 would showing up to a dinner party with something you stole from
-a relative's house.
+a relative's house. -->
 
 # Shoulders of giants disclaimer
 The core functionality of this dynamical core is not primarily my work,
