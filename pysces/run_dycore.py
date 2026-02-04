@@ -30,12 +30,12 @@ def advance_coupling_step(state_in,
   dribble_dynamics = (physics_dynamics_coupling == coupling_types.dribble_all or
                       physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics)
 
-  if (physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics):
+  if (physics_dynamics_coupling == coupling_types.lump_tracers_dribble_dynamics) and physics_forcing is not None:
     tracer_state = advance_tracers([tracer_state, physics_forcing["tracers"]],
                                    [1.0, timestep_config["physics_dt"]],
                                    model)
 
-  if physics_dynamics_coupling == coupling_types.lump_all:
+  if physics_dynamics_coupling == coupling_types.lump_all  and physics_forcing is not None:
     dynamics_state = sum_dynamics_series([dynamics_state, physics_forcing["dynamics"]],
                                          [1.0, timestep_config["physics_dt"]],
                                          model)
@@ -50,11 +50,11 @@ def advance_coupling_step(state_in,
                                     physics_config,
                                     len(v_grid["hybrid_b_m"]),
                                     model)
-    if dribble_dynamics:
+    if dribble_dynamics and physics_forcing is not None:
       dynamics_state = sum_dynamics_series([dynamics_state, physics_forcing["dynamics"]],
                                            [1.0, timestep_config["tracer_advection"]["dt"]],
                                            model)
-    if physics_dynamics_coupling == coupling_types.dribble_all:
+    if physics_dynamics_coupling == coupling_types.dribble_all  and physics_forcing is not None:
       tracer_state = advance_tracers([tracer_state, physics_forcing["tracers"]],
                                      [1.0, timestep_config["physics_dt"]],
                                      model)
