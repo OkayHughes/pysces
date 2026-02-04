@@ -16,13 +16,15 @@ def write_config(debug=True,
                  use_wrapper=False,
                  wrapper_type="none",
                  use_cpu=True,
-                 use_double=True):
+                 use_double=True,
+                 shard_cpu_count=1):
   config_struct = {"debug": debug,
                    "use_mpi": use_mpi,
                    "use_wrapper": use_wrapper,
                    "wrapper_type": wrapper_type,
                    "use_cpu": use_cpu,
-                   "use_double": use_double}
+                   "use_double": use_double,
+                   "shard_cpu_count": shard_cpu_count}
   with open(get_config_filepath(), "w") as config_file:
     config_file.write(dumps(config_struct, indent=2))
 
@@ -45,6 +47,12 @@ config_vars = parse_config_file()
 
 DEBUG = config_vars["debug"]
 
+if DEBUG:
+  print("=" * 20)
+  print("For the next few days, using an even number of elements per cube face will cause.")
+  print("a blowup at the pole point. This was due to a small error, and I've identified a fix.")
+  print("=" * 20)
+
 has_mpi = config_vars["use_mpi"]
 
 
@@ -59,27 +67,60 @@ if use_double:
 else:
   eps = 1e-6
 
-if wrapper_type == "jax" and use_wrapper:
-  num_jax_devices = 4
-else:
-  num_jax_devices = 1
+
+mpi_comm = MPI.COMM_WORLD
+mpi_rank = mpi_comm.Get_rank()
+mpi_size = mpi_comm.Get_size()
+is_main_proc = mpi_rank == 0
+
+do_mpi_communication = mpi_size > 1
+
+num_jax_devices = 1
+do_sharding = False
 
 if wrapper_type == "jax" and use_wrapper:
-  import os
-  os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={num_jax_devices}"
+  import jax
+
+  # set jax global config
+  # =====================
+  # TODO: exhaustively analyze if this does the right thing for
+  # nonsensical configurations.
+
+  if not do_mpi_communication:
+    do_sharding = True
+    if use_cpu:
+      num_jax_devices = config_vars["shard_cpu_count"]
+      os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={num_jax_devices}"
+      devices = jax.devices(backend="cpu")
+    else:
+      maybe_devices = jax.devices(backend="gpu")
+      if len(maybe_devices) > 0:
+        devices = maybe_devices
+      else:
+        devices = jax.devices(backend="cpu")
+  else:
+    do_sharding = False
+    if use_cpu:
+      jax.config.update("jax_default_device", jax.local_devices("cpu")[0])
+      num_jax_devices = 1
+
+  if use_double:
+    jax.config.update("jax_enable_x64", True)
+
+  # ========================================
+
+  if DEBUG:
+    print(f"Using devices {devices}, num_jax_devices: {num_jax_devices}, do_sharding: {do_sharding}")
 
   import jax.numpy as jnp
   import jax
 
-  if use_cpu:
-    jax.config.update("jax_default_device", jax.devices("cpu")[0])
-  if use_double:
-    jax.config.update("jax_enable_x64", True)
-
   from jax.sharding import PartitionSpec, NamedSharding, AxisType
   elem_axis_name = "f"
-  print(jax.local_devices())
   device_mesh = jax.make_mesh((num_jax_devices,), (elem_axis_name,), axis_types=(AxisType.Explicit,))
+  usual_scalar_sharding = NamedSharding(device_mesh, PartitionSpec(elem_axis_name, None, None))
+  extraction_sharding = NamedSharding(device_mesh, PartitionSpec(elem_axis_name, None))
+  projection_sharding = NamedSharding(device_mesh, PartitionSpec(elem_axis_name, None, None, None))
 
   def good_sharding(array, elem_sharding_axis):
     spec_names = [None for _ in range(len(array.shape))]
@@ -95,13 +136,14 @@ if wrapper_type == "jax" and use_wrapper:
     return x
 
   def get_global_array(x, dims, elem_sharding_axis=0):
+    arr = np.asarray(jax.device_get(x))
     if dims is not None:
       slices = [slice(None, None) for _ in range(x.ndim)]
       slices[elem_sharding_axis] = slice(0, dims["num_elem"])
-      res = jax.device_get(x.at[*slices].get())
+      res = arr[*slices]
     else:
-      res = x
-    return np.asarray(jax.device_get(res))
+      res = arr
+    return res
   jit = jax.jit
 
   def device_unwrapper(x):
@@ -135,8 +177,6 @@ if wrapper_type == "jax" and use_wrapper:
   def cast_type(arr,
                 dtype):
     return arr.astype(dtype)
-  
-
 
 elif wrapper_type == "torch" and use_wrapper:
   import torch as jnp
@@ -237,16 +277,8 @@ else:
   def get_global_array(x, dims, elem_sharding_axis=0):
     return x
 
-mpi_comm = MPI.COMM_WORLD
-mpi_rank = mpi_comm.Get_rank()
-mpi_size = mpi_comm.Get_size()
-is_main_proc = mpi_rank == 0
-
-do_mpi_communication = mpi_size > 1
-
 
 class grid_info():
-
   def __init__(self, **kwargs):
     for k, v in zip(kwargs.keys(), kwargs.values()):
       assert isinstance(k, Hashable), f"Unhashable key {k} passed to grid_info"
@@ -260,3 +292,6 @@ class grid_info():
     for k, v in self._dict:
       if k == key:
         return v
+
+
+assert not (do_sharding and do_mpi_communication), "Sharding in an MPI environment is not presently supported"

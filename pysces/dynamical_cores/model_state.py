@@ -1,7 +1,7 @@
 from ..config import jnp, jit, flip, np, do_mpi_communication, vmap_1d_apply
 from functools import partial
 from ..operations_2d.operators import horizontal_gradient
-from ..distributed_memory.global_assembly import project_scalar_global
+from ..mpi.global_assembly import project_scalar_global
 from ..operations_2d.local_assembly import project_scalar
 from ..model_info import (f_plane_models,
                           deep_atmosphere_models,
@@ -13,7 +13,7 @@ from .mass_coordinate import surface_mass_to_d_mass, surface_mass_to_midlevel_ma
 from .homme.thermodynamics import eval_balanced_geopotential, eval_midlevel_pressure
 from .utils_3d import interface_to_delta, cumulative_sum, phi_to_g
 from .vertical_remap import zerroukat_remap
-from ..distributed_memory.global_communication import global_sum
+from ..mpi.global_communication import global_sum
 
 
 @partial(jit, static_argnames=["is_dry_air_species"])
@@ -525,7 +525,14 @@ def sum_dynamics_series(states,
   return state_out
 
 
+def apply_mask(field, h_grid):
+  mask = h_grid["ghost_mask"]
+  shape = list(h_grid["ghost_mask"].shape) + (field.ndim - mask.ndim) * [1]
+  return jnp.where(mask.reshape(shape) > 0.5, field, 0.0)
+
+
 def check_dynamics_nan(dynamics,
+                       h_grid,
                        model):
   """
   [Description]
@@ -554,20 +561,21 @@ def check_dynamics_nan(dynamics,
   if model not in hydrostatic_models:
     fields += ["w_i", "phi_i"]
   for field in fields:
-    is_nan = is_nan or jnp.any(jnp.isnan(dynamics[field]))
+    is_nan = is_nan or jnp.any(jnp.isnan(apply_mask(dynamics[field], h_grid)))
   is_nan = int(is_nan)
   return global_sum(is_nan) > 0
 
 
 def check_tracers_nan(tracers,
+                      h_grid,
                       model):
   is_nan = False
   for field_name in tracers["moisture_species"].keys():
-    is_nan = is_nan or jnp.any(jnp.isnan(tracers["moisture_species"][field_name]))
+    is_nan = is_nan or jnp.any(jnp.isnan(apply_mask(tracers["moisture_species"][field_name], h_grid)))
   for field_name in tracers["tracers"].keys():
-    is_nan = is_nan or jnp.any(jnp.isnan(tracers["tracers"][field_name]))
+    is_nan = is_nan or jnp.any(jnp.isnan(apply_mask(tracers["tracers"][field_name], h_grid)))
   if model in cam_se_models:
     for field_name in tracers["dry_air_species"].keys():
-      is_nan = is_nan or jnp.any(jnp.isnan(tracers["dry_air_species"][field_name]))
+      is_nan = is_nan or jnp.any(jnp.isnan(apply_mask(tracers["dry_air_species"][field_name], h_grid)))
   is_nan = int(is_nan)
   return global_sum(is_nan) > 0

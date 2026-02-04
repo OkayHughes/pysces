@@ -49,7 +49,7 @@ def eval_metric_terms_elem_local(latlon_corners,
 def init_quasi_uniform_grid_elem_local(nx,
                                        npt,
                                        wrapped=use_wrapper,
-                                       calc_smooth_tensor=True,
+                                       calc_smooth_tensor=False,
                                        rotate=True):
   face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
   vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
@@ -85,7 +85,7 @@ def init_stretched_grid_elem_local(nx,
                                    orthogonal_transform=None,
                                    offset=None,
                                    wrapped=use_wrapper,
-                                   calc_smooth_tensor=True,
+                                   calc_smooth_tensor=False,
                                    rotate=True):
   if axis_dilation is None:
     axis_dilation = np.ones((3,))

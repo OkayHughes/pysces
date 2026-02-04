@@ -1,5 +1,5 @@
 from ..config import jit, jnp, do_mpi_communication
-from ..distributed_memory.global_assembly import project_scalar_global
+from ..mpi.global_assembly import project_scalar_global
 from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 

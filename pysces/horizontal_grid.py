@@ -1,9 +1,22 @@
-from .config import np, device_wrapper, use_wrapper, device_unwrapper, jnp, num_jax_devices, get_global_array, DEBUG, do_mpi_communication, num_jax_devices, mpi_size
+from .config import (np,
+                     device_wrapper,
+                     use_wrapper,
+                     device_unwrapper,
+                     jnp,
+                     num_jax_devices,
+                     get_global_array,
+                     DEBUG,
+                     do_mpi_communication,
+                     mpi_size)
 from frozendict import frozendict
-from .operations_2d.local_assembly import triage_vert_redundancy_flat, init_assembly_global, init_assembly_local, project_scalar
-from .distributed_memory.processor_decomposition import init_decomp
+from .operations_2d.local_assembly import (triage_vert_redundancy_flat,
+                                           init_assembly_global,
+                                           init_assembly_local,
+                                           project_scalar,
+                                           init_shard_extraction_map)
+from .mpi.processor_decomposition import init_decomp
 from .mesh_generation.bilinear_utils import eval_bilinear_mapping
-from .distributed_memory.global_communication import global_max, global_min
+from .mpi.global_communication import global_max, global_min
 from .operations_2d.tensor_hyperviscosity import eval_hypervis_tensor
 from .spectral import init_spectral
 from math import floor
@@ -37,7 +50,6 @@ def init_spectral_element_grid(latlon,
                                vert_redundancy_gll_flat,
                                element_reordering=None,
                                wrapped=use_wrapper):
-  NELEM_ACTUAL = metdet.shape[0]
   # note: test code sometimes sets wrapped=False to test wrapper library (jax, torch) vs stock numpy
   # this extra conditional is not extraneous.
   if wrapped:
@@ -188,6 +200,7 @@ def eval_cfl(h_grid,
 def smooth_tensor(grid, dims):
   npt = dims["npt"]
   spectral = init_spectral(npt)
+
   def project_matrix(matrix):
     upper_left = matrix[:, :, :, 0, 0]
     upper_right = matrix[:, :, :, 0, 1]
@@ -212,11 +225,11 @@ def smooth_tensor(grid, dims):
         v2 = tensor_cont[:, npt - 1, 0, :, :]
         v3 = tensor_cont[:, npt - 1, npt - 1, :, :]
         tensor_bilinear[:, i_idx, j_idx, :, :] = eval_bilinear_mapping(v0,
-                                                                      v1,
-                                                                      v2,
-                                                                      v3,
-                                                                      alpha,
-                                                                      beta)
+                                                                       v1,
+                                                                       v2,
+                                                                       v3,
+                                                                       alpha,
+                                                                       beta)
   grid["viscosity_tensor"] = device_wrapper(tensor_bilinear)
   return grid
 
@@ -232,7 +245,7 @@ def shard_grid(grid,
     else:
       value = 0.0
     if arr.shape[0] % num_jax_devices != 0:
-      padded_size = (floor(arr.shape[0]/num_jax_devices) + 1) * num_jax_devices
+      padded_size = (floor(arr.shape[0] / num_jax_devices) + 1) * num_jax_devices
       padding = [[0, 0] for _ in range(arr.ndim)]
       padding[0][1] = padded_size - arr.shape[0]
       arr = np.pad(arr, padding, mode="constant", constant_values=value)
@@ -248,6 +261,13 @@ def shard_grid(grid,
   grid["mass_matrix_denominator"] = pad_array(grid["mass_matrix_denominator"])
   grid["metric_inverse"] = pad_array(grid["metric_inverse"])
   grid["viscosity_tensor"] = pad_array(grid["viscosity_tensor"])
+
+  nelem_fake = grid["physical_coords"].shape[0]
+  extraction_map, max_dof_exchange = init_shard_extraction_map(grid["assembly_triple"],
+                                                               num_jax_devices,
+                                                               nelem_fake,
+                                                               dims)
+  grid["shard_extraction_map"] = extraction_map
 
   NELEM_FAKE = grid["physical_coords"].shape[0]
   ghost_mask = jnp.ones_like(grid["mass_matrix"])
@@ -275,10 +295,12 @@ def get_global_grid(grid, dims):
       global_grid[field] = grid[field]
   return global_grid
 
+
 def extract_subset_parallel_dim(var, proc_idx, decomp):
   slices = [slice(None, None) for _ in range(var.ndim)]
   slices[0] = slice(decomp[proc_idx][0], decomp[proc_idx][1])
   return var[*slices]
+
 
 def make_grid_mpi_ready(grid, dims, proc_idx, decomp=None, wrapped=use_wrapper):
   if not DEBUG and num_jax_devices > 1:
@@ -292,7 +314,7 @@ def make_grid_mpi_ready(grid, dims, proc_idx, decomp=None, wrapped=use_wrapper):
   else:
     def wrapper(x, dtype=None):
       return x
-  
+
   vert_red_local, vert_red_send, vert_red_recv = triage_vert_redundancy_flat(grid["assembly_triple"],
                                                                              proc_idx,
                                                                              decomp)
@@ -309,17 +331,39 @@ def make_grid_mpi_ready(grid, dims, proc_idx, decomp=None, wrapped=use_wrapper):
                                    [wrapper(arr, dtype=jnp.int64) for arr in triples_send[proc_idx_send][2]])
 
   local_grid = {}
-  local_grid["physical_coords"] = extract_subset_parallel_dim(grid["physical_coords"], proc_idx, decomp)
-  local_grid["physical_to_cartesian"] = extract_subset_parallel_dim(grid["physical_to_cartesian"], proc_idx, decomp)
-  local_grid["contra_to_physical"] = extract_subset_parallel_dim(grid["contra_to_physical"], proc_idx, decomp)
-  local_grid["physical_to_contra"] = extract_subset_parallel_dim(grid["physical_to_contra"], proc_idx, decomp)
-  local_grid["recip_metric_determinant"] = extract_subset_parallel_dim(grid["recip_metric_determinant"], proc_idx, decomp)
-  local_grid["metric_determinant"] = extract_subset_parallel_dim(grid["metric_determinant"], proc_idx, decomp)
-  local_grid["mass_matrix"] = extract_subset_parallel_dim(grid["mass_matrix"], proc_idx, decomp)
-  local_grid["mass_matrix_denominator"] = extract_subset_parallel_dim(grid["mass_matrix_denominator"], proc_idx, decomp)
-  local_grid["metric_inverse"] = extract_subset_parallel_dim(grid["metric_inverse"], proc_idx, decomp)
-  local_grid["viscosity_tensor"] = extract_subset_parallel_dim(grid["viscosity_tensor"], proc_idx, decomp)
-  local_grid["ghost_mask"] = extract_subset_parallel_dim(grid["ghost_mask"], proc_idx, decomp)
+  local_grid["physical_coords"] = extract_subset_parallel_dim(grid["physical_coords"],
+                                                              proc_idx,
+                                                              decomp)
+  local_grid["physical_to_cartesian"] = extract_subset_parallel_dim(grid["physical_to_cartesian"],
+                                                                    proc_idx,
+                                                                    decomp)
+  local_grid["contra_to_physical"] = extract_subset_parallel_dim(grid["contra_to_physical"],
+                                                                 proc_idx,
+                                                                 decomp)
+  local_grid["physical_to_contra"] = extract_subset_parallel_dim(grid["physical_to_contra"],
+                                                                 proc_idx,
+                                                                 decomp)
+  local_grid["recip_metric_determinant"] = extract_subset_parallel_dim(grid["recip_metric_determinant"],
+                                                                       proc_idx,
+                                                                       decomp)
+  local_grid["metric_determinant"] = extract_subset_parallel_dim(grid["metric_determinant"],
+                                                                 proc_idx,
+                                                                 decomp)
+  local_grid["mass_matrix"] = extract_subset_parallel_dim(grid["mass_matrix"],
+                                                          proc_idx,
+                                                          decomp)
+  local_grid["mass_matrix_denominator"] = extract_subset_parallel_dim(grid["mass_matrix_denominator"],
+                                                                      proc_idx,
+                                                                      decomp)
+  local_grid["metric_inverse"] = extract_subset_parallel_dim(grid["metric_inverse"],
+                                                             proc_idx,
+                                                             decomp)
+  local_grid["viscosity_tensor"] = extract_subset_parallel_dim(grid["viscosity_tensor"],
+                                                               proc_idx,
+                                                               decomp)
+  local_grid["ghost_mask"] = extract_subset_parallel_dim(grid["ghost_mask"],
+                                                         proc_idx,
+                                                         decomp)
   local_grid["triples_send"] = triples_send
   local_grid["triples_receive"] = triples_recv
   local_grid["assembly_triple"] = triples_local
@@ -331,7 +375,7 @@ def make_grid_mpi_ready(grid, dims, proc_idx, decomp=None, wrapped=use_wrapper):
   for field in grid.keys():
     if field not in local_grid.keys():
       local_grid[field] = grid[field]
-  
+
   send_dims = {}
   for proc_idx in triples_send.keys():
     send_dims[str(proc_idx)] = triples_send[proc_idx][0].size
@@ -342,5 +386,4 @@ def make_grid_mpi_ready(grid, dims, proc_idx, decomp=None, wrapped=use_wrapper):
   local_dims["num_elem"] = local_grid["metric_determinant"].shape[0]
   for key in send_dims.keys():
     local_dims[key] = send_dims[key]
-  local_dims = frozendict(**local_dims)
   return local_grid, local_dims

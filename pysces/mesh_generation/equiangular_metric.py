@@ -303,7 +303,7 @@ def init_grid_from_topo(face_connectivity,
                         face_position_2d,
                         vert_redundancy,
                         npt,
-                        calc_smooth_tensor=True,
+                        calc_smooth_tensor=False,
                         wrapped=use_wrapper,):
   """
   Generate SpectralElementGrid from topological information.
@@ -351,13 +351,13 @@ def init_grid_from_topo(face_connectivity,
                               cube_redundancy,
                               npt,
                               calc_smooth_tensor=calc_smooth_tensor,
-                              wrapped=wrapped,)
+                              wrapped=wrapped)
 
 
 def init_quasi_uniform_grid(nx,
                             npt,
                             wrapped=use_wrapper,
-                            calc_smooth_tensor=True):
+                            calc_smooth_tensor=False):
   """
   Generate an equiangular quasi-uniform cubed-sphere
   SpectralElementGrid.

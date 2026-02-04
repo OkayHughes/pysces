@@ -1,14 +1,15 @@
-from ..config import np, use_wrapper, jit, wrapper_type
-from ..distributed_memory.processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
+from ..config import np, jnp, use_wrapper, jit, wrapper_type, DEBUG, device_wrapper
+from ..mpi.processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
 from scipy.sparse import coo_array
 from functools import partial
+if use_wrapper and wrapper_type == "jax":
+  from ..config import num_jax_devices, projection_sharding, extraction_sharding, usual_scalar_sharding, do_sharding
 
 
 def project_scalar_sparse(f,
                           grid,
                           matrix,
                           *args):
-
   """
   Project a potentially discontinuous scalar onto the continuous
   subspace using a sparse matrix, assuming all data is processor-local.
@@ -99,20 +100,36 @@ def project_scalar_wrapper(f,
       The globally continous scalar closest in norm to f.
   """
   (data, rows, cols) = grid["assembly_triple"]
+  shape = f.shape
 
   scaled_f = f * grid["mass_matrix"]
   if use_wrapper and wrapper_type == "jax":
-    relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get()
-  elif not use_wrapper:
-    relevant_data = scaled_f[cols[0], cols[1], cols[2]]
-  if use_wrapper and wrapper_type == "jax":
-    scaled_f = scaled_f.at[rows[0], rows[1], rows[2]].add(relevant_data)
+    if do_sharding:
+      scaled_f = scaled_f.reshape((num_jax_devices, -1, dims["npt"], dims["npt"]), out_sharding=projection_sharding)
+      extraction_struct = grid["shard_extraction_map"]
+
+      relevant_data = (scaled_f).at[extraction_struct["extract_from"]["shard_idx"],
+                                    extraction_struct["extract_from"]["elem_idx"],
+                                    extraction_struct["extract_from"]["i_idx"],
+                                    extraction_struct["extract_from"]["j_idx"]].get(out_sharding=extraction_sharding)
+      relevant_data *= extraction_struct["mask"]
+      scaled_f = scaled_f.at[extraction_struct["sum_into"]["shard_idx"],
+                             extraction_struct["sum_into"]["elem_idx"],
+                             extraction_struct["sum_into"]["i_idx"],
+                             extraction_struct["sum_into"]["j_idx"]].add(relevant_data,
+                                                                         out_sharding=projection_sharding)
+      scaled_f = scaled_f.reshape(shape, out_sharding=usual_scalar_sharding)
+    else:
+      relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get()
+      scaled_f = scaled_f.at[rows[0], rows[1], rows[2]].add(relevant_data)
   elif use_wrapper and wrapper_type == "torch":
     # this is broken
     scaled_f = scaled_f.flatten()
     scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
     scaled_f = scaled_f.reshape(dims["shape"])
+    relevant_data = scaled_f[cols[0], cols[1], cols[2]]
   else:
+    relevant_data = scaled_f[cols[0], cols[1], cols[2]]
     segment_sum(scaled_f, relevant_data, rows)
   return scaled_f * grid["mass_matrix_denominator"]
 
@@ -237,3 +254,80 @@ def triage_vert_redundancy_flat(assembly_triple,
         vert_redundancy_send[target_proc_idx] = []
       vert_redundancy_send[target_proc_idx].append(((source_local_idx, source_i, source_j)))
   return vert_redundancy_local, vert_redundancy_send, vert_redundancy_receive
+
+
+def init_shard_extraction_map(assembly_triple, num_devices, nelem_padded, dims, wrapped=True):
+  # this will maybe eventually be rewritten to work for bigger grids?
+  assert np.abs(np.round(nelem_padded / num_devices) - nelem_padded / num_devices) < 1e-6, "Did you pad your array?"
+
+  if wrapped:
+    wrapper = device_wrapper
+  else:
+    def wrapper(x, *args, **kwargs):
+      return x
+
+  shard_idx, elem_idx = np.meshgrid(np.arange(num_devices, dtype=np.int64),
+                                    np.arange(np.round(nelem_padded / num_devices), dtype=np.int64))
+  shard_flat = shard_idx.flatten(order="F")
+  elem_flat = elem_idx.flatten(order="F")
+  sum_into_shard = [[] for _ in range(num_devices)]
+  extract_from_shard = [[] for _ in range(num_devices)]
+
+  for ((f_row, i_row, j_row),
+       (f_col, i_col, j_col)) in zip(zip(assembly_triple[1][0],
+                                         assembly_triple[1][1],
+                                         assembly_triple[1][2]),
+                                     zip(assembly_triple[2][0],
+                                         assembly_triple[2][1],
+                                         assembly_triple[2][2])):
+    sum_into_shard_idx = shard_flat[f_row]
+    shard_local_elem_idx = elem_flat[f_row]
+    extract_from_shard_idx = shard_flat[f_col]
+    shard_remote_elem_idx = elem_flat[f_col]
+    sum_into_shard[sum_into_shard_idx].append([sum_into_shard_idx, shard_local_elem_idx, i_row, j_row])
+    extract_from_shard[sum_into_shard_idx].append([extract_from_shard_idx, shard_remote_elem_idx, i_col, j_col])
+  max_dof = max([len(x) for x in sum_into_shard])
+  if DEBUG:
+    max_dof_maybe = max([len(x) for x in extract_from_shard])
+    assert max_dof == max_dof_maybe
+  size_of_comm = (num_devices, max_dof)
+  coeff_mat = np.zeros(size_of_comm, dtype=np.float64)
+  sum_into_shard_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  sum_into_elem_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  sum_into_i_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  sum_into_j_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  extract_from_shard_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  extract_from_elem_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  extract_from_i_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  extract_from_j_idxs = np.zeros(size_of_comm, dtype=np.int64)
+  for shard_idx in range(num_devices):
+    sum_into_data = np.array(sum_into_shard[shard_idx])
+    extract_from_data = np.array(extract_from_shard[shard_idx])
+    if sum_into_data.ndim == 1:
+      sum_into_data = sum_into_data[np.newaxis, :]
+    if extract_from_data.ndim == 1:
+      extract_from_data = extract_from_data[np.newaxis, :]
+    num_pts = sum_into_data.shape[0]
+    if DEBUG:
+      num_pts_maybe = extract_from_data.shape[0]
+      assert num_pts == num_pts_maybe
+
+    sum_into_shard_idxs[shard_idx, :num_pts] = sum_into_data[:, 0]
+    sum_into_elem_idxs[shard_idx, :num_pts] = sum_into_data[:, 1]
+    sum_into_i_idxs[shard_idx, :num_pts] = sum_into_data[:, 2]
+    sum_into_j_idxs[shard_idx, :num_pts] = sum_into_data[:, 3]
+
+    extract_from_shard_idxs[shard_idx, :num_pts] = extract_from_data[:, 0]
+    extract_from_elem_idxs[shard_idx, :num_pts] = extract_from_data[:, 1]
+    extract_from_i_idxs[shard_idx, :num_pts] = extract_from_data[:, 2]
+    extract_from_j_idxs[shard_idx, :num_pts] = extract_from_data[:, 3]
+    coeff_mat[shard_idx, :num_pts] = 1.0
+  return {"sum_into": {"shard_idx": wrapper(sum_into_shard_idxs, dtype=jnp.int64, elem_sharding_axis=0),
+                       "elem_idx": wrapper(sum_into_elem_idxs, dtype=jnp.int64, elem_sharding_axis=0),
+                       "i_idx": wrapper(sum_into_i_idxs, dtype=jnp.int64, elem_sharding_axis=0),
+                       "j_idx": wrapper(sum_into_j_idxs, dtype=jnp.int64, elem_sharding_axis=0)},
+          "extract_from": {"shard_idx": wrapper(extract_from_shard_idxs, dtype=jnp.int64, elem_sharding_axis=0),
+                           "elem_idx": wrapper(extract_from_elem_idxs, dtype=jnp.int64, elem_sharding_axis=0),
+                           "i_idx": wrapper(extract_from_i_idxs, dtype=jnp.int64, elem_sharding_axis=0),
+                           "j_idx": wrapper(extract_from_j_idxs, dtype=jnp.int64, elem_sharding_axis=0)},
+          "mask": wrapper(coeff_mat, dtype=jnp.int64, elem_sharding_axis=0)}, max_dof

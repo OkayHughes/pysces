@@ -4,7 +4,7 @@ from ..operations_2d.tensor_hyperviscosity import (eval_quasi_uniform_hypervisc_
                                                    eval_variable_resolution_hypervisc_coeff)
 from ..horizontal_grid import eval_global_grid_deformation_metrics
 from .model_state import project_model_state, wrap_model_state
-from ..distributed_memory.global_assembly import project_scalar_global
+from ..mpi.global_assembly import project_scalar_global
 from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 

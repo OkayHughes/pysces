@@ -110,8 +110,8 @@ def advance_coupling_step(state_in,
                                                dims,
                                                model)
 
-      assert not check_dynamics_nan(dynamics_next, model)
-      assert not check_tracers_nan(tracer_state, model)
+      assert not check_dynamics_nan(dynamics_next, h_grid, model)
+      assert not check_tracers_nan(tracer_state, h_grid, model)
 
       dynamics_state, dynamics_next = dynamics_next, dynamics_state
   dynamics_state = remap_dynamics(dynamics_state,

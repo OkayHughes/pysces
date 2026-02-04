@@ -1,4 +1,4 @@
-from ..config import np, DEBUG, use_wrapper
+from ..config import np, DEBUG, use_wrapper, do_sharding
 from .bilinear_utils import eval_bilinear_mapping, eval_bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
@@ -435,8 +435,8 @@ def metric_terms_to_grid(gll_latlon,
                                           inv_mass_mat,
                                           vert_red_flat,
                                           wrapped=wrapped)
+  if wrapped and do_sharding:
+    grid = shard_grid(grid, dims)
   if calc_smooth_tensor:
     grid = smooth_tensor(grid, dims)
-  if wrapped:
-    grid = shard_grid(grid, dims)
   return grid, dims
