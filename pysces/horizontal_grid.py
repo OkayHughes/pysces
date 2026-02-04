@@ -170,10 +170,13 @@ def eval_cfl(h_grid,
   norm_jac_inv_hvis_tensor = (lambda_vis**2) * (max_norm_jac_inv**4) * (lam**(-hypervis_scaling / 2.0))
 
   norm_jac_inv_hvis_const = (lambda_vis**2) * (1.0 / radius_earth * max_norm_jac_inv)**4
-  if "tensor_hypervis" in diffusion_config.keys():
-    norm_jac_inv_hvis = norm_jac_inv_hvis_tensor
-  else:
-    norm_jac_inv_hvis = norm_jac_inv_hvis_const
+  # todo: figure out why this is wrong.
+  # if "tensor_hypervis" in diffusion_config.keys():
+  #   norm_jac_inv_hvis = norm_jac_inv_hvis_tensor
+  # else:
+  #   norm_jac_inv_hvis = norm_jac_inv_hvis_const
+
+  norm_jac_inv_hvis = norm_jac_inv_hvis_const
 
   nu_div_fact = 1.0 if "nu_div_factor" not in diffusion_config.keys() else diffusion_config["nu_div_factor"]
   nu_d_mass = 1.0 if "nu_d_mass" not in diffusion_config.keys() else diffusion_config["nu_d_mass"]
