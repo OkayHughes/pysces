@@ -6,7 +6,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 
 def get_figdir():
-  return os.path.join(os.path.dirname(os.path.abspath(__file__)), "_figures")
+  figdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_figures")
+  os.makedirs(figdir, exist_ok=True)
+  return figdir
 
 
 def plot_grid(grid, ax):
@@ -38,3 +40,9 @@ test_division_factor = 1.0 if extensive else 1000.0
 test_npts = [3, 4, 5, 6] if extensive else [3, 4]
 
 seed = 0
+
+
+def allclose_global(sharded_array_1, sharded_array_2, dims):
+  from pysces.config import jnp, get_global_array
+  return jnp.allclose(get_global_array(sharded_array_1, dims),
+                      get_global_array(sharded_array_2, dims))

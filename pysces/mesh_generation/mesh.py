@@ -1,9 +1,8 @@
-from ..config import np, DEBUG, use_wrapper, mpi_size
-from ..distributed_memory.processor_decomposition import init_decomp
+from ..config import np, DEBUG, use_wrapper, do_sharding
 from .bilinear_utils import eval_bilinear_mapping, eval_bilinear_jacobian
 from .mesh_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE, FORWARDS, MAX_VERT_DEGREE_UNSTRUCTURED
 from ..spectral import init_spectral
-from ..horizontal_grid import init_spectral_element_grid
+from ..horizontal_grid import init_spectral_element_grid, smooth_tensor, shard_grid
 from .spherical_coord_utils import unit_sphere_to_cart_coords_jacobian
 
 
@@ -354,7 +353,7 @@ def metric_terms_to_grid(gll_latlon,
                          vert_redundancy_gll,
                          npt,
                          wrapped=use_wrapper,
-                         proc_idx=None):
+                         calc_smooth_tensor=False):
   """
   Collate individual coordinate mappings into global SpectralElementGrid
   on an equiangular cubed sphere grid.
@@ -387,12 +386,6 @@ def metric_terms_to_grid(gll_latlon,
   SpectralElementGrid
     Global spectral element grid.
   """
-  NELEM = gll_latlon.shape[0]
-  if proc_idx is not None:
-    decomp = init_decomp(NELEM, mpi_size)
-  else:
-    proc_idx = 0
-    decomp = init_decomp(NELEM, 1)
 
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cartesian_to_sphere_jacobian, gll_to_cartesian_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:, :, :, 0])[:, :, :, np.newaxis]
@@ -432,15 +425,18 @@ def metric_terms_to_grid(gll_latlon,
   inv_mass_mat = 1.0 / mass_mat
   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
-  return init_spectral_element_grid(gll_latlon,
-                                    gll_to_sphere_jacobian,
-                                    gll_to_sphere_jacobian_inv,
-                                    physical_coords_to_cartesian,
-                                    rmetdet,
-                                    metdet,
-                                    mass_mat,
-                                    inv_mass_mat,
-                                    vert_red_flat,
-                                    proc_idx,
-                                    decomp,
-                                    wrapped=wrapped)
+  grid, dims = init_spectral_element_grid(gll_latlon,
+                                          gll_to_sphere_jacobian,
+                                          gll_to_sphere_jacobian_inv,
+                                          physical_coords_to_cartesian,
+                                          rmetdet,
+                                          metdet,
+                                          mass_mat,
+                                          inv_mass_mat,
+                                          vert_red_flat,
+                                          wrapped=wrapped)
+  if wrapped and do_sharding:
+    grid = shard_grid(grid, dims)
+  if calc_smooth_tensor:
+    grid = smooth_tensor(grid, dims)
+  return grid, dims

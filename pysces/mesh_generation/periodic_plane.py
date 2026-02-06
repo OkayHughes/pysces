@@ -1,7 +1,6 @@
-from ..config import np, use_wrapper, mpi_size
+from ..config import np, use_wrapper, do_sharding
 from ..spectral import init_spectral
-from ..distributed_memory.processor_decomposition import init_decomp
-from ..horizontal_grid import init_spectral_element_grid
+from ..horizontal_grid import init_spectral_element_grid, shard_grid, smooth_tensor
 from .mesh import vert_red_hierarchy_to_flat
 
 
@@ -137,8 +136,8 @@ def metric_terms_to_grid(physical_coords,
                          gll_to_planar_jacobian,
                          vert_redundancy_gll,
                          npt,
-                         wrapped=use_wrapper,
-                         proc_idx=None):
+                         calc_smooth_tensor=False,
+                         wrapped=use_wrapper):
   """
     Collate individual coordinate mappings into into global SpectralElementGrid
     on a periodic plane.
@@ -171,11 +170,6 @@ def metric_terms_to_grid(physical_coords,
 
   spectrals = init_spectral(npt)
   NELEM = physical_coords.shape[0]
-  if proc_idx is None:
-    proc_idx = 0
-    decomp = init_decomp(NELEM, 1)
-  else:
-    decomp = init_decomp(NELEM, mpi_size)
 
   gll_to_planar_jacobian_inv = np.linalg.inv(gll_to_planar_jacobian)
 
@@ -199,18 +193,21 @@ def metric_terms_to_grid(physical_coords,
   inv_mass_mat = 1.0 / mass_mat
   vert_red_flat = vert_red_hierarchy_to_flat(vert_redundancy_gll)
 
-  return init_spectral_element_grid(physical_coords,
-                                    gll_to_planar_jacobian,
-                                    gll_to_planar_jacobian_inv,
-                                    physical_coords_to_cartesian,
-                                    rmetdet,
-                                    metdet,
-                                    mass_mat,
-                                    inv_mass_mat,
-                                    vert_red_flat,
-                                    proc_idx,
-                                    decomp,
-                                    wrapped=wrapped)
+  grid, dims = init_spectral_element_grid(physical_coords,
+                                          gll_to_planar_jacobian,
+                                          gll_to_planar_jacobian_inv,
+                                          physical_coords_to_cartesian,
+                                          rmetdet,
+                                          metdet,
+                                          mass_mat,
+                                          inv_mass_mat,
+                                          vert_red_flat,
+                                          wrapped=wrapped)
+  if wrapped and do_sharding:
+    grid = shard_grid(grid, dims)
+  if calc_smooth_tensor:
+    grid = smooth_tensor(grid, dims)
+  return grid, dims
 
 
 def init_uniform_grid(nx,
@@ -219,7 +216,7 @@ def init_uniform_grid(nx,
                       length_x=2.0,
                       length_y=2.0,
                       wrapped=use_wrapper,
-                      proc_idx=None):
+                      calc_smooth_tensor=False):
   """
   Generate a uniform doubly periodic
   SpectralElementGrid on an axis-aligned cartesian plane.
@@ -246,9 +243,10 @@ def init_uniform_grid(nx,
     Global spectral element grid.
   """
   physical_coords, ref_to_planar, vert_red = init_periodic_plane(nx, ny, npt, length_x=length_x, length_y=length_y)
-  return metric_terms_to_grid(physical_coords,
-                              ref_to_planar,
-                              vert_red,
-                              npt,
-                              wrapped=wrapped,
-                              proc_idx=proc_idx)
+  grid, dims = metric_terms_to_grid(physical_coords,
+                                    ref_to_planar,
+                                    vert_red,
+                                    npt,
+                                    calc_smooth_tensor=calc_smooth_tensor,
+                                    wrapped=wrapped)
+  return grid, dims

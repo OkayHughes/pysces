@@ -1,8 +1,8 @@
 # Overview
 The purpose of this project is to create the a highly readable, well documented, well tested atmospheric dynamical core with support for variable resolution meshes, as well as automatic differentiation for machine learing and data assimilation.
-This project prioritizes code readability and maintainability over performance. 
+This project prioritizes code readability and maintainability, in the sense that code that runs 10% slower but is much easier for a second-year graduate student to understand and modify is better than its inaccessible optimized counterpart.
 We want to minimize external dependencies and, insofar as it is possible, create a codebase that is entirely written in python.
-Given the constraints of these design decisions, it is unlikely that the resulting dynamical core will scale to hundreds or thousands of  nodes on an HPC computing system. This aligns with our stated goal of making atmospheric modeling accessible.
+Given the constraints of these design decisions, it is unlikely that the resulting dynamical core will scale to hundreds or thousands of nodes on an HPC computing system. This aligns with our stated goal of making atmospheric modeling accessible.
 
 # Quickstart with `uv`
 
@@ -59,17 +59,19 @@ with PyTorch as a backend, but we don't typically optimize for PyTorch performan
 The view of the maintainer is that since the training data 
 used to train LLMS was obtained without the consent of the people who made it, 
 LLMs trained on this data are structurally incapable
-of determining when they are commiting plagiarism or theft.
+of determining when they are commiting plagiarism or theft. Contributing 
+LLM generated code should be treated with the utmost care and consideration
+for other people.
 
-Imagine that a guest at your dinner party shows up with a bottle of wine
+<!-- Imagine that a guest at your dinner party shows up with a bottle of wine
 that they stole from their brother-in-law's house. You won't know
 that it was stolen unless they brag to you about it.
 Analogously, we cannot necessarily know whether you used an LLM
 to generate code that you're trying to commit, but you should feel
 about the same way about contributing LLM-generated code as you
 would showing up to a dinner party with something you stole from
-a relative's house.
+a relative's house. -->
 
 # Shoulders of giants disclaimer
 The core functionality of this dynamical core is not primarily my work,
-and is mostly a framework that helps unify the [Higher Order Methods Modeling Environment](https://doi.org/10.1029/2019MS001783) (HOMME) and the [Community Atmosphere Model-Spectral Element](https://doi.org/10.1029/2017MS001257) dynamical cores. I've been so fortunate to work with Drs. Mark Taylor, Oksana Guba, and Peter Lauritzen, and I would not have been able to write this codebase without their mentorship.
+and is mostly a framework that helps unify the [Higher Order Methods Modeling Environment](https://doi.org/10.1029/2019MS001783) (HOMME) and the [Community Atmosphere Model-Spectral Element](https://doi.org/10.1029/2017MS001257) dynamical cores. I've been so fortunate to work with Drs. Mark Taylor, Oksana Guba, and Peter Lauritzen, and I would not have been able to write this codebase without their mentorship. None of this mentorship would have happened at all if my advisor, Professor Christiane Jablonowski, hadn't helped me find a place for myself in the atmospheric modeling community, and helped develop my taste for science-driven dynamical core development.
