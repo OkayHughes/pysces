@@ -50,7 +50,7 @@ def make_grid(model):
                                            mountain=False,
                                            eps=1e-3)
   dynamics = model_state["dynamics"]
-  dynamics["u"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["u"])
+  dynamics["horizontal_wind"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["horizontal_wind"])
   dynamics["d_mass"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["d_mass"])
   if model in cam_se_models:
     dynamics["T"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["T"])
@@ -70,7 +70,7 @@ def make_grid(model):
 def goop_dynamics(dynamics, model):
   def pert(field, scale=1.0):
     return device_wrapper(np.random.normal(scale=scale, size=field.shape))
-  u = dynamics["u"] + pert(dynamics["u"])
+  u = dynamics["horizontal_wind"] + pert(dynamics["horizontal_wind"])
   d_mass = dynamics["d_mass"]  # + pert(dynamics["d_mass"], scale=1.0)
   if model in cam_se_models:
     thermo = dynamics["T"] + pert(dynamics["T"])
@@ -167,7 +167,7 @@ def test_quasi_uniform():
                                              mountain=False,
                                              eps=1e-1)
     dynamics = model_state["dynamics"]
-    dynamics["u"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["u"])
+    dynamics["horizontal_wind"] = curl_Ymn_vec[:, :, :, jnp.newaxis, :] * jnp.ones_like(dynamics["horizontal_wind"])
     dynamics["d_mass"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["d_mass"])
     if model in cam_se_models:
       dynamics["T"] = Ymn[:, :, :, jnp.newaxis] * jnp.ones_like(dynamics["T"])
@@ -187,13 +187,13 @@ def test_quasi_uniform():
       laplace_dynamics = project_dynamics(laplace_dynamics_discont, h_grid, dims, model)
       eps = 3e-2
       nus = {}
-      nus["u"] = diffusion_config["nu"] if apply_nu else 1.0
+      nus["horizontal_wind"] = diffusion_config["nu"] if apply_nu else 1.0
       nus["phi_i"] = diffusion_config["nu_phi"] if apply_nu else 1.0
       nus["d_mass"] = diffusion_config["nu_d_mass"] if apply_nu else 1.0
       nus["thermo"] = diffusion_config["nu"] if apply_nu else 1.0
       nus["w_i"] = diffusion_config["nu"] if apply_nu else 1.0
-      error_u = nus["u"] * eigval * dynamics["u"] - laplace_dynamics["u"]
-      assert jnp.max(jnp.abs(error_u)) / nus["u"] < eps
+      error_u = nus["horizontal_wind"] * eigval * dynamics["horizontal_wind"] - laplace_dynamics["horizontal_wind"]
+      assert jnp.max(jnp.abs(error_u)) / nus["horizontal_wind"] < eps
       error_d_mass = nus["d_mass"] * eigval * dynamics["d_mass"] - laplace_dynamics["d_mass"]
       assert jnp.max(jnp.abs(error_d_mass)) / nus["d_mass"] < eps
       if model in cam_se_models:
@@ -241,7 +241,7 @@ def test_sponge_layer_energy_estimate(homme_hydrostatic_noisy,
     def pert(vals, scale=1.0):
       return device_wrapper(np.random.normal(size=vals.shape, scale=scale))
 
-    dynamics["u"] += pert(dynamics["u"])
+    dynamics["horizontal_wind"] += pert(dynamics["horizontal_wind"])
     dynamics["d_mass"] += pert(dynamics["d_mass"], scale=10)
     if model in cam_se_models:
       dynamics["T"] += pert(dynamics["T"])
@@ -253,7 +253,7 @@ def test_sponge_layer_energy_estimate(homme_hydrostatic_noisy,
     dt = timestep_config["sponge"]["dt"]
     n_sponge = diffusion_config["nu_ramp"].size
     dynamics_new = advance_sponge_layer(dynamics, dt, h_grid, physics_config, diffusion_config, dims, model)
-    fields = ["u", "d_mass", thermodynamic_variable_names[model]]
+    fields = ["horizontal_wind", "d_mass", thermodynamic_variable_names[model]]
     if model not in hydrostatic_models:
       fields += ["phi_i", "w_i"]
     prev_vals = {}
@@ -263,8 +263,8 @@ def test_sponge_layer_energy_estimate(homme_hydrostatic_noisy,
       dynamics_new = advance_sponge_layer(dynamics_new, dt, h_grid, physics_config, diffusion_config, dims, model)
       for k_idx in range(n_sponge):
         for field in fields:
-          if field == "u":
-            vals = 0.5 * (dynamics_new["u"][:, :, :, k_idx, 0]**2 + dynamics_new["u"][:, :, :, k_idx, 1]**2)
+          if field == "horizontal_wind":
+            vals = 0.5 * (dynamics_new["horizontal_wind"][:, :, :, k_idx, 0]**2 + dynamics_new["horizontal_wind"][:, :, :, k_idx, 1]**2)
           else:
             vals = dynamics_new[field][:, :, :, k_idx]
           total = inner_product(vals, vals, h_grid)
@@ -311,7 +311,7 @@ def test_hypervis_energy_estimate_quasi_uniform(homme_hydrostatic_noisy,
                                           diffusion_config,
                                           model)
       dynamics_new = sum_dynamics_series([dynamics, dynamics_step], [1.0, dt], model)
-      fields = ["u", "d_mass", thermodynamic_variable_names[model]]
+      fields = ["horizontal_wind", "d_mass", thermodynamic_variable_names[model]]
       if model not in hydrostatic_models:
         fields += ["phi_i", "w_i"]
       prev_vals = {}
@@ -329,8 +329,8 @@ def test_hypervis_energy_estimate_quasi_uniform(homme_hydrostatic_noisy,
         dynamics_new = sum_dynamics_series([dynamics_new, dynamics_step], [1.0, dt], model)
         for k_idx in range(nlev):
           for field in fields:
-            if field == "u":
-              u_pert = dynamics_new["u"][:, :, :, k_idx, :] - dynamics_base["u"][:, :, :, k_idx, :]
+            if field == "horizontal_wind":
+              u_pert = dynamics_new["horizontal_wind"][:, :, :, k_idx, :] - dynamics_base["horizontal_wind"][:, :, :, k_idx, :]
               vals = 0.5 * (u_pert[:, :, :, 0]**2 + u_pert[:, :, :, 1]**2)
             elif field == "theta_v_d_mass":
               theta_v_pert = dynamics_new["theta_v_d_mass"][:, :, :, k_idx]
@@ -395,7 +395,7 @@ def test_hypervis_energy_estimate_mobius():
                                         diffusion_config,
                                         model)
     dynamics_new = sum_dynamics_series([dynamics, dynamics_step], [1.0, dt], model)
-    fields = ["u", "d_mass", thermodynamic_variable_names[model]]
+    fields = ["horizontal_wind", "d_mass", thermodynamic_variable_names[model]]
     if model not in hydrostatic_models:
       fields += ["phi_i", "w_i"]
     prev_vals = {}
@@ -413,8 +413,8 @@ def test_hypervis_energy_estimate_mobius():
       dynamics_new = sum_dynamics_series([dynamics_new, dynamics_step], [1.0, dt], model)
       for k_idx in range(nlev):
         for field in fields:
-          if field == "u":
-            u_pert = dynamics_new["u"][:, :, :, k_idx, :] - dynamics_base["u"][:, :, :, k_idx, :]
+          if field == "horizontal_wind":
+            u_pert = dynamics_new["horizontal_wind"][:, :, :, k_idx, :] - dynamics_base["horizontal_wind"][:, :, :, k_idx, :]
             vals = 0.5 * (u_pert[:, :, :, 0]**2 + u_pert[:, :, :, 1]**2)
           elif field == "theta_v_d_mass":
             theta_v_pert = dynamics_new["theta_v_d_mass"][:, :, :, k_idx]

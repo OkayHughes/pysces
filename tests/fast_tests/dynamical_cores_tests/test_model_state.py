@@ -51,7 +51,7 @@ def test_copy_state():
   water_vapor = model_state["tracers"]["moisture_species"]["water_vapor"]
   model_state["tracers"]["tracers"][trac_name] = 1.0 * jnp.ones_like(water_vapor)
   model_state_new = copy_model_state(model_state, model)
-  assert allclose_global(model_state_new["dynamics"]["u"], model_state["dynamics"]["u"], dims)
+  assert allclose_global(model_state_new["dynamics"]["horizontal_wind"], model_state["dynamics"]["horizontal_wind"], dims)
   assert allclose_global(model_state_new["dynamics"]["T"], model_state["dynamics"]["T"], dims)
   assert allclose_global(model_state_new["dynamics"]["d_mass"], model_state["dynamics"]["d_mass"], dims)
   tracers_new = model_state_new["tracers"]
@@ -161,7 +161,7 @@ def test_wrappers():
                                              mountain=False,
                                              moist=True,
                                              eps=1e-3)
-    u = model_state["dynamics"]["u"]
+    u = model_state["dynamics"]["horizontal_wind"]
     thermo = model_state["dynamics"][thermodynamic_variable_names[model]]
     d_mass = model_state["dynamics"]["d_mass"]
     if model not in hydrostatic_models:
@@ -222,8 +222,8 @@ def test_wrappers():
     model_state_new = wrap_model_state(model_state["dynamics"],
                                        model_state["static_forcing"],
                                        model_state["tracers"])
-    assert allclose_global(model_state["dynamics"]["u"],
-                           model_state_new["dynamics"]["u"], dims)
+    assert allclose_global(model_state["dynamics"]["horizontal_wind"],
+                           model_state_new["dynamics"]["horizontal_wind"], dims)
     assert allclose_global(model_state["static_forcing"]["phi_surf"],
                            model_state_new["static_forcing"]["phi_surf"], dims)
     assert allclose_global(model_state["tracers"]["moisture_species"]["water_vapor"],
@@ -259,7 +259,7 @@ def test_project_dynamics_state():
       assert not is_3d_field_c0(model_state["dynamics"][field], h_grid, dims)
     dynamics_cont = project_dynamics(model_state["dynamics"], h_grid, dims, model)
     for field in dynamics_cont.keys():
-      if field == "u":
+      if field == "horizontal_wind":
         for comp_idx in range(2):
           assert is_3d_field_c0(dynamics_cont[field][:, :, :, :, comp_idx], h_grid, dims)
       else:

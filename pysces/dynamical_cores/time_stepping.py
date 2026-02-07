@@ -59,7 +59,7 @@ def enforce_conservation(dynamics,
 #
 # def accumulate_avg_explicit_terms(averaging_weight, state_c0, tracer_struct):
 #   return wrap_tracer_avg_struct(tracer_struct["avg_u"] + averaging_weight *
-#                                 state_c0["u"] *
+#                                 state_c0["horizontal_wind"] *
 #                                 state_c0["d_mass"][:, :, :, :, jnp.newaxis],
 #                                 tracer_struct["avg_d_mass"],
 #                                 tracer_struct["avg_d_mass_dissip"])

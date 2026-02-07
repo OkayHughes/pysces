@@ -55,7 +55,7 @@ def simulate_shallow_water(end_time,
         state_np1 = state_tmp
       state_n, state_np1 = state_np1, state_n
 
-      versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["u"]))))
+      versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["horizontal_wind"]))))
       versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["h"]))))
     k += 1
   return state_n

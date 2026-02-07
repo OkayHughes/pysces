@@ -32,7 +32,7 @@ def cp_base(dof):
 def init_physics_config(model,
                         Rgas=universal_R / molec_weight_dry_air,
                         radius_earth=6371e3,
-                        period_earth=7.292e-5,
+                        angular_freq_earth=7.292e-5,
                         gravity=9.81,
                         p0=1e5,
                         cp=1.00464e3,
@@ -65,7 +65,7 @@ def init_physics_config(model,
 
   physics_config = {"gravity": device_wrapper(gravity),
                     "radius_earth": device_wrapper(radius_earth),
-                    "period_earth": device_wrapper(period_earth),
+                    "angular_freq_earth": device_wrapper(angular_freq_earth),
                     "p0": device_wrapper(p0),
                     "epsilon": epsilon}
   physics_config["Rgas"] = device_wrapper(Rgas)

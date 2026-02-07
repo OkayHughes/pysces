@@ -29,8 +29,30 @@ def init_common_variables(dynamics,
                           v_grid,
                           physics_config,
                           model):
+  """
+  Initialize intermediate quantities that are shared between terms in the adiabatic equations of motion.
+
+  Parameters
+  ----------
+  dynamics: DynamicsState
+      Dict-like containing only the prognostic quantities for adiabatic dynamics, `u`, 
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   temperature = dynamics["T"]
-  u = dynamics["u"]
+  wind = dynamics["horizontal_wind"]
   d_mass = dynamics["d_mass"]
 
   phi_surf = static_forcing["phi_surf"]
@@ -57,7 +79,7 @@ def init_common_variables(dynamics,
                                    pressure_model_lev,
                                    R_dry,
                                    phi_surf)
-  return {"u": u,
+  return {"horizontal_wind": wind,
           "temperature": temperature,
           "phi": phi,
           "d_mass": d_mass,
@@ -77,8 +99,30 @@ def init_common_variables(dynamics,
 def eval_temperature_horiz_advection_term(common_variables,
                                           h_grid,
                                           physics_config):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   grad_temperature = horizontal_gradient_3d(common_variables["temperature"], h_grid, physics_config)
-  u_dot_grad_temperature = physical_dot_product(common_variables["u"], grad_temperature)
+  u_dot_grad_temperature = physical_dot_product(common_variables["horizontal_wind"], grad_temperature)
   return -u_dot_grad_temperature
 
 
@@ -86,7 +130,29 @@ def eval_temperature_horiz_advection_term(common_variables,
 def eval_temperature_vertical_advection_term(common_variables,
                                              h_grid,
                                              physics_config):
-  u = common_variables["u"]
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  u = common_variables["horizontal_wind"]
   cp = common_variables["cp"]
   d_pressure_u = common_variables["d_pressure"][:, :, :, :, np.newaxis] * u
   div_d_pressure_u = horizontal_divergence_3d(d_pressure_u, h_grid, physics_config)
@@ -100,7 +166,29 @@ def eval_temperature_vertical_advection_term(common_variables,
 def eval_d_mass_divergence_term(common_variables,
                                 h_grid,
                                 physics_config):
-  d_mass_u = common_variables["d_mass"][:, :, :, :, np.newaxis] * common_variables["u"]
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  d_mass_u = common_variables["d_mass"][:, :, :, :, np.newaxis] * common_variables["horizontal_wind"]
   div_d_mass_u = horizontal_divergence_3d(d_mass_u, h_grid, physics_config)
   return -div_d_mass_u
 
@@ -109,7 +197,29 @@ def eval_d_mass_divergence_term(common_variables,
 def eval_energy_gradient_term(common_variables,
                               h_grid,
                               physics_config):
-  u = common_variables["u"]
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  u = common_variables["horizontal_wind"]
   phi = common_variables["phi"]
   kinetic_energy = physical_dot_product(u, u) / 2.0
   return -horizontal_gradient_3d(kinetic_energy[:, :, :] + phi, h_grid, physics_config)
@@ -119,7 +229,29 @@ def eval_energy_gradient_term(common_variables,
 def eval_vorticity_term(common_variables,
                         h_grid,
                         physics_config):
-  u = common_variables["u"]
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
+  u = common_variables["horizontal_wind"]
   coriolis_parameter = common_variables["coriolis_param"]
   vorticity = horizontal_vorticity_3d(u, h_grid, physics_config)
   return jnp.stack((u[:, :, :, :, 1] * (coriolis_parameter[:, :, :, np.newaxis] + vorticity),
@@ -132,6 +264,28 @@ def eval_pressure_gradient_force_term(common_variables,
                                       v_grid,
                                       physics_config,
                                       pgf_formulation):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   cp_dry = common_variables["cp_dry"]
   R_dry = common_variables["R_dry"]
   exner = eval_exner_function(common_variables["pressure_midlevel"],
@@ -180,6 +334,28 @@ def eval_explicit_tendency(dynamics,
                            physics_config,
                            model,
                            pgf_formulation=pressure_gradient_options.corrected_grad_exner):
+  """
+  [Description]
+
+  Parameters
+  ----------
+  [first] : array_like
+      the 1st param name `first`
+  second :
+      the 2nd param
+  third : {'value', 'other'}, optional
+      the 3rd param, by default 'value'
+
+  Returns
+  -------
+  string
+      a value in a string
+
+  Raises
+  ------
+  KeyError
+      when a key error
+  """
   common_variables = init_common_variables(dynamics,
                                            static_forcing,
                                            moist_species,

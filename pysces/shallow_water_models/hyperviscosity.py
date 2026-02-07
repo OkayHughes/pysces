@@ -69,10 +69,10 @@ def eval_hypervis_quasi_uniform(state_in,
       when a key error
   """
   a = physics_config["radius_earth"]
-  u_tmp = horizontal_weak_vector_laplacian(state_in["u"], grid, a=a, damp=True)
+  u_tmp = horizontal_weak_vector_laplacian(state_in["horizontal_wind"], grid, a=a, damp=True)
   h_tmp = horizontal_weak_laplacian(state_in["h"][:, :, :], grid, a=a)
   lap1 = project_model_state(wrap_model_state(u_tmp, h_tmp, state_in["hs"]), grid, dims)
-  u_tmp = diffusion_config["nu"] * horizontal_weak_vector_laplacian(lap1["u"],
+  u_tmp = diffusion_config["nu"] * horizontal_weak_vector_laplacian(lap1["horizontal_wind"],
                                                                     grid,
                                                                     a=a,
                                                                     damp=True,
@@ -88,7 +88,7 @@ def eval_hypervis_variable_resolution(state_in,
                                       diffusion_config,
                                       dims):
   a = physics_config["radius_earth"]
-  u_cart = jnp.einsum("fijs,fijcs->fijc", jnp.flip(state_in["u"], axis=-1), grid["physical_to_cartesian"])
+  u_cart = jnp.einsum("fijs,fijcs->fijc", jnp.flip(state_in["horizontal_wind"], axis=-1), grid["physical_to_cartesian"])
   components_laplace = []
   for cart_idx in range(3):
     components_laplace.append(horizontal_weak_laplacian(u_cart[:, :, :, cart_idx], grid, a=a, apply_tensor=False))

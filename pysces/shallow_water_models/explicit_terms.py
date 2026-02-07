@@ -38,14 +38,14 @@ def eval_explicit_terms(state_in,
               jnp.sin(physics_config["alpha"]) +
               jnp.sin(grid["physical_coords"][:, :, :, 0]) *
               jnp.cos(physics_config["alpha"]))
-  abs_vort = horizontal_vorticity(state_in["u"], grid, a=physics_config["radius_earth"])
+  abs_vort = horizontal_vorticity(state_in["horizontal_wind"], grid, a=physics_config["radius_earth"])
   abs_vort += 2 * physics_config["angular_freq_earth"] * coriolis
-  energy = 0.5 * (state_in["u"][:, :, :, 0]**2 +
-                  state_in["u"][:, :, :, 1]**2) + physics_config["gravity"] * (state_in["h"] + state_in["hs"])
+  energy = 0.5 * (state_in["horizontal_wind"][:, :, :, 0]**2 +
+                  state_in["horizontal_wind"][:, :, :, 1]**2) + physics_config["gravity"] * (state_in["h"] + state_in["hs"])
   energy_grad = horizontal_gradient(energy, grid, a=physics_config["radius_earth"])
-  u_tend = abs_vort * state_in["u"][:, :, :, 1] - energy_grad[:, :, :, 0]
-  v_tend = -abs_vort * state_in["u"][:, :, :, 0] - energy_grad[:, :, :, 1]
-  h_tend = -horizontal_divergence(state_in["h"][:, :, :, np.newaxis] * state_in["u"],
+  u_tend = abs_vort * state_in["horizontal_wind"][:, :, :, 1] - energy_grad[:, :, :, 0]
+  v_tend = -abs_vort * state_in["horizontal_wind"][:, :, :, 0] - energy_grad[:, :, :, 1]
+  h_tend = -horizontal_divergence(state_in["h"][:, :, :, np.newaxis] * state_in["horizontal_wind"],
                                   grid,
                                   a=physics_config["radius_earth"])
   return wrap_model_state(jnp.stack((u_tend, v_tend), axis=-1),
