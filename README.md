@@ -57,7 +57,7 @@ with PyTorch as a backend, but we don't typically optimize for PyTorch performan
 # Policy on intellectual property
 
 The view of the maintainer is that since the training data 
-used to train LLMS was obtained without the consent of the people who made it, 
+used to train LLMs was obtained without the consent of the people who made it, 
 LLMs trained on this data are structurally incapable
 of determining when they are commiting plagiarism or theft. Contributing 
 LLM generated code should be treated with the utmost care and consideration
