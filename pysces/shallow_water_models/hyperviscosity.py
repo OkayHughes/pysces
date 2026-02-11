@@ -77,7 +77,7 @@ def eval_hypervis_quasi_uniform(state_in,
                                                                     a=a,
                                                                     damp=True,
                                                                     nu_div_fact=diffusion_config["nu_div_factor"])
-  h_tmp = diffusion_config["nu_d_mass"] * horizontal_weak_laplacian(lap1["h"], grid, a=a)
+  h_tmp = 0.0 * diffusion_config["nu_d_mass"] * horizontal_weak_laplacian(lap1["h"], grid, a=a)
   return project_model_state(wrap_model_state(u_tmp, h_tmp, state_in["hs"]), grid, dims)
 
 
@@ -112,7 +112,7 @@ def eval_hypervis_variable_resolution(state_in,
       state_biharm_cont.append(project_scalar(comp, grid, dims))
     state_biharm_cont.append(project_scalar(h_biharm, grid, dims))
 
-  h_biharm_cont = diffusion_config["nu_d_mass"] * state_biharm_cont[3]
+  h_biharm_cont = 0.0 * diffusion_config["nu_d_mass"] * state_biharm_cont[3]
   u_cart = jnp.stack(state_biharm_cont[:3], axis=-1)
   u_sph = jnp.einsum("fijc,fijcs->fijs", u_cart, grid["physical_to_cartesian"])
   u_sph = jnp.flip(diffusion_config["nu"] * u_sph, axis=-1)

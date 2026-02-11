@@ -4,6 +4,7 @@ from ..operators_3d import horizontal_divergence_3d
 from ..model_state import project_scalar_3d, advance_tracers, wrap_tracer_mass, wrap_tracers
 from ...model_info import cam_se_models, homme_models
 
+
 @partial(jit, static_argnames=["model"])
 def flatten_tracer_like(tracers, model):
   tracers_flat = {}
@@ -56,9 +57,8 @@ def mass_to_tracer(d_mass, tracers_mass, model):
                           dry_air_species_mass=dry_air_species_mixing_ratio)
 
 
-
 @partial(jit, static_argnames=["timestep_config", "model", "dims"])
-def advect_dissipate_limit_tracers_rk2(tracer_state, tracer_consist_dyn, tracer_consist_visc, tracer_consist_begin, physics_config, diffusion_config, timestep_config, h_grid, model, dims):
+def advect_dissipate_limit_tracers_rk2(tracer_state, tracer_consist_dyn, tracer_consist_begin, physics_config, diffusion_config, timestep_config, h_grid, model, dims):
   divergence_d_mass_term = -horizontal_divergence_3d(tracer_consist_dyn["u_d_mass_tendency"], h_grid, physics_config)
   divergence_d_mass_term = project_scalar_3d(divergence_d_mass_term, h_grid, dims)
   rk_stages = 3.0

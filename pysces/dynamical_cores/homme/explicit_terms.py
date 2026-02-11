@@ -13,6 +13,7 @@ from functools import partial
 from ...model_info import hydrostatic_models, deep_atmosphere_models
 
 
+
 @partial(jit, static_argnames=["model"])
 def init_common_variables(dynamics,
                           static_forcing,

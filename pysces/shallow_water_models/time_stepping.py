@@ -1,8 +1,10 @@
-from ..config import jit, DEBUG
+from ..config import jit, DEBUG, jnp
 from .explicit_terms import eval_explicit_terms
-from .model_state import project_model_state, sum_state_series
+from .model_state import project_model_state, sum_state_series, extract_average, sum_avg_struct
 from .hyperviscosity import eval_hypervis_quasi_uniform, eval_hypervis_variable_resolution
 from ..time_step import time_step_options, stability_info
+from ..operations_2d.operators import horizontal_divergence, horizontal_gradient
+from ..operations_2d.local_assembly import project_scalar
 from ..horizontal_grid import eval_cfl
 from frozendict import frozendict
 from functools import partial
@@ -13,7 +15,8 @@ def advance_step_euler(state_in,
                        grid,
                        physics_config,
                        timestep_config,
-                       dims):
+                       dims,
+                       split_):
   """
   [Description]
 
@@ -41,7 +44,7 @@ def advance_step_euler(state_in,
                                    grid,
                                    physics_config)
   state_tend_c0 = project_model_state(state_tend, grid, dims)
-  return sum_state_series([state_in, state_tend_c0], [1.0, timestep_config["dynamics"]["dt"]])
+  return sum_state_series([state_in, state_tend_c0], [1.0, timestep_config["dynamics"]["dt"]]), extract_average(state_tend_c0)
 
 
 @partial(jit, static_argnames=["dims", "timestep_config"])
@@ -73,21 +76,25 @@ def advance_step_ssprk3(state0,
       when a key error
   """
   dt = timestep_config["dynamics"]["dt"]
+
   tend = eval_explicit_terms(state0, grid, physics_config)
   tend_c0 = project_model_state(tend, grid, dims)
+  avg = extract_average(tend_c0)
   state1 = sum_state_series([state0, tend_c0], [1.0, dt])
   tend = eval_explicit_terms(state1, grid, physics_config)
   tend_c0 = project_model_state(tend, grid, dims)
+  avg = sum_avg_struct(avg, extract_average(tend_c0), 1.0 / 6.0, 1.0 / 6.0)
   state2 = sum_state_series([state0, state1, tend_c0],
                             [3.0 / 4.0,
                              1.0 / 4.0,
                              1.0 / 4.0 * dt])
   tend = eval_explicit_terms(state2, grid, physics_config)
   tend_c0 = project_model_state(tend, grid, dims)
+  avg = sum_avg_struct(avg, extract_average(tend_c0), 1.0, 2.0 / 3.0)
   return sum_state_series([state0, state2, tend_c0],
                           [1.0 / 3.0,
                            2.0 / 3.0,
-                           2.0 / 3.0 * dt])
+                           2.0 / 3.0 * dt]), avg
 
 
 @partial(jit, static_argnames=["dims", "timestep_config"])
@@ -176,6 +183,47 @@ def init_timestep_config(dt_coupling,
                                         dt=dt_dynamics),
                     hyperviscosity=frozendict(step_type=hypervis_tstep_type,
                                               dt=dt_hypervis),
+                    tracer_advection=frozendict(step_type=time_step_options.SSPRK3,
+                                                dt=dt_dynamics),
                     dt_coupling=dt_coupling,
                     dynamics_subcycle=dynamics_subcycle,
                     hypervis_subcycle=hypervisc_subcycle)
+
+
+@jit
+def calc_tracer_tend_half_density(half_tracer, wind, grid, physics_config):
+  div_term = horizontal_divergence(half_tracer[:, :, :, jnp.newaxis] * wind, grid, a=physics_config["radius_earth"])
+  grad_term = horizontal_gradient(half_tracer, grid, a=physics_config["radius_earth"])
+  grad_term = (wind[:, :, :, 0] * grad_term[:, :, :, 0] +
+               wind[:, :, :, 1] * grad_term[:, :, :, 1])
+  return -1.0 / 2.0 * (div_term + grad_term)
+
+
+@partial(jit, static_argnames=["dims"])
+def tracer_euler_step(half_tracers, struct_in, average_struct, dt_advance, dt_back_state, physics_config, grid, dims):
+  wind = struct_in["u"] + dt_back_state * average_struct["u"]
+
+  half_tracers_out = {}
+  for tracer_name in half_tracers.keys():
+    rhs = calc_tracer_tend_half_density(half_tracers[tracer_name], wind, grid, physics_config)
+    rhs = project_scalar(rhs, grid, dims)
+    half_tracers_out[tracer_name] = half_tracers[tracer_name] + dt_advance * rhs
+  return half_tracers_out
+
+
+@partial(jit, static_argnames=["dims", "timestep_config"])
+def advance_tracers_rk2(tracers_in, struct_in, average_struct, grid, physics_config, timestep_config, dims):
+  dt = timestep_config["tracer_advection"]["dt"]
+  num_rk_stages = 3
+  half_tracers = {}
+  for tracer_name in tracers_in.keys():
+    half_tracers[tracer_name] = jnp.sqrt(tracers_in[tracer_name]) * struct_in["half_h"]
+  half_tracers_out = tracer_euler_step(half_tracers, struct_in, average_struct, dt / 2.0, 0.0, physics_config, grid, dims)
+  half_tracers_out = tracer_euler_step(half_tracers, struct_in, average_struct, dt / 2.0, dt / 2.0, physics_config, grid, dims)
+  half_tracers_out = tracer_euler_step(half_tracers, struct_in, average_struct, dt / 2.0, dt, physics_config, grid, dims)
+  for tracer_name in half_tracers.keys():
+    half_tracers[tracer_name] = (half_tracers[tracer_name] + (num_rk_stages - 1.0) * half_tracers_out[tracer_name]) / num_rk_stages
+  tracers_out = {}
+  for tracer_name in half_tracers.keys():
+    tracers_out[tracer_name] = ((half_tracers_out[tracer_name]) / (struct_in["half_h"] + dt * average_struct["half_h"]))**2
+  return tracers_out
