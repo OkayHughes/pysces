@@ -66,9 +66,9 @@ def test_galewsky():
     for diff_config in [diffusion_config_uniform, diffusion_config_variable_res]:
       timestep_config = init_timestep_config(dt, grid, dims, physics_config,
                                              diff_config, sphere=True)
-      final_state = simulate_shallow_water(T, init_state, grid,
+      final_state = simulate_shallow_water(T, [init_state], grid,
                                            physics_config, diff_config, timestep_config,
-                                           dims, diffusion=True)
+                                           dims, diffusion=True)[0]
       h = get_global_array(final_state["h"], dims)
       u = get_global_array(final_state["u"], dims)
       assert not jnp.any(jnp.isnan(h))

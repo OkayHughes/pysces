@@ -33,7 +33,7 @@ def test_sw_model():
                                                   grid["physical_coords"][:, :, :, 1],
                                                   test_config))
   print(u_init.dtype)
-  init_state = wrap_model_state(u_init, h_init, hs_init)
+  init_state = [wrap_model_state(u_init, h_init, hs_init)]
 
   T = 4000.0
   dt = 600
@@ -42,7 +42,7 @@ def test_sw_model():
                                          diffusion_config, sphere=True)
   final_state = simulate_shallow_water(T, init_state, grid,
                                        physics_config, diffusion_config, timestep_config,
-                                       dims, diffusion=False)
+                                       dims, diffusion=False)[0]
 
   diff_u = u_init - final_state["u"]
   diff_h = h_init - final_state["h"]
@@ -74,13 +74,13 @@ def test_galewsky():
                                               grid["physical_coords"][:, :, :, 1],
                                               test_config))
     diffusion_config["nu_d_mass"] = 1e-8
-    init_state = wrap_model_state(u_init, h_init, hs_init)
+    init_state = [wrap_model_state(u_init, h_init, hs_init)]
 
     timestep_config = init_timestep_config(dt, grid, dims, physics_config,
                                            diffusion_config, sphere=True)
     final_state = simulate_shallow_water(T, init_state, grid,
                                          physics_config, diffusion_config, timestep_config,
-                                         dims, diffusion=True)
+                                         dims, diffusion=True)[0]
     mass_init = inner_product(h_init, h_init, grid)
     mass_final = inner_product(final_state["h"], final_state["h"], grid)
 

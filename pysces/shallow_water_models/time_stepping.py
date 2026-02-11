@@ -8,8 +8,32 @@ from frozendict import frozendict
 from functools import partial
 
 
+def reconstruct_heights(states_in):
+  for lev_idx in reversed(range(len(states_in)-1)):
+    states_in[lev_idx]["hs"] = states_in[lev_idx+1]["h"] + states_in[lev_idx+1]["hs"]
+  return states_in
+
+
+def advance_step(states_in, grid, physics_config, dims):
+  states_out = []
+  for state in states_in:
+    state_tend = eval_explicit_terms(state,
+                                    grid,
+                                    physics_config)
+    state_tend_c0 = project_model_state(state_tend, grid, dims)
+    states_out.append(state_tend_c0)
+  return states_out
+
+
+def sum_states_series(states_series, coeffs):
+  states_out = []
+  for lev_idx in range(len(states_series[0])):
+    states_out.append(sum_state_series([states[lev_idx] for states in states_series], coeffs))
+  return states_out
+
+
 @partial(jit, static_argnames=["dims", "timestep_config"])
-def advance_step_euler(state_in,
+def advance_step_euler(states_in,
                        grid,
                        physics_config,
                        timestep_config,
@@ -36,16 +60,13 @@ def advance_step_euler(state_in,
   KeyError
       when a key error
   """
-
-  state_tend = eval_explicit_terms(state_in,
-                                   grid,
-                                   physics_config)
-  state_tend_c0 = project_model_state(state_tend, grid, dims)
-  return sum_state_series([state_in, state_tend_c0], [1.0, timestep_config["dynamics"]["dt"]])
+  states = reconstruct_heights(states_in)
+  states_tend_c0 = advance_step(states, grid, physics_config, dims)
+  return sum_states_series([states_in, states_tend_c0], [1.0, timestep_config["dynamics"]["dt"]])
 
 
 @partial(jit, static_argnames=["dims", "timestep_config"])
-def advance_step_ssprk3(state0,
+def advance_step_ssprk3(states_in,
                         grid,
                         physics_config,
                         timestep_config,
@@ -73,25 +94,25 @@ def advance_step_ssprk3(state0,
       when a key error
   """
   dt = timestep_config["dynamics"]["dt"]
-  tend = eval_explicit_terms(state0, grid, physics_config)
-  tend_c0 = project_model_state(tend, grid, dims)
-  state1 = sum_state_series([state0, tend_c0], [1.0, dt])
-  tend = eval_explicit_terms(state1, grid, physics_config)
-  tend_c0 = project_model_state(tend, grid, dims)
-  state2 = sum_state_series([state0, state1, tend_c0],
-                            [3.0 / 4.0,
-                             1.0 / 4.0,
-                             1.0 / 4.0 * dt])
-  tend = eval_explicit_terms(state2, grid, physics_config)
-  tend_c0 = project_model_state(tend, grid, dims)
-  return sum_state_series([state0, state2, tend_c0],
-                          [1.0 / 3.0,
-                           2.0 / 3.0,
-                           2.0 / 3.0 * dt])
+  states = reconstruct_heights(states_in)
+  states_tend_c0 = advance_step(states, grid, physics_config, dims)
+  states_1 = sum_states_series([states_in, states_tend_c0], [1.0, dt])
+  states = reconstruct_heights(states_1)
+  states_tend_c0 = advance_step(states, grid, physics_config, dims)
+  states_2 = sum_states_series([states_in, states_1, states_tend_c0],
+                               [3.0 / 4.0,
+                                1.0 / 4.0,
+                                1.0 / 4.0 * dt])
+  states = reconstruct_heights(states_2)
+  states_tend_c0 = advance_step(states, grid, physics_config, dims)
+  return sum_states_series([states_in, states_2, states_tend_c0],
+                           [1.0 / 3.0,
+                            2.0 / 3.0,
+                            2.0 / 3.0 * dt])
 
 
 @partial(jit, static_argnames=["dims", "timestep_config"])
-def advance_hypervis_euler(state_in,
+def advance_hypervis_euler(states_in,
                            grid,
                            physics_config,
                            diffusion_config,
@@ -119,17 +140,19 @@ def advance_hypervis_euler(state_in,
   KeyError
       when a key error
   """
-  next_step = state_in
+  next_step = states_in
   for k in range(timestep_config["hypervis_subcycle"]):
-    if "tensor_hypervis" in diffusion_config.keys():
-      hvis_tend = eval_hypervis_variable_resolution(next_step, grid, physics_config, diffusion_config, dims)
-    else:
-      hvis_tend = eval_hypervis_quasi_uniform(next_step, grid, physics_config, diffusion_config, dims)
-    next_step = sum_state_series([next_step, hvis_tend], [1.0, -timestep_config["hyperviscosity"]["dt"]])
+    for lev_idx in range(len(states_in)):
+      if "tensor_hypervis" in diffusion_config.keys():
+        hvis_tend = eval_hypervis_variable_resolution(next_step[lev_idx], grid, physics_config, diffusion_config, dims)
+      else:
+        hvis_tend = eval_hypervis_quasi_uniform(next_step[lev_idx], grid, physics_config, diffusion_config, dims)
+      next_step[lev_idx] = sum_state_series([next_step[lev_idx], hvis_tend], [1.0, -timestep_config["hyperviscosity"]["dt"]])
   return next_step
 
 
 def init_timestep_config(dt_coupling,
+                         
                          h_grid,
                          dims,
                          physics_config,
