@@ -26,7 +26,7 @@ def test_remap_state():
                                              mountain=mountain)
     dynamics = model_state["dynamics"]
     static_forcing = model_state["static_forcing"]
-    u = dynamics["u"]
+    u = dynamics["horizontal_wind"]
     w_i = np.random.normal(size=dynamics["w_i"].shape)
     w_i[:, :, :, -1] = ((u[:, :, :, -1, 0] * static_forcing["grad_phi_surf"][:, :, :, 0] +
                          u[:, :, :, -1, 1] * static_forcing["grad_phi_surf"][:, :, :, 1]) /
@@ -34,7 +34,7 @@ def test_remap_state():
     dynamics["w_i"] = device_wrapper(w_i)
     dynamics_remapped = remap_dynamics(dynamics, static_forcing, v_grid, model_config, len(v_grid["hybrid_a_m"]), model)
 
-    for field in ["u", "theta_v_d_mass",
+    for field in ["horizontal_wind", "theta_v_d_mass",
                   "d_mass", "phi_i",
                   "w_i"]:
       assert(jnp.max(jnp.abs(dynamics[field] - dynamics_remapped[field])) < 1e-5)

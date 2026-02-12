@@ -12,7 +12,7 @@ def get_dummy_time_stepping_config(dynamics_tstep_type=time_step_options.RK3_5ST
                                         dt=dt_dynamics))
 
 
-epsilons = {"u": 0.02,
+epsilons = {"horizontal_wind": 0.02,
             "T": 5e-3,
             "theta_v_d_mass": 0.02,
             "d_mass": .2,

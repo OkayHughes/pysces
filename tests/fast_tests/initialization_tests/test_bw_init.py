@@ -86,7 +86,7 @@ def test_deep():
     config_deep = init_baroclinic_wave_config(pertu0=0.0,
                                               pertup=0.0,
                                               radius_earth=6371e3 / 20.0,
-                                              period_earth=7.292e-5 * 20.0,
+                                              angular_freq_earth=7.292e-5 * 20.0,
                                               alpha=alpha)
     for z in jnp.linspace(0, 40e3, 10):
       z_above = device_wrapper((z + eps) * jnp.ones((*lat.shape, 1)))
@@ -98,7 +98,7 @@ def test_deep():
       rho = pressure / (config_deep["Rgas"] * temperature)
       dp_dz = (pressure_above - pressure_below) / (2 * eps)
       metric_terms = -(u**2 + v**2) / (z_center + config_deep["radius_earth"])
-      ncts = -u * 2.0 * config_deep["period_earth"] * jnp.cos(lat)[:, :, :, np.newaxis]
+      ncts = -u * 2.0 * config_deep["angular_freq_earth"] * jnp.cos(lat)[:, :, :, np.newaxis]
       g = z_to_g(z_center, config_deep, models.homme_nonhydrostatic_deep)
       diff = dp_dz / rho + g + metric_terms + ncts
       diff = get_global_array(diff, dims)

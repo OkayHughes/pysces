@@ -125,7 +125,7 @@ def wrap_tracer_avg(avg_u,
 
 
 @partial(jit, static_argnames=["model"])
-def wrap_dynamics(u,
+def wrap_dynamics(horizontal_wind,
                   thermodynamic_variable,
                   d_mass,
                   model,
@@ -153,7 +153,7 @@ def wrap_dynamics(u,
   KeyError
       when a key error
   """
-  state = {"u": u,
+  state = {"horizontal_wind": horizontal_wind,
            thermodynamic_variable_names[model]: thermodynamic_variable,
            "d_mass": d_mass
            }
@@ -182,7 +182,7 @@ def copy_dynamics(dynamics,
   else:
     phi_i = None
     w_i = None
-  return wrap_dynamics(jnp.copy(dynamics["u"]),
+  return wrap_dynamics(jnp.copy(dynamics["horizontal_wind"]),
                        jnp.copy(dynamics[thermodynamic_variable_names[model]]),
                        jnp.copy(dynamics["d_mass"]),
                        model,
@@ -262,12 +262,12 @@ def init_static_forcing(phi_surf,
     grad_phi_surf = jnp.stack([project_scalar(grad_phi_surf_discont[:, :, :, 0], h_grid, dims),
                               project_scalar(grad_phi_surf_discont[:, :, :, 1], h_grid, dims)], axis=-1)
   if model in f_plane_models:
-    coriolis_param = 2.0 * physics_config["period_earth"] * (jnp.sin(f_plane_center) *
-                                                             jnp.ones_like(h_grid["physical_coords"][:, :, :, 0]))
+    coriolis_param = 2.0 * physics_config["angular_freq_earth"] * (jnp.sin(f_plane_center) *
+                                                                   jnp.ones_like(h_grid["physical_coords"][:, :, :, 0]))
   else:
-    coriolis_param = 2.0 * physics_config["period_earth"] * jnp.sin(h_grid["physical_coords"][:, :, :, 0])
+    coriolis_param = 2.0 * physics_config["angular_freq_earth"] * jnp.sin(h_grid["physical_coords"][:, :, :, 0])
   if model in deep_atmosphere_models:
-    nontrad_coriolis_param = 2.0 * physics_config["period_earth"] * jnp.cos(h_grid["physical_coords"][:, :, :, 0])
+    nontrad_coriolis_param = 2.0 * physics_config["angular_freq_earth"] * jnp.cos(h_grid["physical_coords"][:, :, :, 0])
   else:
     nontrad_coriolis_param = None
   return wrap_static_forcing(phi_surf, grad_phi_surf, coriolis_param, nontrad_coriolis_param=nontrad_coriolis_param)
@@ -300,8 +300,8 @@ def project_dynamics(dynamics_in,
   KeyError
       when a key error
   """
-  u_cont = project_scalar_3d(dynamics_in["u"][:, :, :, :, 0], h_grid, dims)
-  v_cont = project_scalar_3d(dynamics_in["u"][:, :, :, :, 1], h_grid, dims)
+  u_cont = project_scalar_3d(dynamics_in["horizontal_wind"][:, :, :, :, 0], h_grid, dims)
+  v_cont = project_scalar_3d(dynamics_in["horizontal_wind"][:, :, :, :, 1], h_grid, dims)
   thermo_var_cont = project_scalar_3d(dynamics_in[thermodynamic_variable_names[model]][:, :, :, :], h_grid, dims)
   d_mass_cont = project_scalar_3d(dynamics_in["d_mass"][:, :, :, :], h_grid, dims)
   if model not in hydrostatic_models:
@@ -394,8 +394,8 @@ def remap_dynamics(dynamics_in,
   d_mass_ref = surface_mass_to_d_mass(pi_surf,
                                       v_grid)
   d_mass = dynamics_in["d_mass"]
-  u_model = dynamics_in["u"][:, :, :, :, 0] * d_mass
-  v_model = dynamics_in["u"][:, :, :, :, 1] * d_mass
+  u_model = dynamics_in["horizontal_wind"][:, :, :, :, 0] * d_mass
+  v_model = dynamics_in["horizontal_wind"][:, :, :, :, 1] * d_mass
   if model in cam_se_models:
     thermo_model = dynamics_in["T"] * d_mass
   else:
@@ -479,7 +479,7 @@ def sum_dynamics(state1,
     phi_i = None
     w_i = None
   thermo_var_name = thermodynamic_variable_names[model]
-  return wrap_dynamics(state1["u"] * fold_coeff1 + state2["u"] * fold_coeff2,
+  return wrap_dynamics(state1["horizontal_wind"] * fold_coeff1 + state2["horizontal_wind"] * fold_coeff2,
                        state1[thermo_var_name] * fold_coeff1 + state2[thermo_var_name] * fold_coeff2,
                        state1["d_mass"] * fold_coeff1 + state2["d_mass"] * fold_coeff2,
                        model,
@@ -557,7 +557,7 @@ def check_dynamics_nan(dynamics,
       when a key error
   """
   is_nan = False
-  fields = ["u", thermodynamic_variable_names[model], "d_mass"]
+  fields = ["horizontal_wind", thermodynamic_variable_names[model], "d_mass"]
   if model not in hydrostatic_models:
     fields += ["w_i", "phi_i"]
   for field in fields:

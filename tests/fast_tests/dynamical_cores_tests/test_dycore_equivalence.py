@@ -167,8 +167,8 @@ def test_equivalent_terms_dry_perturbed():
                  jnp.cos(h_grid["physical_coords"][:, :, :, 1])[:, :, :, np.newaxis, np.newaxis])
   model_state_homme["dynamics"]["d_mass"] += d_mass_pert
   model_state_se["dynamics"]["d_mass"] += d_mass_pert
-  model_state_homme["dynamics"]["u"] += pert_u
-  model_state_se["dynamics"]["u"] += pert_u
+  model_state_homme["dynamics"]["horizontal_wind"] += pert_u
+  model_state_se["dynamics"]["horizontal_wind"] += pert_u
   equivalent_terms = compare_equivalent_terms(model_state_se, model_state_homme,
                                               physics_config_se, physics_config_homme,
                                               v_grid_se, v_grid_homme, model_se, model_homme, h_grid)

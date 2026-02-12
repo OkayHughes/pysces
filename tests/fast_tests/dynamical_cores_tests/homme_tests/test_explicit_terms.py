@@ -27,8 +27,8 @@ def test_notopo():
   for _ in range(10):
     print("\nInitializing random atmosphere\n" + "=" * 28 + "\n")
     model_state = init_baroclinic_wave_state(h_grid, v_grid, model_config, test_config, dims, model, mountain=False)
-    u_shape = model_state["dynamics"]["u"].shape
-    model_state["dynamics"]["u"] += device_wrapper(np.random.normal(scale=0.1, size=u_shape))
+    u_shape = model_state["dynamics"]["horizontal_wind"].shape
+    model_state["dynamics"]["horizontal_wind"] += device_wrapper(np.random.normal(scale=0.1, size=u_shape))
     w_i_shape = model_state["dynamics"]["w_i"].shape
     model_state["dynamics"]["w_i"] += device_wrapper(np.random.normal(scale=0.1, size=w_i_shape))
     phi_i_shape = model_state["dynamics"]["phi_i"][:, :, :, :-1].shape
