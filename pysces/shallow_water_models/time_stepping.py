@@ -191,39 +191,34 @@ def init_timestep_config(dt_coupling,
 
 
 @jit
-def calc_tracer_tend_half_density(half_tracer, wind, grid, physics_config):
-  div_term = horizontal_divergence(half_tracer[:, :, :, jnp.newaxis] * wind, grid, a=physics_config["radius_earth"])
-  grad_term = horizontal_gradient(half_tracer, grid, a=physics_config["radius_earth"])
-  grad_term = (wind[:, :, :, 0] * grad_term[:, :, :, 0] +
-               wind[:, :, :, 1] * grad_term[:, :, :, 1])
-  return -1.0 / 2.0 * (div_term + grad_term)
+def calc_tracer_tend(tracer, h_wind, grid, physics_config):
+  return -horizontal_divergence(tracer[:, :, :, jnp.newaxis] * h_wind, grid, a=physics_config["radius_earth"])
 
 
 @partial(jit, static_argnames=["dims"])
-def tracer_euler_step(half_tracers, struct_in, average_struct, dt_advance, dt_back_state, physics_config, grid, dims):
-  wind = struct_in["u"] + dt_back_state * average_struct["u"]
+def tracer_euler_step(tracers, struct_in, average_struct, dt_advance, dt_back_state, physics_config, grid, dims):
+  h_wind = struct_in["horizontal_wind"] * struct_in["h"][:, :, :, jnp.newaxis] + dt_back_state * average_struct["h_wind"]
 
-  half_tracers_out = {}
-  for tracer_name in half_tracers.keys():
-    rhs = calc_tracer_tend_half_density(half_tracers[tracer_name], wind, grid, physics_config)
+  tracers_out = {}
+  for tracer_name in tracers.keys():
+    rhs = calc_tracer_tend(tracers[tracer_name], h_wind, grid, physics_config)
     rhs = project_scalar(rhs, grid, dims)
-    half_tracers_out[tracer_name] = half_tracers[tracer_name] + dt_advance * rhs
-  return half_tracers_out
+    tracers_out[tracer_name] = tracers[tracer_name] + dt_advance * rhs
+  return tracers_out
 
 
 @partial(jit, static_argnames=["dims", "timestep_config"])
 def advance_tracers_rk2(tracers_in, struct_in, average_struct, grid, physics_config, timestep_config, dims):
   dt = timestep_config["tracer_advection"]["dt"]
   num_rk_stages = 3
-  half_tracers = {}
+  tracers = {}
   for tracer_name in tracers_in.keys():
-    half_tracers[tracer_name] = jnp.sqrt(tracers_in[tracer_name]) * struct_in["half_h"]
-  half_tracers_out = tracer_euler_step(half_tracers, struct_in, average_struct, dt / 2.0, 0.0, physics_config, grid, dims)
-  half_tracers_out = tracer_euler_step(half_tracers, struct_in, average_struct, dt / 2.0, dt / 2.0, physics_config, grid, dims)
-  half_tracers_out = tracer_euler_step(half_tracers, struct_in, average_struct, dt / 2.0, dt, physics_config, grid, dims)
-  for tracer_name in half_tracers.keys():
-    half_tracers[tracer_name] = (half_tracers[tracer_name] + (num_rk_stages - 1.0) * half_tracers_out[tracer_name]) / num_rk_stages
-  tracers_out = {}
-  for tracer_name in half_tracers.keys():
-    tracers_out[tracer_name] = ((half_tracers_out[tracer_name]) / (struct_in["half_h"] + dt * average_struct["half_h"]))**2
+    tracers[tracer_name] = tracers_in[tracer_name]
+  tracers_out = tracer_euler_step(tracers, struct_in, average_struct, dt / 2.0, 0.0, physics_config, grid, dims)
+  tracers_out = tracer_euler_step(tracers_out, struct_in, average_struct, dt / 2.0, dt / 2.0, physics_config, grid, dims)
+  tracers_out = tracer_euler_step(tracers_out, struct_in, average_struct, dt / 2.0, dt, physics_config, grid, dims)
+  for tracer_name in tracers.keys():
+    tracers[tracer_name] = (tracers[tracer_name] + (num_rk_stages - 1.0) * tracers_out[tracer_name]) / num_rk_stages
+  for tracer_name in tracers_out.keys():
+    tracers_out[tracer_name] = (tracers_out[tracer_name]) / (struct_in["h"] + dt * average_struct["h"])
   return tracers_out

@@ -51,7 +51,7 @@ def test_theta_steady_state():
 
     end_state = state["dynamics"]
 
-    assert(not np.any(np.isnan(device_unwrapper(end_state["u"][:, :, :, :, 1]))))
+    assert(not np.any(np.isnan(device_unwrapper(end_state["horizontal_wind"][:, :, :, :, 1]))))
 
 
 def test_theta_baro_wave():

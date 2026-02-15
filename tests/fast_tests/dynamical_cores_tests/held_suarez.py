@@ -11,7 +11,7 @@ dT_y = 60.0
 
 @jit
 def hs_temperature(lat, lon, pi, T, v_grid, config):
-  logprat = jnp.log(pi) - jnp.log(v_grid["reference_pressure"])
+  logprat = jnp.log(pi) - jnp.log(v_grid["reference_surface_mass"])
   etam = v_grid["hybrid_a_m"] + v_grid["hybrid_b_m"]
   pratk = jnp.exp(config["Rgas"] / config["cp"] * (logprat))
   k_t = (k_a + (k_s - k_a) * (jnp.cos(lat)**2 * jnp.cos(lat)**2)[:, :, :, jnp.newaxis] *

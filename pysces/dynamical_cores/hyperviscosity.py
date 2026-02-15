@@ -121,7 +121,7 @@ def eval_hypervis_harmonic(dynamics,
     nu_d_mass = 1.0
 
   if "tensor_hypervis" in diffusion_config.keys():
-    u_cart = jnp.einsum("fijks,fijcs->fijkc", dynamics["u"], h_grid["physical_to_cartesian"])
+    u_cart = jnp.einsum("fijks,fijcs->fijkc", dynamics["horizontal_wind"], h_grid["physical_to_cartesian"])
     components = []
     for comp_idx in range(u_cart.shape[-1]):
       components.append(scalar_harmonic_3d(u_cart[:, :, :, :, comp_idx],
@@ -131,7 +131,7 @@ def eval_hypervis_harmonic(dynamics,
     hyperdiff_u = jnp.einsum("fijkc,fijcs->fijks", jnp.stack(components, axis=-1), h_grid["physical_to_cartesian"])
   elif "constant_hypervis" in diffusion_config.keys():
     nu_div_factor = diffusion_config["nu_div_factor"] if apply_nu else 1.0
-    hyperdiff_u = vector_harmonic_3d(dynamics["u"],
+    hyperdiff_u = vector_harmonic_3d(dynamics["horizontal_wind"],
                                      h_grid, physics_config, nu_div_factor)
   hyperdiff_d_mass = scalar_harmonic_3d(dynamics["d_mass"], h_grid, physics_config, apply_tensor=apply_tensor)
   if model not in hydrostatic_models:
@@ -213,8 +213,8 @@ def advance_sponge_layer(dynamics,
                                         h_grid, physics_config)
   hyperdiff_thermo *= nu_ramp
   hyperdiff_d_mass = scalar_harmonic_3d(dynamics["d_mass"][:, :, :, :n_sponge], h_grid, physics_config)
-  hyperdiff_d_mass *= 0.0 * nu_ramp
-  hyperdiff_u = vector_harmonic_3d(dynamics["u"][:, :, :, :n_sponge, :],
+  hyperdiff_d_mass *= nu_ramp
+  hyperdiff_u = vector_harmonic_3d(dynamics["horizontal_wind"][:, :, :, :n_sponge, :],
                                    h_grid, physics_config, 1.0)
   hyperdiff_u *= nu_ramp[:, :, :, :, np.newaxis]
   hyperdiff_state = wrap_dynamics(hyperdiff_u,
@@ -228,8 +228,8 @@ def advance_sponge_layer(dynamics,
                                      dims,
                                      model)
 
-  u_out = jnp.concatenate((dt * hyperdiff_state["u"] + dynamics["u"][:, :, :, :n_sponge, :],
-                           dynamics["u"][:, :, :, n_sponge:, :]),
+  u_out = jnp.concatenate((dt * hyperdiff_state["horizontal_wind"] + dynamics["horizontal_wind"][:, :, :, :n_sponge, :],
+                           dynamics["horizontal_wind"][:, :, :, n_sponge:, :]),
                           axis=-2)
   thermo_out = jnp.concatenate((dt * hyperdiff_state[thermo_var_name] + dynamics[thermo_var_name][:, :, :, :n_sponge],
                                 dynamics[thermo_var_name][:, :, :, n_sponge:]),
@@ -398,7 +398,7 @@ def eval_hypervis_terms(dynamics,
   else:
     thermo_var = dynamics["theta_v_d_mass"] / dynamics["d_mass"] - ref_state["theta_v"]
 
-  hypervis_state = wrap_dynamics(dynamics["u"],
+  hypervis_state = wrap_dynamics(dynamics["horizontal_wind"],
                                  thermo_var,
                                  d_mass_pert,
                                  model,
@@ -427,7 +427,7 @@ def eval_hypervis_terms(dynamics,
   else:
     thermo_tend = -hypervis_state[thermodynamic_variable_names[model]]
 
-  dynamics_tend = wrap_dynamics(-hypervis_state["u"],
+  dynamics_tend = wrap_dynamics(-hypervis_state["horizontal_wind"],
                                 thermo_tend,
                                 -hypervis_state["d_mass"],
                                 model,

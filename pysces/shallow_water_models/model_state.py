@@ -4,10 +4,10 @@ from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 
 
-def wrap_model_state(u,
-                     h_like,
-                     hs,
-                     h_name="h"):
+
+def wrap_model_state(horizontal_wind,
+                     h,
+                     hs):
   """
   [Description]
 
@@ -30,8 +30,8 @@ def wrap_model_state(u,
   KeyError
       when a key error
   """
-  return {"u": u,
-          h_name: h_like,
+  return {"horizontal_wind": horizontal_wind,
+          "h": h,
           "hs": hs}
 
 
@@ -66,13 +66,13 @@ def project_model_state(state,
   else:
     h_name = "h"
   if do_mpi_communication:
-    u, v, h = project_scalar_global([state["u"][:, :, :, 0], state["u"][:, :, :, 1], state[h_name][:, :, :]],
+    u, v, h = project_scalar_global([state["horizontal_wind"][:, :, :, 0], state["horizontal_wind"][:, :, :, 1], state["h"][:, :, :]],
                                     grid, dims, two_d=True)
   else:
-    u = project_scalar(state["u"][:, :, :, 0], grid, dims)
-    v = project_scalar(state["u"][:, :, :, 1], grid, dims)
-    h = project_scalar(state[h_name][:, :, :], grid, dims)
-  return wrap_model_state(jnp.stack((u, v), axis=-1), h, state["hs"], h_name=h_name)
+    u = project_scalar(state["horizontal_wind"][:, :, :, 0], grid, dims)
+    v = project_scalar(state["horizontal_wind"][:, :, :, 1], grid, dims)
+    h = project_scalar(state["h"][:, :, :], grid, dims)
+  return wrap_model_state(jnp.stack((u, v), axis=-1), h, state["hs"])
 
 
 @jit
@@ -85,13 +85,9 @@ def sum_avg_struct(struct_1, struct_2, coeff_1, coeff_2):
 @jit
 def extract_average(state_tendency):
   out = {}
-  if "half_h" in state_tendency.keys():
-    out["half_h"] = state_tendency["half_h"]
-    out["half_h_wind"] = state_tendency["half_h"][:, :, :, jnp.newaxis] * state_tendency["u"]
-  else:
-    out["h"] = state_tendency["h"]
-    out["h_wind"] = state_tendency["h"][:, :, :, jnp.newaxis] * state_tendency["u"]
-  out["u"] = state_tendency["u"]
+  out["h"] = state_tendency["h"]
+  out["h_wind"] = state_tendency["h"][:, :, :, jnp.newaxis] * state_tendency["horizontal_wind"]
+  out["horizontal_wind"] = state_tendency["horizontal_wind"]
 
   return out
 
@@ -121,40 +117,13 @@ def sum_state_series(states_in,
   KeyError
       when a key error
   """
-  if "half_h" in states_in[0].keys():
-    h_name = "half_h"
-  else:
-    h_name = "h"
-  state_res = wrap_model_state(states_in[0]["u"] * coeffs[0],
-                               states_in[0][h_name] * coeffs[0],
-                               states_in[0]["hs"],
-                               h_name=h_name)
+  state_res = wrap_model_state(states_in[0]["horizontal_wind"] * coeffs[0],
+                               states_in[0]["h"] * coeffs[0],
+                               states_in[0]["hs"])
   for state_idx in range(1, len(coeffs)):
     state = states_in[state_idx]
     coeff = coeffs[state_idx]
-    state_res = wrap_model_state(state_res["u"] + state["u"] * coeff,
-                                 state_res[h_name] + state[h_name] * coeff,
-                                 state_res["hs"],
-                                 h_name=h_name)
+    state_res = wrap_model_state(state_res["horizontal_wind"] + state["horizontal_wind"] * coeff,
+                                 state_res["h"] + state["h"] * coeff,
+                                 state_res["hs"])
   return state_res
-
-
-def calc_h(state):
-  if "half_h" in state.keys():
-    h = state["half_h"]**2
-  else:
-    h = state["h"]
-  return h
-
-
-def wrap_split_transport(state):
-  return wrap_model_state(state["u"],
-                          jnp.sqrt(state["h"]),
-                          state["hs"],
-                          h_name="half_h")
-
-
-def unwrap_split_transport(state):
-  return wrap_model_state(state["u"],
-                          state["half_h"]**2,
-                          state["hs"])

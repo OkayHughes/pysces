@@ -53,9 +53,9 @@ def test_sw_model():
   final_state = simulate_shallow_water(T, init_state, grid,
                                        physics_config, diffusion_config, timestep_config,
                                        dims, diffusion=False)
-  print(final_state["u"].dtype)
+  print(final_state["horizontal_wind"].dtype)
 
-  diff_u = u_init - final_state["u"]
+  diff_u = u_init - final_state["horizontal_wind"]
   diff_h = h_init - final_state["h"]
   assert (inner_product(diff_u[:, :, :, 0], diff_u[:, :, :, 0], grid) < 1e-5)
   assert (inner_product(diff_u[:, :, :, 1], diff_u[:, :, :, 1], grid) < 1e-5)
@@ -69,14 +69,14 @@ def test_sw_model():
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     plt.tricontourf(lon.flatten(),
                     lat.flatten(),
-                    device_unwrapper(final_state["u"][:, :, :, 0].flatten()))
+                    device_unwrapper(final_state["horizontal_wind"][:, :, :, 0].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "U_final_mpi.pdf"))
     plt.figure()
     plt.title("V at time {t}")
     plt.tricontourf(lon.flatten(),
                     lat.flatten(),
-                    device_unwrapper(final_state["u"][:, :, :, 1].flatten()))
+                    device_unwrapper(final_state["horizontal_wind"][:, :, :, 1].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "V_final_mpi.pdf"))
     plt.figure()
@@ -120,7 +120,7 @@ def test_galewsky():
   # mass_final = inner_product(final_state["h"], final_state["h"], grid)
 
   # assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
-  # assert (not jnp.any(jnp.isnan(final_state["u"])))
+  # assert (not jnp.any(jnp.isnan(final_state["horizontal_wind"])))
 
   if DEBUG:
     fig_dir = get_figdir()
@@ -128,17 +128,17 @@ def test_galewsky():
     lon = device_unwrapper(grid["physical_coords"][:, :, :, 1])
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     levels = np.arange(-10 + 1e-4, 101, 10)
-    vort = project_scalar(horizontal_vorticity(final_state["u"], grid, a=physics_config["radius_earth"]), grid, dims)
+    vort = project_scalar(horizontal_vorticity(final_state["horizontal_wind"], grid, a=physics_config["radius_earth"]), grid, dims)
     plt.figure()
     plt.title(f"U at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
-                    device_unwrapper(final_state["u"][:, :, :, 0].flatten()), levels=levels)
+                    device_unwrapper(final_state["horizontal_wind"][:, :, :, 0].flatten()), levels=levels)
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_U_final_mpi.pdf"))
     plt.figure()
     plt.title(f"V at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
-                    device_unwrapper(final_state["u"][:, :, :, 1].flatten()))
+                    device_unwrapper(final_state["horizontal_wind"][:, :, :, 1].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_V_final_mpi.pdf"))
     plt.figure()

@@ -25,7 +25,6 @@ if DEBUG:
 
 
 def test_sw_model():
-  return
   npt = 4
   nx = 15
   grid, dims = init_quasi_uniform_grid(nx, npt)
@@ -51,10 +50,10 @@ def test_sw_model():
   tracers_in = {"const": jnp.ones_like(grid["physical_coords"][:, :, :, 0])}
   final_state = simulate_shallow_water(T, init_state, grid,
                                        physics_config, diffusion_config, timestep_config,
-                                       dims, diffusion=False, split_transport=True, tracers_in=tracers_in)
+                                       dims, diffusion=False, tracers_in=tracers_in)
   dynamics = final_state["dynamics"]
   tracers = final_state["tracers"]
-  diff_u = u_init - dynamics["u"]
+  diff_u = u_init - dynamics["horizontal_wind"]
   diff_h = h_init - dynamics["h"]
   assert (inner_product(diff_u[:, :, :, 0], diff_u[:, :, :, 0], grid) < 1e-5)
   assert (inner_product(diff_u[:, :, :, 1], diff_u[:, :, :, 1], grid) < 1e-5)
@@ -68,14 +67,14 @@ def test_sw_model():
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     plt.tricontourf(lon.flatten(),
                     lat.flatten(),
-                    device_unwrapper(dynamics["u"][:, :, :, 0].flatten()))
+                    device_unwrapper(dynamics["horizontal_wind"][:, :, :, 0].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "U_final.pdf"))
     plt.figure()
     plt.title("V at time {t}")
     plt.tricontourf(lon.flatten(),
                     lat.flatten(),
-                    device_unwrapper(dynamics["u"][:, :, :, 1].flatten()))
+                    device_unwrapper(dynamics["horizontal_wind"][:, :, :, 1].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "V_final.pdf"))
     plt.figure()
@@ -85,13 +84,13 @@ def test_sw_model():
                     device_unwrapper(dynamics["h"].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "h_final.pdf"))
-    plt.figure()
-    plt.title("Q=1 at time {t}")
-    plt.tricontourf(lon.flatten(),
-                    lat.flatten(),
-                    device_unwrapper((tracers["const"]-tracers_in["const"]).flatten()))
-    plt.colorbar()
-    plt.savefig(join(fig_dir, "Q_const_final.pdf"))
+    # plt.figure()
+    # plt.title("Q=1 at time {t}")
+    # plt.tricontourf(lon.flatten(),
+    #                 lat.flatten(),
+    #                 device_unwrapper((tracers["const"]-tracers_in["const"]).flatten()))
+    # plt.colorbar()
+    # plt.savefig(join(fig_dir, "Q_const_final.pdf"))
 
 
 def test_galewsky():
@@ -122,7 +121,7 @@ def test_galewsky():
                                          diffusion_config, sphere=True)
   final_struct = simulate_shallow_water(T, init_state, grid,
                                        physics_config, diffusion_config, timestep_config,
-                                       dims, diffusion=True, split_transport=True, tracers_in=tracers_in)
+                                       dims, diffusion=True, tracers_in=tracers_in)
   final_state = final_struct["dynamics"]
   tracers = final_struct["tracers"]
 
@@ -130,7 +129,7 @@ def test_galewsky():
   # mass_final = inner_product(final_state["h"], final_state["h"], grid)
 
   # assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
-  # assert (not jnp.any(jnp.isnan(final_state["u"])))
+  # assert (not jnp.any(jnp.isnan(final_state["horizontal_wind"])))
 
   if DEBUG:
     fig_dir = get_figdir()
@@ -138,17 +137,17 @@ def test_galewsky():
     lon = device_unwrapper(grid["physical_coords"][:, :, :, 1])
     lat = device_unwrapper(grid["physical_coords"][:, :, :, 0])
     levels = np.arange(-10 + 1e-4, 101, 10)
-    vort = project_scalar(horizontal_vorticity(final_state["u"], grid, a=physics_config["radius_earth"]), grid, dims)
+    vort = project_scalar(horizontal_vorticity(final_state["horizontal_wind"], grid, a=physics_config["radius_earth"]), grid, dims)
     plt.figure()
     plt.title(f"U at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
-                    device_unwrapper(final_state["u"][:, :, :, 0].flatten()), levels=levels)
+                    device_unwrapper(final_state["horizontal_wind"][:, :, :, 0].flatten()), levels=levels)
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_U_final.pdf"))
     plt.figure()
     plt.title(f"V at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),
-                    device_unwrapper(final_state["u"][:, :, :, 1].flatten()))
+                    device_unwrapper(final_state["horizontal_wind"][:, :, :, 1].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_V_final.pdf"))
     plt.figure()
@@ -158,17 +157,17 @@ def test_galewsky():
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_h_final.pdf"))
     plt.figure()
-    plt.title(f"Q at time {T}s")
-    plt.tricontourf(lon.flatten(), lat.flatten(),
-                    device_unwrapper((tracers["const"]).flatten()))
-    plt.colorbar()
-    plt.savefig(join(fig_dir, "galewsky_q_final.pdf"))
-    plt.figure()
-    plt.title(f"Q_cos at time {T}s")
-    plt.tricontourf(lon.flatten(), lat.flatten(),
-                    device_unwrapper((tracers["cos"]).flatten()))
-    plt.colorbar()
-    plt.savefig(join(fig_dir, "galewsky_cos_final.pdf"))
+    # plt.title(f"Q at time {T}s")
+    # plt.tricontourf(lon.flatten(), lat.flatten(),
+    #                 device_unwrapper((tracers["const"]).flatten()))
+    # plt.colorbar()
+    # plt.savefig(join(fig_dir, "galewsky_q_final.pdf"))
+    # plt.figure()
+    # plt.title(f"Q_cos at time {T}s")
+    # plt.tricontourf(lon.flatten(), lat.flatten(),
+    #                 device_unwrapper((tracers["cos"]).flatten()))
+    # plt.colorbar()
+    # plt.savefig(join(fig_dir, "galewsky_cos_final.pdf"))
     plt.figure()
     plt.title(f"vorticity at time {T}s")
     plt.tricontourf(lon.flatten(), lat.flatten(),

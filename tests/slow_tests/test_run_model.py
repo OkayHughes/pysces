@@ -69,14 +69,14 @@ def test_theta_steady_state():
     plot_grid(h_grid, plt.gca())
     plt.tricontourf(get_global_array(h_grid["physical_coords"][:, :, :, 1], dims).flatten(),
                     get_global_array(h_grid["physical_coords"][:, :, :, 0], dims).flatten(),
-                    get_global_array(end_state["u"][:, :, :, 12, 1], dims).flatten())
+                    get_global_array(end_state["horizontal_wind"][:, :, :, 12, 1], dims).flatten())
     plt.colorbar()
     plot_grid(h_grid, plt.gca())
     plt.savefig(f"{figdir}/v_end_steady_{model}.pdf")
     plt.figure()
     plt.tricontourf(get_global_array(h_grid["physical_coords"][:, :, :, 1], dims).flatten(),
                     get_global_array(h_grid["physical_coords"][:, :, :, 0], dims).flatten(),
-                    get_global_array(end_state["u"][:, :, :, 12, 0], dims).flatten())
+                    get_global_array(end_state["horizontal_wind"][:, :, :, 12, 0], dims).flatten())
     plt.colorbar()
     plot_grid(h_grid, plt.gca())
     plt.savefig(f"{figdir}/u_end_steady_{model}.pdf")
@@ -138,14 +138,14 @@ def test_theta_baro_wave():
   plt.figure()
   plt.tricontourf(get_global_array(h_grid["physical_coords"][:, :, :, 1], dims).flatten(),
                   get_global_array(h_grid["physical_coords"][:, :, :, 0], dims).flatten(),
-                  get_global_array(end_state["u"][:, :, :, 12, 1], dims).flatten())
+                  get_global_array(end_state["horizontal_wind"][:, :, :, 12, 1], dims).flatten())
   plt.colorbar()
   plot_grid(h_grid, plt.gca())
   plt.savefig(f"{figdir}/v_end_bw_topo.pdf")
   plt.figure()
   plt.tricontourf(get_global_array(h_grid["physical_coords"][:, :, :, 1], dims).flatten(),
                   get_global_array(h_grid["physical_coords"][:, :, :, 0], dims).flatten(),
-                  get_global_array(end_state["u"][:, :, :, 12, 0], dims).flatten())
+                  get_global_array(end_state["horizontal_wind"][:, :, :, 12, 0], dims).flatten())
   plt.colorbar()
   plot_grid(h_grid, plt.gca())
   plt.savefig(f"{figdir}/u_end_bw_topo.pdf")
