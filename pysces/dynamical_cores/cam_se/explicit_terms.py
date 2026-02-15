@@ -10,7 +10,7 @@ from .thermodynamics import (eval_sum_species,
 from .thermodynamics import eval_Rgas_dry
 from .thermodynamics import eval_cp_dry
 from .thermodynamics import eval_virtual_temperature
-from ..model_state import wrap_dynamics, wrap_consistency_struct_dynamics
+from ..model_state import wrap_dynamics, wrap_tracer_consist_dynamics
 from enum import Enum
 from functools import partial
 
@@ -326,7 +326,7 @@ def eval_pressure_gradient_force_term(common_variables,
 
 @jit
 def eval_tracer_consistency_term(common_variables):
-   return common_variables["d_mass"][:, :, :, :, jnp.newaxis] * common_variables["u"]
+   return common_variables["d_mass"][:, :, :, :, jnp.newaxis] * common_variables["horizontal_wind"]
 
 
 @partial(jit, static_argnames=["model", "pgf_formulation"])
@@ -385,5 +385,5 @@ def eval_explicit_tendency(dynamics,
                            temperature_tend,
                            d_mass_tend,
                            model)
-  tracer_consistency = wrap_consistency_struct_dynamics(eval_tracer_consistency_term(common_variables))
+  tracer_consistency = wrap_tracer_consist_dynamics(eval_tracer_consistency_term(common_variables))
   return dynamics, tracer_consistency

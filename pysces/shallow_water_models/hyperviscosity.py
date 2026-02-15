@@ -77,7 +77,7 @@ def eval_hypervis_quasi_uniform(state_in,
                                                                     a=a,
                                                                     damp=True,
                                                                     nu_div_fact=diffusion_config["nu_div_factor"])
-  h_tmp = 0.0 * diffusion_config["nu_d_mass"] * horizontal_weak_laplacian(lap1["h"], grid, a=a)
+  h_tmp = diffusion_config["nu_d_mass"] * horizontal_weak_laplacian(lap1["h"], grid, a=a)
   return project_model_state(wrap_model_state(u_tmp, h_tmp, state_in["hs"]), grid, dims)
 
 

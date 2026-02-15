@@ -3,7 +3,7 @@ from ..operations_2d.operators import horizontal_weak_vector_laplacian, horizont
 from ..operations_2d.tensor_hyperviscosity import (eval_quasi_uniform_hypervisc_coeff,
                                                    eval_variable_resolution_hypervisc_coeff)
 from ..horizontal_grid import eval_global_grid_deformation_metrics
-from .model_state import wrap_dynamics, project_dynamics, wrap_consistency_struct_hypervis
+from .model_state import wrap_dynamics, project_dynamics, wrap_tracer_consist_hypervis
 from .utils_3d import interface_to_delta, interface_to_midlevel
 from .homme.thermodynamics import eval_balanced_geopotential
 from .mass_coordinate import surface_mass_to_interface_mass
@@ -433,8 +433,8 @@ def eval_hypervis_terms(dynamics,
                                 model,
                                 phi_i=phi_i,
                                 w_i=w_i)
-  tracer_consistency = wrap_consistency_struct_hypervis(1.0 * dynamics["d_mass"],
-                                                        hypervis_state["d_mass"] / diffusion_config["nu_d_mass"])
+  tracer_consistency = wrap_tracer_consist_hypervis(1.0 * dynamics["d_mass"],
+                                                    hypervis_state["d_mass"] / diffusion_config["nu_d_mass"])
   return dynamics_tend, tracer_consistency
 
 
