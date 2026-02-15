@@ -29,8 +29,8 @@ def clip_and_sum_limiter_for(tracer_like_tend_in, mass_matrix_in, tracer_min_in,
     if mass > tracer_max[k] * sumc:
       tracer_max[k] = mass / sumc
     addmass = 0.0
-
     modified = False
+    
     for k1 in range(npt * npt):
       if x[k1] > tracer_max[k]:
         modified = True
@@ -41,7 +41,8 @@ def clip_and_sum_limiter_for(tracer_like_tend_in, mass_matrix_in, tracer_min_in,
         addmass += (x[k1] - tracer_min[k]) * c[k1]
         x[k1] = tracer_min[k]
     if not modified:
-      continue
+     continue
+
     if np.abs(addmass) > 0.0:
       if addmass > 0.0:
         v = tracer_max[k] - x

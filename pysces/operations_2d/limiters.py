@@ -5,8 +5,8 @@ def clip_and_sum_limiter(tracer_mass_tend, mass_matrix, tracer_min, tracer_max, 
   # x -> tracer
   scaled_mass = mass_matrix[:, :, :, jnp.newaxis] * d_mass
   tracer = tracer_mass_tend / d_mass
-  sum_scaled_mass = jnp.max(scaled_mass, axis=(1, 2))
-  sum_scaled_tracer = jnp.max(tracer * scaled_mass, axis=(1, 2))
+  sum_scaled_mass = jnp.sum(scaled_mass, axis=(1, 2))
+  sum_scaled_tracer = jnp.sum(tracer * scaled_mass, axis=(1, 2))
   tracer_min = jnp.where(sum_scaled_tracer < tracer_min * sum_scaled_mass, sum_scaled_tracer / sum_scaled_mass, tracer_min)
   tracer_max = jnp.where(sum_scaled_tracer > tracer_max * sum_scaled_mass, sum_scaled_tracer / sum_scaled_mass, tracer_max)
   add_mass = jnp.zeros_like(tracer_mass_tend)
@@ -26,15 +26,15 @@ def clip_and_sum_limiter(tracer_mass_tend, mass_matrix, tracer_min, tracer_max, 
                      tracer)
   add_mass_per_lev = jnp.sum(add_mass, axis=(1, 2))
   modified = jnp.abs(add_mass_per_lev) > 0.0
-  tracer_adjustment = jnp.where(add_mass > 0.0,
+  add_mask = (add_mass_per_lev > 0.0)[:, jnp.newaxis, jnp.newaxis, :]
+  tracer_adjustment = jnp.where(add_mask,
                                 tracer_max[:, jnp.newaxis, jnp.newaxis, :] - tracer,
+                                tracer - tracer_min[:, jnp.newaxis, jnp.newaxis, :])
+  tracer_adjustment = jnp.where(modified[:, jnp.newaxis, jnp.newaxis, :],
+                                tracer_adjustment,
                                 jnp.zeros_like(tracer))
-  tracer_adjustment = jnp.where(add_mass < 0.0,
-                                tracer - tracer_min[:, jnp.newaxis, jnp.newaxis, :],
-                                tracer_adjustment)
   denominator = jnp.sum(tracer_adjustment * scaled_mass, axis=(1, 2))
   do_mass_adjustment = jnp.logical_and(modified, denominator > 0.0)
-  print(add_mass_per_lev[:, jnp.newaxis, jnp.newaxis, :].shape)
   tracer = jnp.where(do_mass_adjustment[:, jnp.newaxis, jnp.newaxis, :],
                      tracer + (add_mass_per_lev/denominator)[:, jnp.newaxis, jnp.newaxis, :] * tracer_adjustment,
                      tracer)

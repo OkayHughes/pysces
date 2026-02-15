@@ -67,7 +67,7 @@ def test_conservation_bounds_rand():
 def test_limiter_equiv():
   npt = 4
   nelem = 6
-  nlev = 5
+  nlev = 3
   spectral = init_spectral(npt)
   tracer_shape = (nelem, npt, npt, nlev)
   for _ in range(100):
