@@ -118,6 +118,7 @@ if wrapper_type == "jax" and use_wrapper:
   from jax.sharding import PartitionSpec, NamedSharding, AxisType
   elem_axis_name = "f"
   device_mesh = jax.make_mesh((num_jax_devices,), (elem_axis_name,), axis_types=(AxisType.Explicit,))
+  jax.set_mesh(device_mesh)
   usual_scalar_sharding = NamedSharding(device_mesh, PartitionSpec(elem_axis_name, None, None))
   extraction_sharding = NamedSharding(device_mesh, PartitionSpec(elem_axis_name, None))
   projection_sharding = NamedSharding(device_mesh, PartitionSpec(elem_axis_name, None, None, None))

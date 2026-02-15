@@ -6,8 +6,9 @@ from pysces.mesh_generation.equiangular_metric import init_grid_from_topo
 from pysces.mesh_generation.mesh import vert_red_flat_to_hierarchy
 from pysces.operations_2d.local_assembly import (project_scalar_wrapper,
                                                  project_scalar,
-                                                 init_shard_extraction_map)
-from ...context import test_npts
+                                                 init_shard_extraction_map,
+                                                 minmax_scalar)
+from ...context import test_npts, pretty_print_scalar
 
 
 def project_scalar_for(f,
@@ -221,6 +222,53 @@ def test_projection():
                   fn += add_one_point(fn, remote_face_id, remote_i, remote_j)
             cont_fn = project_scalar(fn, grid, dims)
             assert np.allclose(get_global_array(cont_fn, dims), get_global_array(fn, dims))
+
+def test_minmax():
+  for npt in test_npts:
+    for nx in [3, 4]:
+      face_connectivity, face_mask, face_position, face_position_2d = init_cube_topo(nx)
+      vert_redundancy = init_element_corner_vert_redundancy(nx, face_connectivity, face_position)
+      raw_grid, dims = init_grid_from_topo(face_connectivity,
+                                           face_mask,
+                                           face_position_2d,
+                                           vert_redundancy,
+                                           npt,
+                                           wrapped=use_wrapper)
+      grid = shard_grid(raw_grid, dims)
+      grid_nowrapper, _ = init_grid_from_topo(face_connectivity,
+                                              face_mask,
+                                              face_position_2d,
+                                              vert_redundancy,
+                                              npt,
+                                              wrapped=False)
+      def add_one_point(field, f, i, j):
+        axis_1 = jnp.eye(field.shape[0])[f, :].squeeze()
+        axis_2 = jnp.eye(field.shape[1])[i, :].squeeze()
+        axis_3 = jnp.eye(field.shape[2])[j, :].squeeze()
+        return (axis_1[:, jnp.newaxis, jnp.newaxis] *
+                axis_2[jnp.newaxis, :, jnp.newaxis] *
+                axis_3[jnp.newaxis, jnp.newaxis, :])
+      vert_redundancy_gll = vert_red_flat_to_hierarchy(grid_nowrapper["vertex_redundancy"])
+      for is_max, extremal_op in zip([True, False], [max, min]):
+        for face_idx in range(grid["physical_coords"].shape[0]):
+          for i_idx in range(npt):
+            for j_idx in range(npt):
+              fn = jnp.zeros_like(grid["physical_coords"][:, :, :, 0])
+              extremal_face_idx = face_idx
+              fn += add_one_point(fn, face_idx, i_idx, j_idx) * face_idx
+              if face_idx in vert_redundancy_gll.keys():
+                if (i_idx, j_idx) in vert_redundancy_gll[face_idx].keys():
+                  for remote_face_id, remote_i, remote_j in vert_redundancy_gll[face_idx][(i_idx, j_idx)]:
+                    extremal_face_idx = extremal_op(remote_face_id, extremal_face_idx)
+                    fn += add_one_point(fn, remote_face_id, remote_i, remote_j) * remote_face_id
+              fn_out = jnp.zeros_like(grid["physical_coords"][:, :, :, 0])
+              fn_out += add_one_point(fn, face_idx, i_idx, j_idx) * extremal_face_idx 
+              if face_idx in vert_redundancy_gll.keys():
+                if (i_idx, j_idx) in vert_redundancy_gll[face_idx].keys():
+                  for remote_face_id, remote_i, remote_j in vert_redundancy_gll[face_idx][(i_idx, j_idx)]:
+                    fn_out += add_one_point(fn, remote_face_id, remote_i, remote_j) * extremal_face_idx
+              max_fn = minmax_scalar(fn, grid, dims, max=is_max)
+              assert np.allclose(get_global_array(max_fn, dims), get_global_array(fn_out, dims))
 
 
 def test_projection_equiv():

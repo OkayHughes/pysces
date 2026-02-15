@@ -4,7 +4,8 @@ from scipy.sparse import coo_array
 from functools import partial
 if use_wrapper and wrapper_type == "jax":
   from ..config import num_jax_devices, projection_sharding, extraction_sharding, usual_scalar_sharding, do_sharding
-
+  from jax.sharding import explicit_axes, PartitionSpec
+  import jax
 
 def project_scalar_sparse(f,
                           grid,
@@ -71,9 +72,9 @@ def segment_sum(field,
   np.add.at(field, (segment_ids[0], segment_ids[1], segment_ids[2]), data)
 
 
-def segment_max(data,
-                segment_ids,
-                N):
+def segment_max(field,
+                data,
+                segment_ids):
   """
   A function that provides a numpy equivalent of the `segment_sum` function
   from Jax and TensorFlow.
@@ -93,10 +94,22 @@ def segment_max(data,
   s: Array[tuple[N], Float]
       arrays into which segments have been summed.
   """
+
   data = np.asarray(data)
-  s = np.copy(data)
-  np.max.at(s, segment_ids, data)
+  s = np.copy(field)
+  for r_idx in range(len(segment_ids[0])):
+    s[segment_ids[0][r_idx], segment_ids[1][r_idx], segment_ids[2][r_idx]] = max(s[segment_ids[0][r_idx], segment_ids[1][r_idx], segment_ids[2][r_idx]], data[r_idx])
   return s
+
+@jax.shard_map(in_specs=(PartitionSpec("f", None, None, None),
+                         PartitionSpec("f", None),
+                         PartitionSpec("f", None),
+                         PartitionSpec("f", None),
+                         PartitionSpec("f", None)),
+               out_specs=PartitionSpec("f", None, None, None))
+def do_sum_manual_sharding(scaled_f, elem_idx, i_idx, j_idx, relevant_data):
+  scaled_f = scaled_f.at[0, elem_idx, i_idx, j_idx].add(relevant_data)
+  return scaled_f
 
 
 @partial(jit, static_argnames=["dims"])
@@ -141,11 +154,11 @@ def project_scalar_wrapper(f,
                                     extraction_struct["extract_from"]["i_idx"],
                                     extraction_struct["extract_from"]["j_idx"]].get(out_sharding=extraction_sharding)
       relevant_data *= extraction_struct["mask"]
-      scaled_f = scaled_f.at[extraction_struct["sum_into"]["shard_idx"],
-                             extraction_struct["sum_into"]["elem_idx"],
-                             extraction_struct["sum_into"]["i_idx"],
-                             extraction_struct["sum_into"]["j_idx"]].add(relevant_data,
-                                                                         out_sharding=projection_sharding)
+      scaled_f = do_sum_manual_sharding(scaled_f,
+                                        extraction_struct["sum_into"]["elem_idx"],
+                                        extraction_struct["sum_into"]["i_idx"],
+                                        extraction_struct["sum_into"]["j_idx"],
+                                        relevant_data)
       scaled_f = scaled_f.reshape(shape, out_sharding=usual_scalar_sharding)
     else:
       relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get()
@@ -162,47 +175,76 @@ def project_scalar_wrapper(f,
   return scaled_f * grid["mass_matrix_denominator"]
 
 
-@partial(jit, static_argnames=["dims"])
-def max_scalar(f,
-               grid,
-               dims):
-  """
-  """
-  (_, rows, cols) = grid["assembly_triple"]
+@jax.shard_map(in_specs=(PartitionSpec("f", None, None, None),
+                         PartitionSpec("f", None),
+                         PartitionSpec("f", None),
+                         PartitionSpec("f", None),
+                         PartitionSpec("f", None)),
+               out_specs=PartitionSpec("f", None, None, None))
+def do_max_manual_sharding(scaled_f, elem_idx, i_idx, j_idx, relevant_data):
+  scaled_f = scaled_f.at[0, elem_idx, i_idx, j_idx].max(relevant_data)
+  return scaled_f
 
-  relevant_data = (f).flatten().take(cols)
-  if use_wrapper and wrapper_type == "jax":
-    scaled_f = scaled_f.flatten().at[rows].max(relevant_data)
-    scaled_f = scaled_f.reshape(dims["shape"])
-  elif use_wrapper and wrapper_type == "torch":
-    pass
-    # scaled_f = scaled_f.flatten()
-    # scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
-    # scaled_f = scaled_f.reshape(dims["shape"])
+@partial(jit, static_argnames=["dims", "max"])
+def minmax_scalar(f,
+                  grid,
+                  dims,
+                  max=True):
+  """
+  Project a potentially discontinuous scalar onto the continuous subspace using assembly triples,
+  assuming all data is processor-local.
+
+  Parameters
+  ----------
+  f : `Array[tuple[elem_idx, gll_idx, gll_idx], Float]`
+    Scalar field to project
+  grid : `SpectralElementGrid`
+    Spectral element grid struct that contains coordinate and metric data.
+  scaled: `bool`, default=True
+    Should f be scaled by the mass matrix before being summed?
+
+  Notes
+  -----
+  * When using weak operators (i.e. in hyperviscosity),
+  the resulting values are already scaled by the mass matrix.
+  * This routine is allowed to depend on wrapper_type.
+
+  Returns
+  -------
+  f_cont
+      The globally continous scalar closest in norm to f.
+  """
+  (data, rows, cols) = grid["assembly_triple"]
+  shape = f.shape
+  if max:
+    scaled_f = 1.0 * f
   else:
-    scaled_f = segment_max(relevant_data, rows, dims["N"]).reshape(dims["shape"])
-  return scaled_f 
-
-@partial(jit, static_argnames=["dims"])
-def min_scalar(f,
-               grid,
-               dims):
-  """
-  """
-  (_, rows, cols) = grid["assembly_triple"]
-
-  relevant_data = (-f).flatten().take(cols)
+    scaled_f = -1.0 * f
   if use_wrapper and wrapper_type == "jax":
-    scaled_f = scaled_f.flatten().at[rows].max(relevant_data)
-    scaled_f = scaled_f.reshape(dims["shape"])
-  elif use_wrapper and wrapper_type == "torch":
-    pass
-    # scaled_f = scaled_f.flatten()
-    # scaled_f = scaled_f.scatter_add_(0, rows, relevant_data)
-    # scaled_f = scaled_f.reshape(dims["shape"])
+    if do_sharding:
+      scaled_f = scaled_f.reshape((num_jax_devices, -1, dims["npt"], dims["npt"]), out_sharding=projection_sharding)
+      extraction_struct = grid["shard_extraction_map"]
+
+      relevant_data = (scaled_f).at[extraction_struct["extract_from"]["shard_idx"],
+                                    extraction_struct["extract_from"]["elem_idx"],
+                                    extraction_struct["extract_from"]["i_idx"],
+                                    extraction_struct["extract_from"]["j_idx"]].get(out_sharding=extraction_sharding)
+      relevant_data *= extraction_struct["mask"]
+      scaled_f = do_max_manual_sharding(scaled_f,
+                                        extraction_struct["sum_into"]["elem_idx"],
+                                        extraction_struct["sum_into"]["i_idx"],
+                                        extraction_struct["sum_into"]["j_idx"],
+                                        relevant_data)
+      scaled_f = scaled_f.reshape(shape, out_sharding=usual_scalar_sharding)
+    else:
+      relevant_data = (scaled_f).at[cols[0], cols[1], cols[2]].get()
+      scaled_f = scaled_f.at[rows[0], rows[1], rows[2]].max(relevant_data)
   else:
-    scaled_f = segment_max(relevant_data, rows, dims["N"]).reshape(dims["shape"])
-  return -scaled_f 
+    relevant_data = scaled_f[cols[0], cols[1], cols[2]]
+    scaled_f = segment_max(scaled_f, relevant_data, rows)
+  if not max:
+    scaled_f = -1.0 * scaled_f
+  return scaled_f
 
 project_scalar = project_scalar_wrapper
 

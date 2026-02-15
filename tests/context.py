@@ -46,3 +46,19 @@ def allclose_global(sharded_array_1, sharded_array_2, dims):
   from pysces.config import jnp, get_global_array
   return jnp.allclose(get_global_array(sharded_array_1, dims),
                       get_global_array(sharded_array_2, dims))
+
+
+def pretty_print_scalar(array, digits=5):
+  num_pad = 20
+  lines = ["=" * num_pad]
+  num_elem = array.shape[0]
+  npt = array.shape[1]
+  number_format = f":.{digits}e"
+  line_format = "[" + ", ".join(["{" + number_format + "}"] * npt) + "]"
+  for elem_idx in range(num_elem):
+    lines.append(f"Element {elem_idx}")
+    for i_idx in range(npt):
+      lines.append(line_format.format(*array[elem_idx, i_idx, :]))
+  lines.append("=" * num_pad)
+  print("\n".join(lines))
+

@@ -68,10 +68,8 @@ def full_limiter_for(tracer_like_tend_in, mass_matrix_in, tracer_min_in, tracer_
   nlev = tracer_like_tend.shape[2]
   x = np.zeros((npt * npt))
   c = np.zeros((npt * npt))
-  v = np.zeros((npt * npt))
 
   tracer_like_tend_out = np.copy(tracer_like_tend)
-  begin_sum = np.sum(mass_matrix[:, :, np.newaxis] * tracer_like_tend_out)
 
   for k in range(nlev):
 
@@ -94,9 +92,6 @@ def full_limiter_for(tracer_like_tend_in, mass_matrix_in, tracer_min_in, tracer_
 
     if mass > tracer_max[k] * sumc:
       tracer_max[k] = mass / sumc
-
-    #minpk = minp(k)
-    #maxpk = maxp(k)
 
     for iter in range(npt * npt - 1):
       addmass=0.0
