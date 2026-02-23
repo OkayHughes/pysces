@@ -1,10 +1,10 @@
 from ..config import jit, DEBUG, jnp
 from .explicit_terms import eval_explicit_terms
-from .model_state import project_model_state, sum_state_series, extract_average, sum_avg_struct
+from .model_state import project_model_state, sum_state_series, extract_average_dyn, extract_average_hypervis, sum_avg_struct
 from .hyperviscosity import eval_hypervis_quasi_uniform, eval_hypervis_variable_resolution
 from ..time_step import time_step_options, stability_info
 from ..operations_2d.operators import horizontal_divergence, horizontal_gradient
-from ..operations_2d.local_assembly import project_scalar
+from ..operations_2d.local_assembly import project_scalar, minmax_scalar
 from ..horizontal_grid import eval_cfl
 from frozendict import frozendict
 from functools import partial
@@ -15,8 +15,7 @@ def advance_step_euler(state_in,
                        grid,
                        physics_config,
                        timestep_config,
-                       dims,
-                       split_):
+                       dims):
   """
   [Description]
 
@@ -79,18 +78,18 @@ def advance_step_ssprk3(state0,
 
   tend = eval_explicit_terms(state0, grid, physics_config)
   tend_c0 = project_model_state(tend, grid, dims)
-  avg = extract_average(tend_c0)
+  avg = extract_average_dyn(tend_c0)
   state1 = sum_state_series([state0, tend_c0], [1.0, dt])
   tend = eval_explicit_terms(state1, grid, physics_config)
   tend_c0 = project_model_state(tend, grid, dims)
-  avg = sum_avg_struct(avg, extract_average(tend_c0), 1.0 / 6.0, 1.0 / 6.0)
+  avg = sum_avg_struct(avg, extract_average_dyn(tend_c0), 1.0 / 6.0, 1.0 / 6.0)
   state2 = sum_state_series([state0, state1, tend_c0],
                             [3.0 / 4.0,
                              1.0 / 4.0,
                              1.0 / 4.0 * dt])
   tend = eval_explicit_terms(state2, grid, physics_config)
   tend_c0 = project_model_state(tend, grid, dims)
-  avg = sum_avg_struct(avg, extract_average(tend_c0), 1.0, 2.0 / 3.0)
+  avg = sum_avg_struct(avg, extract_average_dyn(tend_c0), 1.0, 2.0 / 3.0)
   return sum_state_series([state0, state2, tend_c0],
                           [1.0 / 3.0,
                            2.0 / 3.0,
@@ -132,8 +131,13 @@ def advance_hypervis_euler(state_in,
       hvis_tend = eval_hypervis_variable_resolution(next_step, grid, physics_config, diffusion_config, dims)
     else:
       hvis_tend = eval_hypervis_quasi_uniform(next_step, grid, physics_config, diffusion_config, dims)
+    if k == 0:
+      avg = extract_average_hypervis(next_step, hvis_tend, diffusion_config)
+      avg = sum_avg_struct(avg, avg, 0.0, 1.0 / timestep_config["hypervis_subcycle"])
+    else:
+      avg = sum_avg_struct(avg, extract_average_hypervis(next_step, hvis_tend, diffusion_config), 1.0, 1.0 / timestep_config["hypervis_subcycle"])
     next_step = sum_state_series([next_step, hvis_tend], [1.0, -timestep_config["hyperviscosity"]["dt"]])
-  return next_step
+  return next_step, avg
 
 
 def init_timestep_config(dt_coupling,
@@ -188,37 +192,3 @@ def init_timestep_config(dt_coupling,
                     dt_coupling=dt_coupling,
                     dynamics_subcycle=dynamics_subcycle,
                     hypervis_subcycle=hypervisc_subcycle)
-
-
-@jit
-def calc_tracer_tend(tracer, h_wind, grid, physics_config):
-  return -horizontal_divergence(tracer[:, :, :, jnp.newaxis] * h_wind, grid, a=physics_config["radius_earth"])
-
-
-@partial(jit, static_argnames=["dims"])
-def tracer_euler_step(tracers, struct_in, average_struct, dt_advance, dt_back_state, physics_config, grid, dims):
-  h_wind = struct_in["horizontal_wind"] * struct_in["h"][:, :, :, jnp.newaxis] + dt_back_state * average_struct["h_wind"]
-
-  tracers_out = {}
-  for tracer_name in tracers.keys():
-    rhs = calc_tracer_tend(tracers[tracer_name], h_wind, grid, physics_config)
-    rhs = project_scalar(rhs, grid, dims)
-    tracers_out[tracer_name] = tracers[tracer_name] + dt_advance * rhs
-  return tracers_out
-
-
-@partial(jit, static_argnames=["dims", "timestep_config"])
-def advance_tracers_rk2(tracers_in, struct_in, average_struct, grid, physics_config, timestep_config, dims):
-  dt = timestep_config["tracer_advection"]["dt"]
-  num_rk_stages = 3
-  tracers = {}
-  for tracer_name in tracers_in.keys():
-    tracers[tracer_name] = tracers_in[tracer_name]
-  tracers_out = tracer_euler_step(tracers, struct_in, average_struct, dt / 2.0, 0.0, physics_config, grid, dims)
-  tracers_out = tracer_euler_step(tracers_out, struct_in, average_struct, dt / 2.0, dt / 2.0, physics_config, grid, dims)
-  tracers_out = tracer_euler_step(tracers_out, struct_in, average_struct, dt / 2.0, dt, physics_config, grid, dims)
-  for tracer_name in tracers.keys():
-    tracers[tracer_name] = (tracers[tracer_name] + (num_rk_stages - 1.0) * tracers_out[tracer_name]) / num_rk_stages
-  for tracer_name in tracers_out.keys():
-    tracers_out[tracer_name] = (tracers_out[tracer_name]) / (struct_in["h"] + dt * average_struct["h"])
-  return tracers_out

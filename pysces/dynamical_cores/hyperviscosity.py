@@ -329,7 +329,7 @@ def init_hypervis_config_tensor(h_grid,
                                 dims,
                                 config,
                                 nu_top=2.5e5,
-                                ad_hoc_scale=1.0,
+                                ad_hoc_scale=0.5,
                                 n_sponge=5,
                                 T_ref=288.0,
                                 T_ref_lapse=0.0065):

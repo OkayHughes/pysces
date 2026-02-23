@@ -9,16 +9,26 @@ from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 
 
+def diffusion_config_for_tracer_consist(diffusion_config,
+                                        d_mass_tracer=1.0e4):
+  diffusion_config["nu_d_mass"] = 0.0
+  diffusion_config["d_mass_tracer"] = jnp.array([d_mass_tracer])
+  return diffusion_config
+
+
 def init_hypervis_config_const(ne,
                                config,
                                nu_base=-1.0,
                                nu_d_mass=-1.0,
+                               nu_tracer=-1.0,
                                nu_div_factor=2.5):
   nu = eval_quasi_uniform_hypervisc_coeff(ne, config["radius_earth"]) if nu_base <= 0 else nu_base
   nu_d_mass = nu if nu_d_mass < 0 else nu_d_mass
+  nu_tracer = nu if nu_tracer < 0 else nu_tracer
   diffusion_config = {"constant_hypervis": 1.0,
                       "nu": device_wrapper(nu),
                       "nu_d_mass": device_wrapper(nu_d_mass),
+                      "nu_tracer": device_wrapper(nu_tracer),
                       "nu_div_factor": device_wrapper(nu_div_factor)}
   return diffusion_config
 
@@ -36,7 +46,8 @@ def init_hypervis_config_tensor(h_grid,
   nu = device_wrapper(ad_hoc_scale * nu_tens)
   diffusion_config = {"tensor_hypervis": 1.0,
                       "nu": nu,
-                      "nu_d_mass": nu}
+                      "nu_d_mass": nu,
+                      "nu_tracer": nu}
   return diffusion_config
 
 
@@ -112,7 +123,7 @@ def eval_hypervis_variable_resolution(state_in,
       state_biharm_cont.append(project_scalar(comp, grid, dims))
     state_biharm_cont.append(project_scalar(h_biharm, grid, dims))
 
-  h_biharm_cont = 0.0 * diffusion_config["nu_d_mass"] * state_biharm_cont[3]
+  h_biharm_cont = diffusion_config["nu_d_mass"] * state_biharm_cont[3]
   u_cart = jnp.stack(state_biharm_cont[:3], axis=-1)
   u_sph = jnp.einsum("fijc,fijcs->fijs", u_cart, grid["physical_to_cartesian"])
   u_sph = jnp.flip(diffusion_config["nu"] * u_sph, axis=-1)

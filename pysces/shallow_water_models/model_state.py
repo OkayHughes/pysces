@@ -4,7 +4,6 @@ from ..operations_2d.local_assembly import project_scalar
 from functools import partial
 
 
-
 def wrap_model_state(horizontal_wind,
                      h,
                      hs):
@@ -82,15 +81,24 @@ def sum_avg_struct(struct_1, struct_2, coeff_1, coeff_2):
     struct_out[field] = struct_1[field] * coeff_1 + struct_2[field] * coeff_2
   return struct_out
 
-@jit
-def extract_average(state_tendency):
-  out = {}
-  out["h"] = state_tendency["h"]
-  out["h_wind"] = state_tendency["h"][:, :, :, jnp.newaxis] * state_tendency["horizontal_wind"]
-  out["horizontal_wind"] = state_tendency["horizontal_wind"]
 
+@jit
+def extract_average_dyn(state_in, state_tendency):
+  out = {}
+  out["u_d_mass_avg"] = state_in["h"] * state_in["horizontal_wind"]
+  out["d_mass_tend_dyn"] = state_tendency["h"]
   return out
 
+@jit
+def extract_average_hypervis(state_in, state_tendency, diffusion_config):
+  out = {}
+  out["d_mass_hypervis_avg"] = state_in["h"]
+  if diffusion_config["nu_d_mass"] > 0.0:
+    nu = diffusion_config["nu_d_mass"]
+  else:
+    nu = 1.0
+  out["d_mass_hypervis_tend"] = state_tendency["h"] / nu
+  return out
 
 @jit
 def sum_state_series(states_in,

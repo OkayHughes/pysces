@@ -95,6 +95,9 @@ def segment_max(field,
       arrays into which segments have been summed.
   """
 
+  # This is really bad. Need more work to figure out how to make this 
+  # numpy-like.
+
   data = np.asarray(data)
   s = np.copy(field)
   for r_idx in range(len(segment_ids[0])):
