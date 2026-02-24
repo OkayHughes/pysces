@@ -178,6 +178,7 @@ if wrapper_type == "jax" and use_wrapper:
   def cast_type(arr,
                 dtype):
     return arr.astype(dtype)
+  shard_map = jax.shard_map
 
 elif wrapper_type == "torch" and use_wrapper:
   import torch as jnp
@@ -241,6 +242,9 @@ else:
     return x
 
   def jit(func, *_, **__):
+    return func
+
+  def shard_map(func, *_, **__):
     return func
 
   def versatile_assert(should_be_true):

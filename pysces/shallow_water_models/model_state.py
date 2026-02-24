@@ -83,10 +83,9 @@ def sum_avg_struct(struct_1, struct_2, coeff_1, coeff_2):
 
 
 @jit
-def extract_average_dyn(state_in, state_tendency):
+def extract_average_dyn(state_in):
   out = {}
-  out["u_d_mass_avg"] = state_in["h"] * state_in["horizontal_wind"]
-  out["d_mass_tend_dyn"] = state_tendency["h"]
+  out["u_d_mass_avg"] = state_in["h"][:, :, :, jnp.newaxis] * state_in["horizontal_wind"]
   return out
 
 @jit

@@ -1,4 +1,4 @@
-from ..config import np, jnp, use_wrapper, jit, wrapper_type, DEBUG, device_wrapper
+from ..config import np, jnp, use_wrapper, jit, wrapper_type, DEBUG, device_wrapper, shard_map
 from ..mpi.processor_decomposition import global_to_local, elem_idx_global_to_proc_idx
 from scipy.sparse import coo_array
 from functools import partial
@@ -6,7 +6,15 @@ if use_wrapper and wrapper_type == "jax":
   from ..config import num_jax_devices, projection_sharding, extraction_sharding, usual_scalar_sharding, do_sharding
   from jax.sharding import explicit_axes, PartitionSpec
   import jax
-
+  shard_map_extract = partial(jax.shard_map,
+                              in_specs=(PartitionSpec("f", None, None, None),
+                                        PartitionSpec("f", None),
+                                        PartitionSpec("f", None),
+                                        PartitionSpec("f", None),
+                                        PartitionSpec("f", None)),
+                              out_specs=PartitionSpec("f", None, None, None))
+else:
+  shard_map_extract = shard_map
 def project_scalar_sparse(f,
                           grid,
                           matrix,
@@ -104,12 +112,7 @@ def segment_max(field,
     s[segment_ids[0][r_idx], segment_ids[1][r_idx], segment_ids[2][r_idx]] = max(s[segment_ids[0][r_idx], segment_ids[1][r_idx], segment_ids[2][r_idx]], data[r_idx])
   return s
 
-@jax.shard_map(in_specs=(PartitionSpec("f", None, None, None),
-                         PartitionSpec("f", None),
-                         PartitionSpec("f", None),
-                         PartitionSpec("f", None),
-                         PartitionSpec("f", None)),
-               out_specs=PartitionSpec("f", None, None, None))
+@shard_map_extract
 def do_sum_manual_sharding(scaled_f, elem_idx, i_idx, j_idx, relevant_data):
   scaled_f = scaled_f.at[0, elem_idx, i_idx, j_idx].add(relevant_data)
   return scaled_f
@@ -178,12 +181,7 @@ def project_scalar_wrapper(f,
   return scaled_f * grid["mass_matrix_denominator"]
 
 
-@jax.shard_map(in_specs=(PartitionSpec("f", None, None, None),
-                         PartitionSpec("f", None),
-                         PartitionSpec("f", None),
-                         PartitionSpec("f", None),
-                         PartitionSpec("f", None)),
-               out_specs=PartitionSpec("f", None, None, None))
+@shard_map_extract
 def do_max_manual_sharding(scaled_f, elem_idx, i_idx, j_idx, relevant_data):
   scaled_f = scaled_f.at[0, elem_idx, i_idx, j_idx].max(relevant_data)
   return scaled_f

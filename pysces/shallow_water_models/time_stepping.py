@@ -148,7 +148,7 @@ def init_timestep_config(dt_coupling,
                          hypervis_tstep_type=time_step_options.Euler,
                          dynamics_tstep_type=time_step_options.SSPRK3,
                          dyn_steps_per_coupling=-1,
-                         hypervis_steps_per_dyn=-1,
+                         hypervis_steps_per_dyn=3,
                          sphere=True):
   cfl_info, _ = eval_cfl(h_grid, physics_config["radius_earth"], diffusion_config, dims, sphere=sphere)
   hypervisc_S = stability_info[hypervis_tstep_type]

@@ -10,7 +10,7 @@ from functools import partial
 
 
 def diffusion_config_for_tracer_consist(diffusion_config,
-                                        d_mass_tracer=1.0e4):
+                                        d_mass_tracer=1.0e3):
   diffusion_config["nu_d_mass"] = 0.0
   diffusion_config["d_mass_tracer"] = jnp.array([d_mass_tracer])
   return diffusion_config

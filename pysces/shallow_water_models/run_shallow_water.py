@@ -1,5 +1,6 @@
 from ..config import jnp, versatile_assert, is_main_proc
-from .time_stepping import advance_step_euler, advance_step_ssprk3, advance_hypervis_euler, advance_tracers_rk2
+from .time_stepping import advance_step_euler, advance_step_ssprk3, advance_hypervis_euler
+from .tracer_advection import advance_tracers_shallow_water
 from ..time_step import time_step_options
 from sys import stdout
 
@@ -47,17 +48,29 @@ def simulate_shallow_water(end_time,
       stdout.flush()
     for dyn_subcycle_idx in range(timestep_config["dynamics_subcycle"]):
       step_type = timestep_config["dynamics"]["step_type"]
+      tracer_init_struct = {"d_mass_init": state_n["h"]}
       if step_type == time_step_options.SSPRK3:
-        state_tmp, avg_struct = advance_step_ssprk3(state_n, grid, physics_config, timestep_config, dims)
+        state_tmp, tracer_consist_dyn = advance_step_ssprk3(state_n, grid, physics_config, timestep_config, dims)
       elif step_type == time_step_options.Euler:
-        state_tmp, avg_struct = advance_step_euler(state_n, grid, physics_config, timestep_config, dims)
-      if tracers_in is not None:
-        tracers_n = advance_tracers_rk2(tracers_n, state_n, avg_struct, grid, physics_config, timestep_config, dims)
-
+        state_tmp, tracer_consist_dyn = advance_step_euler(state_n, grid, physics_config, timestep_config, dims)
       if diffusion:
-        state_np1 = advance_hypervis_euler(state_tmp, grid, physics_config, diffusion_config, timestep_config, dims)
+        state_np1, tracer_consist_hypervis = advance_hypervis_euler(state_tmp, grid, physics_config, diffusion_config, timestep_config, dims)
       else:
         state_np1 = state_tmp
+        tracer_consist_hypervis = None
+      tracer_init_struct["d_mass_end"] = state_n["h"]
+      if tracers_in is not None:
+        tracers_n = advance_tracers_shallow_water(tracers_n,
+                                                  tracer_consist_dyn,
+                                                  tracer_init_struct,
+                                                  grid,
+                                                  dims,
+                                                  physics_config,
+                                                  diffusion_config,
+                                                  timestep_config,
+                                                  tracer_consist_hypervis=tracer_consist_hypervis)
+
+
       state_n, state_np1 = state_np1, state_n
 
       versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["horizontal_wind"]))))
