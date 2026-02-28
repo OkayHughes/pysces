@@ -1,6 +1,6 @@
 from ..config import jnp, versatile_assert, is_main_proc
 from .time_stepping import advance_step_euler, advance_step_ssprk3, advance_hypervis_euler
-from .tracer_advection import advance_tracers_shallow_water
+from .tracers import advance_tracers_shallow_water
 from ..time_step import time_step_options
 from sys import stdout
 

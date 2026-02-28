@@ -1,6 +1,5 @@
 from ..config import jnp, jit, vmap_1d_apply
 from ..operations_2d.local_assembly import minmax_scalar, project_scalar
-from ..operations_2d.operators import horizontal_divergence
 from ..dynamical_cores.operators_3d import horizontal_divergence_3d
 from ..dynamical_cores.hyperviscosity import scalar_harmonic_3d
 from ..operations_2d.limiters import full_limiter
@@ -8,7 +7,7 @@ from ..operations_2d.limiters import full_limiter
 from functools import partial
 
 
-@jit
+@partial(jit, static_argnames=["dims", "max"])
 def minmax_scalar_3d(scalar,
                      h_grid,
                      dims,
@@ -39,7 +38,7 @@ def minmax_scalar_3d(scalar,
   return vmap_1d_apply(sph_op, scalar, -1, -1)
 
 
-@jit
+@partial(jit, static_argnames=["dims"])
 def project_tracer_3d(scalar,
                       h_grid,
                       dims):
@@ -69,62 +68,7 @@ def project_tracer_3d(scalar,
   return vmap_1d_apply(sph_op, scalar, -1, -1)
 
 
-@jit
-def stack_tracers_shallow_water(tracer_like):
-  tracer_names = []
-  tracer_mass_flat = []
-  for tracer_name in tracer_like.keys():
-    tracer_names.append(tracer_name)
-    tracer_mass_flat.append(tracer_like[tracer_name])
-  return jnp.stack(tracer_mass_flat, axis=0)[:, :, :, :, jnp.newaxis], tracer_names
-
-
-@jit
-def unstack_tracers_shallow_water(tracer_like, tracer_names):
-  tracers = {}
-  for tracer_idx, tracer_name in enumerate(tracer_names):
-    tracers[tracer_name] = tracer_like[tracer_idx, :, :, :, 0]
-  return tracers
-
-
-@jit
-def advance_tracers_shallow_water(tracers,
-                                  tracer_consist_dyn,
-                                  tracer_init_struct,
-                                  grid,
-                                  dims,
-                                  physics_config,
-                                  diffusion_config,
-                                  timestep_config,
-                                  tracer_consist_hypervis=None):
-  d_mass_init = tracer_init_struct["d_mass_init"]
-  d_mass_end = tracer_init_struct["d_mass_end"]
-  u_d_mass_avg = tracer_consist_dyn["u_d_mass_avg"]
-  d_mass_dyn_tend = -horizontal_divergence(u_d_mass_avg, grid, a=physics_config["radius_earth"])
-  if tracer_consist_hypervis is not None:
-    d_mass_hypervis_tend = tracer_consist_hypervis["d_mass_hypervis_tend"][:, :, :, jnp.newaxis]
-    d_mass_hypervis_avg = tracer_consist_hypervis["d_mass_hypervis_avg"][:, :, :, jnp.newaxis]
-  else:
-    d_mass_hypervis_tend = None
-    d_mass_hypervis_avg = None
-  stacked_tracers, tracer_names = stack_tracers_shallow_water(tracers)
-  stacked_tracer_mass = stacked_tracers * d_mass_init[jnp.newaxis, :, :, :, jnp.newaxis]
-  stacked_tracer_mass_out = advance_tracers_rk2(stacked_tracer_mass,
-                                                d_mass_init[:, :, :, jnp.newaxis],
-                                                u_d_mass_avg[:, :, :, jnp.newaxis, :],
-                                                d_mass_dyn_tend[:, :, :, jnp.newaxis],
-                                                grid,
-                                                physics_config,
-                                                diffusion_config,
-                                                timestep_config,
-                                                dims,
-                                                d_mass_hypervis_tend=d_mass_hypervis_tend,
-                                                d_mass_hypervis_avg=d_mass_hypervis_avg)
-  stacked_tracer_out = stacked_tracer_mass_out / d_mass_end[jnp.newaxis, :, :, :, jnp.newaxis]
-  return unstack_tracers_shallow_water(stacked_tracer_out, tracer_names)
-
-
-@jit
+@partial(jit, static_argnames=["dims"])
 def calc_minmax(tracers, grid, dims):
   minvals = jnp.min(tracers, axis=(2, 3))
   maxvals = jnp.min(tracers, axis=(2, 3))
@@ -164,7 +108,7 @@ def tracer_euler_step(tracer_mass_stacked,
     # Note: this is not communication efficient.
   return jnp.stack(tracer_mass_out, axis=0)
 
-@jit
+@partial(jit, static_argnames=["dims"])
 def calc_hypervis_tend_tracer(tracer_mass, d_mass_scale, grid, dims, dt, physics_config, diffusion_config):
   tracer_mass_tend = []
   for tracer_idx in range(tracer_mass.shape[0]):

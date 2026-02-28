@@ -94,7 +94,7 @@ def advance_tracers(tracer_states,
 
 
 @jit
-def wrap_tracer_consist_dynamics(u_d_mass_tendency):
+def wrap_tracer_consist_dynamics(u_d_mass):
   """
   [Description]
 
@@ -117,16 +117,12 @@ def wrap_tracer_consist_dynamics(u_d_mass_tendency):
   KeyError
       when a key error
   """
-  return {"u_d_mass_tendency": u_d_mass_tendency}
+  return {"u_d_mass_avg": u_d_mass}
 
-
-@jit
-def wrap_tracer_consist_begin(d_mass):
-  return {"begin_tracer_d_mass": d_mass}
 
 @jit
 def wrap_tracer_consist_hypervis(d_mass_val,
-                                     d_mass_tend):
+                                 d_mass_tend):
   """
   [Description]
 
@@ -159,6 +155,45 @@ def sum_consistency_struct(struct_1, struct_2, coeff_1, coeff_2):
   for field in struct_1.keys():
     res[field] = struct_1[field] * coeff_1 + struct_2[field] * coeff_2
   return res
+
+
+@partial(jit, static_argnames=["num_lev", "model"])
+def remap_tracers(tracers,
+                   static_forcing,
+                   v_grid,
+                   physics_config,
+                   num_lev,
+                   model):
+  tracers = []
+  if model in cam_se_models:
+    dry_air_species = {}
+    for species_name in tracers["dry_air_species"].keys():
+      dry_air_species[species_name] = jnp.copy(tracers["dry_air_species"][species_name])
+  else:
+    dry_air_species = None
+  moisture_species = {}
+  for species_name in tracers["moisture_species"].keys():
+    moisture_species[species_name] = jnp.copy(tracers["moisture_species"][species_name])
+  tracers_new = {}
+  for species_name in tracers["tracers"].keys():
+    tracers_new[species_name] = jnp.copy(tracers["tracers"][species_name])
+  
+  if model in cam_se_models:
+    dry_air_species = {}
+    for species_name in tracers["dry_air_species"].keys():
+      dry_air_species[species_name] = jnp.copy(tracers["dry_air_species"][species_name])
+  else:
+    dry_air_species = None
+  moisture_species = {}
+  for species_name in tracers["moisture_species"].keys():
+    moisture_species[species_name] = jnp.copy(tracers["moisture_species"][species_name])
+  tracers_new = {}
+  for species_name in tracers["tracers"].keys():
+    tracers_new[species_name] = jnp.copy(tracers["tracers"][species_name])
+  return wrap_tracers(moisture_species,
+                      tracers_new,
+                      model,
+                      dry_air_species=dry_air_species)
 
 
 @partial(jit, static_argnames=["model"])
@@ -286,6 +321,7 @@ def wrap_tracers(moisture_species,
   else:
     tracer_struct["dry_mixing_ratio"] = 1.0
   return tracer_struct
+
 
 @partial(jit, static_argnames=["model"])
 def wrap_tracer_mass(moisture_species_mass,

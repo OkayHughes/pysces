@@ -88,16 +88,15 @@ def extract_average_dyn(state_in):
   out["u_d_mass_avg"] = state_in["h"][:, :, :, jnp.newaxis] * state_in["horizontal_wind"]
   return out
 
+
 @jit
 def extract_average_hypervis(state_in, state_tendency, diffusion_config):
   out = {}
   out["d_mass_hypervis_avg"] = state_in["h"]
-  if diffusion_config["nu_d_mass"] > 0.0:
-    nu = diffusion_config["nu_d_mass"]
-  else:
-    nu = 1.0
+  nu = jnp.where(diffusion_config["nu_d_mass"] > 0.0, diffusion_config["nu_d_mass"], 1.0)
   out["d_mass_hypervis_tend"] = state_tendency["h"] / nu
   return out
+
 
 @jit
 def sum_state_series(states_in,

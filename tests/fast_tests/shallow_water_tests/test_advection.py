@@ -36,7 +36,7 @@ def test_sw_model():
   print(u_init.dtype)
   init_state = wrap_model_state(u_init, h_init, hs_init)
   tracers_in = {"constant": jnp.ones_like(grid["metric_determinant"]),
-                "cos_sq_lon": jnp.cos(grid["physical_coords"][:, :, :, 1])**2 * jnp.cos(grid["physical_coords"][:, :, :, 0])}
+                "cos_sq_lon": jnp.sin(grid["physical_coords"][:, :, :, 1])**2 * jnp.cos(grid["physical_coords"][:, :, :, 0])}
   T = 6000.0
   dt = 600
   diffusion_config = init_hypervis_config_const(nx, physics_config, nu_div_factor=1.0)
@@ -57,50 +57,114 @@ def test_sw_model():
   plt.tricontourf(grid["physical_coords"][:, :, :, 1].flatten(),
                   grid["physical_coords"][:, :, :, 0].flatten(),
                   final_state["tracers"]["constant"].flatten())
+  plt.colorbar()
   plt.savefig(f"{get_figdir()}/constant_tracer.pdf")
   plt.figure()
   plt.tricontourf(grid["physical_coords"][:, :, :, 1].flatten(),
                   grid["physical_coords"][:, :, :, 0].flatten(),
                   final_state["tracers"]["cos_sq_lon"].flatten())
+  plt.colorbar()
   plt.savefig(f"{get_figdir()}/cossq_lon_tracer.pdf")
  
   #assert (inner_product(diff_u[:, :, :, 0], diff_u[:, :, :, 0], grid) < 1e-5)
   #assert (inner_product(diff_u[:, :, :, 1], diff_u[:, :, :, 1], grid) < 1e-5)
   #assert (inner_product(diff_h, diff_h, grid) / jnp.max(h_init) < 1e-5)
 
+def test_sw_model_diff():
+  npt = 4
+  nx = 15
+  grid, dims = init_quasi_uniform_grid(nx, npt)
+  physics_config = init_physics_config_shallow_water(alpha=jnp.pi / 4)
+  test_config = init_williamson_steady_config(physics_config)
+  u_init = device_wrapper(eval_williamson_tc2_u(grid["physical_coords"][:, :, :, 0],
+                                                grid["physical_coords"][:, :, :, 1],
+                                                test_config))
+  h_init = device_wrapper(eval_williamson_tc2_h(grid["physical_coords"][:, :, :, 0],
+                                                grid["physical_coords"][:, :, :, 1],
+                                                test_config))
+  hs_init = device_wrapper(eval_williamson_tc2_hs(grid["physical_coords"][:, :, :, 0],
+                                                  grid["physical_coords"][:, :, :, 1],
+                                                  test_config))
+  print(u_init.dtype)
+  init_state = wrap_model_state(u_init, h_init, hs_init)
+  tracers_in = {"constant": jnp.ones_like(grid["metric_determinant"]),
+                "cos_sq_lon": jnp.sin(grid["physical_coords"][:, :, :, 1])**2 * jnp.cos(grid["physical_coords"][:, :, :, 0])}
+  T = 6000.0
+  dt = 600
+  diffusion_config = init_hypervis_config_const(nx, physics_config, nu_div_factor=1.0)
+  #diffusion_config = diffusion_config_for_tracer_consist(diffusion_config)
+  #diffusion_config["nu_tracer"] = 0.0
+  timestep_config = init_timestep_config(dt, grid, dims, physics_config,
+                                         diffusion_config, sphere=True)
+  final_state = simulate_shallow_water(T, init_state, grid,
+                                       physics_config, diffusion_config, timestep_config,
+                                       dims, diffusion=True, tracers_in=tracers_in)
 
-# def test_galewsky():
-#   npt = 4
-#   nx = 31
-#   grid, dims = init_stretched_grid_elem_local(nx, npt, axis_dilation=jnp.array([1.0, 1.5, 1.0]))
+  diff_u = u_init - final_state["dynamics"]["horizontal_wind"]
+  diff_h = h_init - final_state["dynamics"]["h"]
+  print(jnp.max(final_state["tracers"]["constant"]))
+  print(jnp.min(final_state["tracers"]["constant"]))
+  import matplotlib.pyplot as plt
+  plt.figure()
+  plt.tricontourf(grid["physical_coords"][:, :, :, 1].flatten(),
+                  grid["physical_coords"][:, :, :, 0].flatten(),
+                  final_state["tracers"]["constant"].flatten())
+  plt.colorbar()
+  plt.savefig(f"{get_figdir()}/constant_tracer_hvis.pdf")
+  plt.figure()
+  plt.tricontourf(grid["physical_coords"][:, :, :, 1].flatten(),
+                  grid["physical_coords"][:, :, :, 0].flatten(),
+                  final_state["tracers"]["cos_sq_lon"].flatten())
+  plt.colorbar()
+  plt.savefig(f"{get_figdir()}/cossq_lon_tracer_hvis.pdf")
 
-#   physics_config = init_physics_config_shallow_water()
-#   test_config = init_galewsky_config(physics_config)
 
-#   dt = 300
-#   T = (24 * 3600)
-#   diffusion_config_const = init_hypervis_config_const(nx, physics_config, nu_div_factor=1.0)
-#   diffusion_config_tensor = init_hypervis_config_tensor(grid, dims, physics_config)
-#   for diffusion_config in [diffusion_config_const, diffusion_config_tensor]:
-#     u_init = device_wrapper(eval_galewsky_wind(grid["physical_coords"][:, :, :, 0],
-#                                                grid["physical_coords"][:, :, :, 1],
-#                                                test_config))
-#     h_init = device_wrapper(eval_galewsky_h(grid["physical_coords"][:, :, :, 0],
-#                                             grid["physical_coords"][:, :, :, 1],
-#                                             test_config))
-#     hs_init = device_wrapper(eval_galewsky_hs(grid["physical_coords"][:, :, :, 0],
-#                                               grid["physical_coords"][:, :, :, 1],
-#                                               test_config))
-#     diffusion_config["nu_d_mass"] = 1e-8
-#     init_state = wrap_model_state(u_init, h_init, hs_init)
+def test_galewsky():
+  npt = 4
+  nx = 31
+  grid, dims = init_stretched_grid_elem_local(nx, npt, axis_dilation=jnp.array([1.0, 1.5, 1.0]))
 
-#     timestep_config = init_timestep_config(dt, grid, dims, physics_config,
-#                                            diffusion_config, sphere=True)
-#     final_state = simulate_shallow_water(T, init_state, grid,
-#                                          physics_config, diffusion_config, timestep_config,
-#                                          dims, diffusion=True)
-#     mass_init = inner_product(h_init, h_init, grid)
-#     mass_final = inner_product(final_state["h"], final_state["h"], grid)
+  physics_config = init_physics_config_shallow_water()
+  test_config = init_galewsky_config(physics_config)
 
-#     assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
-#     assert (not jnp.any(jnp.isnan(final_state["horizontal_wind"])))
+  dt = 300
+  T = (24 * 3600) * 2
+  diffusion_config_const = init_hypervis_config_const(nx, physics_config, nu_div_factor=1.0)
+  diffusion_config_tensor = init_hypervis_config_tensor(grid, dims, physics_config)
+  for diffusion_config in [diffusion_config_const, diffusion_config_tensor]:
+    u_init = device_wrapper(eval_galewsky_wind(grid["physical_coords"][:, :, :, 0],
+                                               grid["physical_coords"][:, :, :, 1],
+                                               test_config))
+    h_init = device_wrapper(eval_galewsky_h(grid["physical_coords"][:, :, :, 0],
+                                            grid["physical_coords"][:, :, :, 1],
+                                            test_config))
+    hs_init = device_wrapper(eval_galewsky_hs(grid["physical_coords"][:, :, :, 0],
+                                              grid["physical_coords"][:, :, :, 1],
+                                              test_config))
+    tracers_in = {"constant": jnp.ones_like(grid["metric_determinant"]),
+                  "cos_sq_lon": jnp.sin(grid["physical_coords"][:, :, :, 1])**2 * jnp.cos(grid["physical_coords"][:, :, :, 0])}
+    #diffusion_config["nu_d_mass"] = 1e-8
+    init_state = wrap_model_state(u_init, h_init, hs_init)
+
+    timestep_config = init_timestep_config(dt, grid, dims, physics_config,
+                                           diffusion_config, sphere=True)
+    final_state = simulate_shallow_water(T, init_state, grid,
+                                         physics_config, diffusion_config, timestep_config,
+                                         dims, diffusion=True, tracers_in=tracers_in)
+    mass_init = inner_product(h_init, h_init, grid)
+    mass_final = inner_product(final_state["dynamics"]["h"], final_state["dynamics"]["h"], grid)
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.tricontourf(grid["physical_coords"][:, :, :, 1].flatten(),
+                    grid["physical_coords"][:, :, :, 0].flatten(),
+                    final_state["tracers"]["constant"].flatten())
+    plt.colorbar()
+    plt.savefig(f"{get_figdir()}/constant_tracer_hvis.pdf")
+    plt.figure()
+    plt.tricontourf(grid["physical_coords"][:, :, :, 1].flatten(),
+                    grid["physical_coords"][:, :, :, 0].flatten(),
+                    final_state["tracers"]["cos_sq_lon"].flatten())
+    plt.colorbar()
+    plt.savefig(f"{get_figdir()}/cossq_lon_tracer_hvis.pdf")
+    # assert (jnp.abs(mass_init - mass_final) / mass_final < 1e-6)
+    # assert (not jnp.any(jnp.isnan(final_state["horizontal_wind"])))

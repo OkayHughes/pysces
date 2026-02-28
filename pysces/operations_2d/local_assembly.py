@@ -15,6 +15,8 @@ if use_wrapper and wrapper_type == "jax":
                               out_specs=PartitionSpec("f", None, None, None))
 else:
   shard_map_extract = shard_map
+
+
 def project_scalar_sparse(f,
                           grid,
                           matrix,
